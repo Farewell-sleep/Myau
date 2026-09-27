@@ -10,7 +10,6 @@ import myau.events.TickEvent;
 import myau.mixin.IAccessorGuiChat;
 import myau.module.Module;
 import myau.util.ColorUtil;
-import myau.util.ModernFont;
 import myau.util.RenderUtil;
 import myau.property.properties.*;
 import net.minecraft.client.Minecraft;
@@ -46,7 +45,6 @@ public class HUD extends Module {
     public final PercentProperty background = new PercentProperty("background", 25);
     public final BooleanProperty showBar = new BooleanProperty("bar", true);
     public final BooleanProperty shadow = new BooleanProperty("shadow", true);
-    public final BooleanProperty modern = new BooleanProperty("modern", false);
     public final BooleanProperty suffixes = new BooleanProperty("suffixes", true);
     public final BooleanProperty lowerCase = new BooleanProperty("lower-case", false);
     public final BooleanProperty chatOutline = new BooleanProperty("chat-outline", true);
@@ -184,9 +182,6 @@ public class HUD extends Module {
             GlStateManager.pushMatrix();
             GlStateManager.scale(this.scale.getValue(), this.scale.getValue(), 0.0F);
             long l = System.currentTimeMillis();
-            if (this.modern.getValue()) {
-                this.drawModernRows(x, y, l);
-            } else {
             long offset = 0L;
             for (Module module : this.activeModules) {
                 String moduleName = this.getModuleName(module);
@@ -271,7 +266,6 @@ public class HUD extends Module {
                 y += (height + (this.shadow.getValue() ? 1.0F : 0.0F)) * this.scale.getValue() * (this.posY.getValue() == 0 ? 1.0F : -1.0F);
                 offset++;
             }
-            }
             if (this.blinkTimer.getValue()) {
                 BlinkModules blinkingModule = OpenMyau.blinkManager.getBlinkingModule();
                 if (blinkingModule != BlinkModules.NONE && blinkingModule != BlinkModules.AUTO_BLOCK) {
@@ -294,74 +288,6 @@ public class HUD extends Module {
             }
             GlStateManager.enableDepth();
             GlStateManager.popMatrix();
-        }
-    }
-
-    // ------------------------------------------------------------------
-    // Modern style: rounded cards + system font (e.g. Segoe UI)
-    // ------------------------------------------------------------------
-
-    private ModernFont modernFont;
-
-    private ModernFont modernFont() {
-        if (this.modernFont == null) {
-            this.modernFont = new ModernFont("Segoe UI", 17);
-        }
-        return this.modernFont;
-    }
-
-    private float calculateModernWidth(String string, String[] arr, ModernFont font) {
-        float width = font.getStringWidth(string);
-        if (this.suffixes.getValue()) {
-            for (String str : arr) {
-                width += 3 + font.getStringWidth(str);
-            }
-        }
-        return width;
-    }
-
-    private void drawModernRows(float x, float y, long l) {
-        ModernFont font = this.modernFont();
-        float height = (float) (font.getHeight() - 1);
-        long offset = 0L;
-        for (Module module : this.activeModules) {
-            String moduleName = this.getModuleName(module);
-            String[] moduleSuffix = this.getModuleSuffix(module);
-            float totalWidth = this.calculateModernWidth(moduleName, moduleSuffix, font);
-            int color = this.getColor(l, offset).getRGB();
-            float sx = x / this.scale.getValue();
-            float sy = y / this.scale.getValue();
-            float rectX1 = sx - 1.0F - (this.posX.getValue() == 0 ? 0.0F : totalWidth);
-            float rectY1 = sy - (this.posY.getValue() == 0 ? (offset == 0L ? 1.0F : 0.0F) : (this.shadow.getValue() ? 1.0F : 0.0F));
-            float rectX2 = sx + 1.0F + (this.posX.getValue() == 0 ? totalWidth : 0.0F);
-            float rectY2 = sy + height + (this.posY.getValue() == 0 ? (this.shadow.getValue() ? 1.0F : 0.0F) : (offset == 0L ? 1.0F : 0.0F));
-            float rectW = rectX2 - rectX1;
-            float rectH = rectY2 - rectY1;
-            RenderUtil.enableRenderState();
-            if (this.background.getValue() > 0) {
-                RenderUtil.drawRoundedRect(rectX1, rectY1, rectW, rectH, 5.0F,
-                        new Color(0.0F, 0.0F, 0.0F, this.background.getValue().floatValue() / 100.0F).getRGB());
-            }
-            if (this.showBar.getValue()) {
-                float barW = 2.5F;
-                float barX = this.posX.getValue() == 0 ? rectX1 + 3.0F : rectX2 - 3.0F - barW;
-                RenderUtil.drawRoundedRect(barX, rectY1 + 2.5F, barW, rectH - 5.0F, 1.2F, color);
-            }
-            RenderUtil.disableRenderState();
-            GlStateManager.disableDepth();
-            float textX = this.posX.getValue() == 0 ? rectX1 + 7.5F : rectX2 - totalWidth - 7.5F;
-            float textY = sy + 0.5F;
-            font.drawString(moduleName, textX, textY, color, this.shadow.getValue());
-            if (this.suffixes.getValue() && moduleSuffix.length > 0) {
-                float w = font.getStringWidth(moduleName) + 3.0F;
-                for (String string : moduleSuffix) {
-                    font.drawString(string, textX + w, textY, ChatColors.GRAY.toAwtColor(), this.shadow.getValue());
-                    w += font.getStringWidth(string) + 3.0F;
-                }
-            }
-            GlStateManager.enableDepth();
-            y += (height + (this.shadow.getValue() ? 1.0F : 0.0F)) * this.scale.getValue() * (this.posY.getValue() == 0 ? 1.0F : -1.0F);
-            offset++;
         }
     }
 }

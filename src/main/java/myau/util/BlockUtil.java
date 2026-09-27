@@ -3,6 +3,8 @@ package myau.util;
 import net.minecraft.block.*;
 import net.minecraft.block.material.Material;
 import net.minecraft.client.Minecraft;
+import net.minecraft.item.ItemBlock;
+import net.minecraft.item.ItemStack;
 import net.minecraft.util.BlockPos;
 import net.minecraft.util.EnumFacing;
 import net.minecraft.util.MovingObjectPosition;
@@ -39,6 +41,29 @@ public class BlockUtil {
         if (block instanceof BlockButton) return true;
         if (block instanceof BlockLever) return true;
         return block instanceof BlockJukebox;
+    }
+
+    public static boolean isUseInteractable(MovingObjectPosition hit) {
+        if (hit == null || hit.typeOfHit != MovingObjectPosition.MovingObjectType.BLOCK
+                || hit.getBlockPos() == null || mc.thePlayer == null || mc.theWorld == null) {
+            return false;
+        }
+        if (mc.thePlayer.isSneaking() && mc.thePlayer.getHeldItem() != null) {
+            return false;
+        }
+        return isUseInteractable(mc.theWorld.getBlockState(hit.getBlockPos()).getBlock());
+    }
+
+    public static boolean isUseInteractable(Block block) {
+        return block instanceof BlockTrapDoor
+                || block instanceof BlockDoor
+                || block instanceof BlockContainer
+                || block instanceof BlockJukebox
+                || block instanceof BlockFenceGate
+                || block instanceof BlockEnchantmentTable
+                || block instanceof BlockAnvil
+                || block instanceof BlockBed
+                || block instanceof BlockWorkbench;
     }
 
     public static boolean isSolid(Block block) {
@@ -106,5 +131,24 @@ public class BlockUtil {
             case WEST:
         }
         return new Vec3((double) blockPos.getX() + block.getBlockBoundsMinX(), vec3.yCoord, vec3.zCoord);
+    }
+
+    public static Block getBlock(BlockPos blockPos) {
+        return BlockUtil.mc.theWorld.getBlockState(blockPos).getBlock();
+    }
+
+    public static double dist2PointAABB(Vec3 p, BlockPos b) {
+        double cx = Math.max(b.getX(), Math.min(b.getX() + 1, p.xCoord));
+        double cy = Math.max(b.getY(), Math.min(b.getY() + 1, p.yCoord));
+        double cz = Math.max(b.getZ(), Math.min(b.getZ() + 1, p.zCoord));
+        double dx = p.xCoord - cx;
+        double dy = p.yCoord - cy;
+        double dz = p.zCoord - cz;
+        return dx * dx + dy * dy + dz * dz;
+    }
+
+    public static boolean canPlaceBlockOnSide(ItemStack stack, BlockPos pos, EnumFacing side) {
+        if (stack == null || !(stack.getItem() instanceof ItemBlock)) return false;
+        return ((ItemBlock) stack.getItem()).canPlaceBlockOnSide(BlockUtil.mc.theWorld, pos, side, BlockUtil.mc.thePlayer, stack);
     }
 }

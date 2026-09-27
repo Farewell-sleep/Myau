@@ -9,6 +9,11 @@ import net.minecraft.util.MovingObjectPosition;
 import net.minecraft.util.Vec3;
 
 public class RotationUtil {
+    public static float[] serverRotations = new float[]{0.0F, 0.0F};
+
+    public static float clampPitch(float n) {
+        return MathHelper.clamp_float(n, -90.0F, 90.0F);
+    }
     private static final Minecraft mc = Minecraft.getMinecraft();
 
     public static float wrapAngleDiff(float angle, float target) {
@@ -132,5 +137,113 @@ public class RotationUtil {
         Vec3 lookVec = ((IAccessorEntity) RotationUtil.mc.thePlayer).callGetVectorForRotation(pitch, yaw);
         Vec3 targetPos = eyePos.addVector(lookVec.xCoord * distance, lookVec.yCoord * distance, lookVec.zCoord * distance);
         return boundingBox.calculateIntercept(eyePos, targetPos);
+    }
+    public static boolean hasVisiblePoint(AxisAlignedBB boundingBox) {
+        Vec3 eyePos = RotationUtil.mc.thePlayer.getPositionEyes(1.0f);
+        double centerX = (boundingBox.minX + boundingBox.maxX) / 2.0;
+        double centerZ = (boundingBox.minZ + boundingBox.maxZ) / 2.0;
+        double height = boundingBox.maxY - boundingBox.minY;
+        double[] yRatios = new double[]{0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9};
+
+        for (double ratio : yRatios) {
+            double targetY = boundingBox.minY + ratio * height;
+            Vec3 targetPoint = new Vec3(centerX, targetY, centerZ);
+            if (RotationUtil.mc.theWorld.rayTraceBlocks(eyePos, targetPoint) == null) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public static float[] nearestRotation(final AxisAlignedBB box, float currentYaw, float currentPitch,
+                                   float maxAngle, float smoothFactor) {
+        if (mc.thePlayer == null) return null;
+
+        Vec3 targetPoint = getNearestPointBB(box);
+        if (targetPoint == null) return null;
+
+        Vec3 eyePos = new Vec3(mc.thePlayer.posX,
+                mc.thePlayer.posY + (double) mc.thePlayer.getEyeHeight(),
+                mc.thePlayer.posZ);
+
+        double diffX = targetPoint.xCoord - eyePos.xCoord;
+        double diffY = targetPoint.yCoord - eyePos.yCoord;
+        double diffZ = targetPoint.zCoord - eyePos.zCoord;
+
+        double horizontalDist = Math.sqrt(diffX * diffX + diffZ * diffZ);
+
+        float yawDelta = MathHelper.wrapAngleTo180_float(
+                (float) (Math.atan2(diffZ, diffX) * 180.0 / Math.PI) - 90.0f - currentYaw);
+        float pitchDelta = MathHelper.wrapAngleTo180_float(
+                (float) (-Math.atan2(diffY, horizontalDist) * 180.0 / Math.PI) - currentPitch);
+        yawDelta = Math.abs(yawDelta) <= 1.0f ? 0.0f :
+                smoothAngle(clampAngle(yawDelta, maxAngle), smoothFactor);
+        pitchDelta = Math.abs(pitchDelta) <= 1.0f ? 0.0f :
+                smoothAngle(clampAngle(pitchDelta, maxAngle), smoothFactor);
+
+        return new float[]{
+                quantizeAngle(currentYaw + yawDelta),
+                quantizeAngle(currentPitch + pitchDelta)
+        };
+    }
+
+    public static Vec3 getNearestPointBB(AxisAlignedBB box) {
+        if (mc.thePlayer == null) return null;
+
+        Vec3 eyePos = new Vec3(mc.thePlayer.posX,
+                mc.thePlayer.posY + (double) mc.thePlayer.getEyeHeight(),
+                mc.thePlayer.posZ);
+
+        double x = MathHelper.clamp_double(eyePos.xCoord, box.minX, box.maxX);
+        double y = MathHelper.clamp_double(eyePos.yCoord, box.minY, box.maxY);
+        double z = MathHelper.clamp_double(eyePos.zCoord, box.minZ, box.maxZ);
+        Vec3 nearestPoint = new Vec3(x, y, z);
+
+        if (isVisible(nearestPoint)) {
+            return nearestPoint;
+        }
+
+        AxisAlignedBB scanBox = box.expand(-0.002, -0.002, -0.002);
+
+        double stepX = scanBox.maxX - scanBox.minX;
+        double stepY = scanBox.maxY - scanBox.minY;
+        double stepZ = scanBox.maxZ - scanBox.minZ;
+
+        Vec3 bestPoint = null;
+        double minDistanceSq = Double.MAX_VALUE;
+
+        for (double sX = scanBox.minX; sX <= scanBox.maxX; sX += stepX / 2.0) {
+            for (double sY = scanBox.minY; sY <= scanBox.maxY; sY += stepY / 2.0) {
+                for (double sZ = scanBox.minZ; sZ <= scanBox.maxZ; sZ += stepZ / 2.0) {
+                    Vec3 currentPoint = new Vec3(sX, sY, sZ);
+
+                    if (isVisible(currentPoint)) {
+                        double distSq = eyePos.squareDistanceTo(currentPoint);
+                        if (distSq < minDistanceSq) {
+                            minDistanceSq = distSq;
+                            bestPoint = currentPoint;
+                        }
+                    }
+                }
+            }
+        }
+
+        return (bestPoint != null) ? bestPoint : nearestPoint;
+    }
+
+    public static boolean isVisible(Vec3 targetVec) {
+        if (mc.thePlayer == null || mc.theWorld == null) return false;
+
+        Vec3 eyePos = new Vec3(mc.thePlayer.posX,
+                mc.thePlayer.posY + (double) mc.thePlayer.getEyeHeight(),
+                mc.thePlayer.posZ);
+
+        if (eyePos.squareDistanceTo(targetVec) > 4096.0) return false;
+
+        Vec3 lookVec = mc.thePlayer.getLookVec();
+        Vec3 toTarget = targetVec.subtract(eyePos).normalize();
+        if (lookVec.dotProduct(toTarget) < 0) return false;
+        MovingObjectPosition result = mc.theWorld.rayTraceBlocks(eyePos, targetVec, false, true, false);
+        return result == null;
     }
 }

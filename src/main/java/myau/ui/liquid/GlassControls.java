@@ -10,7 +10,6 @@ import myau.property.properties.ModeProperty;
 import myau.property.properties.PercentProperty;
 import myau.property.properties.TextProperty;
 import myau.util.KeyBindUtil;
-import myau.util.ModernFont;
 import net.minecraft.client.Minecraft;
 import org.lwjgl.input.Keyboard;
 
@@ -28,21 +27,12 @@ public final class GlassControls {
     private GlassControls() {
     }
 
-    /** When set (Modern ClickGUI), all widget text uses the modern font. */
-    public static ModernFont fontOverride = null;
 
     private static void drawText(String text, int x, int y, int color) {
-        if (fontOverride != null) {
-            fontOverride.drawString(text, x, y, color, false);
-        } else {
-            mc.fontRendererObj.drawString(text, x, y, color);
-        }
+        mc.fontRendererObj.drawStringWithShadow(text, x, y, color);
     }
 
     private static int textWidth(String text) {
-        if (fontOverride != null) {
-            return fontOverride.getStringWidth(text);
-        }
         return mc.fontRendererObj.getStringWidth(text);
     }
 
@@ -92,13 +82,13 @@ public final class GlassControls {
 
         public CheckBox(BooleanProperty prop) {
             this.prop = prop;
-            this.h = 14;
+            this.h = 18;
         }
 
         @Override
         public void draw(int mouseX, int mouseY) {
             boolean on = prop.getValue();
-            drawText(prop.getName(), x + 2, y + 3, on ? GlassRenderer.TEXT_MAIN : GlassRenderer.TEXT_DIM);
+            drawText(prop.getName(), x + 2, y + 2, on ? GlassRenderer.TEXT_MAIN : GlassRenderer.TEXT_DIM);
             GlassRenderer.drawCapsule(x + w - 26, y + 1, 24, 12, on, GlassRenderer.ACCENT);
         }
 
@@ -127,7 +117,7 @@ public final class GlassControls {
             this.setter = setter;
             this.min = min;
             this.max = max;
-            this.h = 16;
+            this.h = 20;
         }
 
         private float value() {
@@ -140,7 +130,7 @@ public final class GlassControls {
             float v = value();
             float t = (max - min) <= 0 ? 0 : clamp01((v - min) / (max - min));
             String label = name + ": " + DF.format(v);
-            drawText(label, x + 2, y + 1, GlassRenderer.TEXT_DIM);
+            drawText(label, x + 2, y + 2, GlassRenderer.TEXT_DIM);
             // track
             int ty = y + h - 4;
             GlassRenderer.drawRoundedRect(x + 2, ty, w - 4, 3, 1.5F, 0x40FFFFFF);
@@ -210,7 +200,7 @@ public final class GlassControls {
 
         public ModeCycle(ModeProperty prop) {
             this.prop = prop;
-            this.h = 14;
+            this.h = 18;
         }
 
         @Override
@@ -218,7 +208,7 @@ public final class GlassControls {
             String name = prop.getName();
             String mode = prop.getModeString();
             int textW = textWidth(mode);
-            drawText(name, x + 2, y + 3, GlassRenderer.TEXT_DIM);
+            drawText(name, x + 2, y + 2, GlassRenderer.TEXT_DIM);
             // mode chip (right side, shrink if needed)
             int chipW = Math.min(w - textWidth(name) - 12, textW + 12);
             if (chipW > 20) {
@@ -246,14 +236,14 @@ public final class GlassControls {
 
         public BindButton(Module module) {
             this.module = module;
-            this.h = 14;
+            this.h = 18;
         }
 
         @Override
         public void draw(int mouseX, int mouseY) {
             String bind = module.getKey() == 0 ? "None" : KeyBindUtil.getKeyName(module.getKey());
             String label = binding ? "Press a key..." : "Bind: " + bind;
-            drawText(label, x + 2, y + 3, binding ? GlassRenderer.ACCENT : GlassRenderer.TEXT_DIM);
+            drawText(label, x + 2, y + 2, binding ? GlassRenderer.ACCENT : GlassRenderer.TEXT_DIM);
         }
 
         @Override
@@ -286,7 +276,7 @@ public final class GlassControls {
 
         public ColorRow(ColorProperty prop) {
             this.prop = prop;
-            this.h = 14;
+            this.h = 18;
             this.r = new Slider("R", () -> (prop.getValue() >> 16) & 255,
                     v -> setChannel(16, v.intValue()), 0, 255);
             this.g = new Slider("G", () -> (prop.getValue() >> 8) & 255,
@@ -311,7 +301,7 @@ public final class GlassControls {
         @Override
         public void draw(int mouseX, int mouseY) {
             int rgb = prop.getValue() & 0xFFFFFF;
-            drawText(prop.getName(), x + 2, y + 3, GlassRenderer.TEXT_DIM);
+            drawText(prop.getName(), x + 2, y + 2, GlassRenderer.TEXT_DIM);
             // color swatch
             GlassRenderer.drawRoundedRect(x + w - 22, y + 1, 20, 12, 4, 0xFF000000 | rgb);
             GlassRenderer.drawRoundedOutline(x + w - 22, y + 1, 20, 12, 4, 1, 0x40FFFFFF);
@@ -366,14 +356,14 @@ public final class GlassControls {
 
         public TextField(TextProperty prop) {
             this.prop = prop;
-            this.h = 14;
+            this.h = 18;
         }
 
         @Override
         public void draw(int mouseX, int mouseY) {
             String name = prop.getName();
             String value = prop.getValue();
-            drawText(name, x + 2, y + 3, GlassRenderer.TEXT_DIM);
+            drawText(name, x + 2, y + 2, GlassRenderer.TEXT_DIM);
             int nameW = textWidth(name) + 6;
             String shown = focused ? value + "_" : value;
             drawText(shown, x + nameW + 2, y + 3, focused ? GlassRenderer.TEXT_MAIN : GlassRenderer.ACCENT);

@@ -15,6 +15,10 @@ public class RotationState {
     private static float smoothYaw;
     private static int priority;
 
+    public static float bodyYawToward(float targetYaw, float currentYawOffset) {
+        return RotationState.calculateRenderYawOffset(targetYaw, currentYawOffset);
+    }
+
     private static float calculateRenderYawOffset(float targetYaw, float currentYawOffset) {
         float newYawOffset = currentYawOffset;
         double deltaX = RotationState.mc.thePlayer.posX - RotationState.mc.thePlayer.prevPosX;

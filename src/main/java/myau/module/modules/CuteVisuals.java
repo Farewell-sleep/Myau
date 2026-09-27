@@ -34,6 +34,7 @@ public class CuteVisuals extends Module {
     private static final int MAX_DOTS = 100;
     private static final int MAX_BED_PARTICLES = 200;
     private static final int MAX_RAINBOWS = 5;
+    private static final int MAX_WORLD_HEARTS = 200;
 
     private static final int TRAIL_HEART_SEGMENTS = 30;
     private static final int BED_HEART_SEGMENTS = 20;
@@ -79,6 +80,10 @@ public class CuteVisuals extends Module {
     public final IntProperty dotsSpawnRate = new IntProperty("Dots Spawn Rate", 100, 20, 200);
     public final IntProperty dotsLifetime = new IntProperty("Dots Lifetime", 1500, 500, 5000);
     public final BooleanProperty pulse = new BooleanProperty("Pulse", false);
+    public final BooleanProperty worldHeart = new BooleanProperty("World Heart", false);
+    public final IntProperty worldHeartAmount = new IntProperty("World Heart Amount", 160, 20, 200);
+    public final FloatProperty worldHeartRange = new FloatProperty("World Heart Range", 40.0F, 16.0F, 96.0F);
+    public final FloatProperty worldHeartSize = new FloatProperty("World Heart Size", 0.5F, 0.2F, 1.5F);
 
     // === HEART TRAIL STATE ===
     private final double[] heartX = new double[MAX_HEARTS];
@@ -132,6 +137,18 @@ public class CuteVisuals extends Module {
     private final long[] rainbowTime = new long[MAX_RAINBOWS];
     private final boolean[] rainbowActive = new boolean[MAX_RAINBOWS];
     private int activeRainbowCount = 0;
+
+    // === WORLD HEART STATE ===
+    private final double[] worldHeartX = new double[MAX_WORLD_HEARTS];
+    private final double[] worldHeartY = new double[MAX_WORLD_HEARTS];
+    private final double[] worldHeartZ = new double[MAX_WORLD_HEARTS];
+    private final double[] worldHeartScale = new double[MAX_WORLD_HEARTS];
+    private final double[] worldHeartPhase = new double[MAX_WORLD_HEARTS];
+    private final double[] worldHeartSpin = new double[MAX_WORLD_HEARTS];
+    private final double[] worldHeartTilt = new double[MAX_WORLD_HEARTS];
+    private final int[] worldHeartType = new int[MAX_WORLD_HEARTS];
+    private final boolean[] worldHeartActive = new boolean[MAX_WORLD_HEARTS];
+    private int activeWorldHeartCount = 0;
 
     // === BED BREAK DETECTION ===
     private boolean diggingBed = false;
@@ -213,6 +230,7 @@ public class CuteVisuals extends Module {
         clearDots();
         clearBedParticles();
         clearRainbows();
+        clearWorldHearts();
 
         lastHeartSpawn = 0;
         lastDotSpawn = 0;
@@ -226,6 +244,7 @@ public class CuteVisuals extends Module {
         clearDots();
         clearBedParticles();
         clearRainbows();
+        clearWorldHearts();
         diggingBed = false;
     }
 
@@ -247,6 +266,11 @@ public class CuteVisuals extends Module {
     private void clearRainbows() {
         for (int i = 0; i < MAX_RAINBOWS; i++) rainbowActive[i] = false;
         activeRainbowCount = 0;
+    }
+
+    private void clearWorldHearts() {
+        for (int i = 0; i < MAX_WORLD_HEARTS; i++) worldHeartActive[i] = false;
+        activeWorldHeartCount = 0;
     }
 
     // === SLOT MANAGEMENT ===
@@ -328,6 +352,10 @@ public class CuteVisuals extends Module {
 
         if (!heartsEnabled && activeHeartCount > 0) clearHearts();
         if (!dotsEnabled && activeDotCount > 0) clearDots();
+
+        boolean worldHeartsEnabled = this.worldHeart.getValue();
+        if (!worldHeartsEnabled && activeWorldHeartCount > 0) clearWorldHearts();
+        if (worldHeartsEnabled) ensureWorldHearts();
 
         boolean canSpawnDots = hasLastDotPos;
         if (!hasLastDotPos) {
@@ -529,7 +557,8 @@ public class CuteVisuals extends Module {
         if (activeHeartCount <= 0
                 && activeDotCount <= 0
                 && activeBedParticleCount <= 0
-                && activeRainbowCount <= 0) return;
+                && activeRainbowCount <= 0
+                && activeWorldHeartCount <= 0) return;
 
         if (mc.thePlayer == null) return;
 
@@ -540,6 +569,7 @@ public class CuteVisuals extends Module {
         long now = System.currentTimeMillis();
 
         renderTrail(cameraX, cameraY, cameraZ, now);
+        renderWorldHearts(cameraX, cameraY, cameraZ, now);
         renderBedVisuals(cameraX, cameraY, cameraZ, now);
     }
 
@@ -1023,4 +1053,114 @@ public class CuteVisuals extends Module {
             GL11.glEnd();
         }
     }
+    // === WORLD HEARTS ===
+    private void ensureWorldHearts() {
+        if (mc.thePlayer == null) return;
+        int target = Math.min(this.worldHeartAmount.getValue(), MAX_WORLD_HEARTS);
+        if (activeWorldHeartCount > target) {
+            activeWorldHeartCount = target;
+        }
+        while (activeWorldHeartCount < target) {
+            spawnWorldHeart(activeWorldHeartCount);
+            activeWorldHeartCount++;
+        }
+        double respawnDistance = this.worldHeartRange.getValue() + 24.0;
+        for (int i = 0; i < activeWorldHeartCount; i++) {
+            double dx = worldHeartX[i] - mc.thePlayer.posX;
+            double dz = worldHeartZ[i] - mc.thePlayer.posZ;
+            if (dx * dx + dz * dz > respawnDistance * respawnDistance) {
+                spawnWorldHeart(i);
+            }
+        }
+    }
+
+    private void spawnWorldHeart(int i) {
+        double angle = random.nextDouble() * TWO_PI;
+        double range = this.worldHeartRange.getValue();
+        double distance = range * Math.sqrt(random.nextDouble());
+        worldHeartX[i] = mc.thePlayer.posX + Math.cos(angle) * distance;
+        worldHeartZ[i] = mc.thePlayer.posZ + Math.sin(angle) * distance;
+        worldHeartY[i] = mc.thePlayer.posY - 2.0 + random.nextDouble() * 18.0;
+        worldHeartScale[i] = this.worldHeartSize.getValue() * (0.7 + random.nextDouble() * 0.6);
+        worldHeartPhase[i] = random.nextDouble() * TWO_PI;
+        worldHeartSpin[i] = random.nextDouble() * 360.0;
+        worldHeartTilt[i] = random.nextDouble() * 20.0 - 10.0;
+        worldHeartType[i] = random.nextInt(3);
+        worldHeartActive[i] = true;
+    }
+
+    private void renderWorldHearts(double cameraX, double cameraY, double cameraZ, long now) {
+        if (activeWorldHeartCount <= 0 || !this.worldHeart.getValue()) return;
+
+        double opacity = this.opacity.getValue() / 100.0;
+
+        GlStateManager.pushMatrix();
+        GlStateManager.disableTexture2D();
+        GlStateManager.depthMask(false);
+        GlStateManager.enableBlend();
+        GL11.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
+        GlStateManager.disableCull();
+        GL11.glEnable(GL11.GL_LINE_SMOOTH);
+        GL11.glHint(GL11.GL_LINE_SMOOTH_HINT, GL11.GL_NICEST);
+
+        for (int i = 0; i < activeWorldHeartCount; i++) {
+            if (!worldHeartActive[i]) continue;
+
+            double floatOffset = Math.sin(now * 0.0008 + worldHeartPhase[i]) * 0.4;
+            double sway = Math.sin(now * 0.0005 + worldHeartPhase[i] * 1.7) * 0.3;
+            double alphaPulse = 0.85 + 0.15 * Math.sin(now * 0.001 + worldHeartPhase[i] * 2.0);
+
+            double drawX = worldHeartX[i] + sway - cameraX;
+            double drawY = worldHeartY[i] + floatOffset - cameraY;
+            double drawZ = worldHeartZ[i] + sway * 0.5 - cameraZ;
+
+            if (drawX * drawX + drawY * drawY + drawZ * drawZ > 128.0 * 128.0) continue;
+
+            double red;
+            double green;
+            double blue;
+            int type = worldHeartType[i];
+            if (type == 0) {
+                red = 1.0; green = 0.5; blue = 0.8;
+            } else if (type == 1) {
+                red = 1.0; green = 0.3; blue = 0.6;
+            } else {
+                red = 0.9; green = 0.4; blue = 0.9;
+            }
+
+            double billboardYaw = Math.toDegrees(Math.atan2(-drawX, -drawZ));
+            double spinAngle = (now * 0.03 + worldHeartSpin[i]) % 360.0;
+
+            GlStateManager.pushMatrix();
+            GlStateManager.translate(drawX, drawY, drawZ);
+            GlStateManager.rotate((float) billboardYaw, 0, 1, 0);
+            GlStateManager.rotate((float) spinAngle, 0, 1, 0);
+            GlStateManager.rotate((float) worldHeartTilt[i], 0, 0, 1);
+
+            double scale = worldHeartScale[i] / 16.0;
+            double alpha = opacity * alphaPulse;
+            for (int layer = 2; layer >= 0; layer--) {
+                double glowScale = scale * (1.0 + layer * 0.1);
+                double layerAlpha = layer == 0 ? alpha * 0.9 : alpha * (0.25 / layer);
+                GlStateManager.color((float) red, (float) green, (float) blue, (float) layerAlpha);
+                GL11.glLineWidth(layer == 0 ? 2.0f : 1.0f);
+                GL11.glBegin(GL11.GL_LINE_STRIP);
+                for (int s = 0; s <= TRAIL_HEART_SEGMENTS; s++) {
+                    GL11.glVertex3d(trailHeartShapeX[s] * glowScale, trailHeartShapeY[s] * glowScale, 0);
+                }
+                GL11.glEnd();
+            }
+
+            GlStateManager.popMatrix();
+        }
+
+        GL11.glDisable(GL11.GL_LINE_SMOOTH);
+        GlStateManager.enableCull();
+        GlStateManager.depthMask(true);
+        GlStateManager.enableTexture2D();
+        GlStateManager.disableBlend();
+        GlStateManager.color(1, 1, 1, 1);
+        GlStateManager.popMatrix();
+    }
+
 }

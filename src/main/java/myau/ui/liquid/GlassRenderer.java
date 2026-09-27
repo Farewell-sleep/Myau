@@ -21,13 +21,13 @@ public final class GlassRenderer {
     public static final int GLASS_SHEEN = 0x1410141C;
     public static final int GLASS_HIGHLIGHT = 0x42FFFFFF; // top edge light
     public static final int GLASS_OUTLINE = 0x2AFFFFFF;   // hairline border
-    public static final int ACCENT = 0xFF22C55E;       // Apple green
-    public static final int ACCENT_DIM = 0x4D22C55E;
+    public static final int ACCENT = 0xFF3B82F6;       // modern blue
+    public static final int ACCENT_DIM = 0x4D3B82F6;
     public static final int TEXT_MAIN = 0xFFF2F4F8;
     public static final int TEXT_DIM = 0xFF8A92A6;
     public static final int TEXT_FAINT = 0xFF5A6276;
     public static final int HOVER_FILL = 0x1AFFFFFF;
-    public static final int ACTIVE_FILL = 0x2E22C55E;
+    public static final int ACTIVE_FILL = 0x2E3B82F6;
 
     /** Motion spec: 200ms ease-out with spring overshoot. */
     public static final long DURATION = 200L;

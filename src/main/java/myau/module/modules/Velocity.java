@@ -35,7 +35,12 @@ public class Velocity extends Module {
     private boolean shouldJump = false;
     private int jumpCooldown = 0;
 
-    public final ModeProperty mode = new ModeProperty("mode", 0, new String[]{"VANILLA", "JUMP", "DELAY", "REVERSE", "LEGIT_TEST"});
+        public static boolean stoppedBlock = false;
+    public static boolean extraAttacked = false;
+    public static boolean cancellingKillAuraAttack = false;
+    public static boolean blinkActive = false;
+    public final ModeProperty reduceMode = new ModeProperty("reduceMode", 0, new String[]{"Vanilla", "Reduce", "Grim", "Predict"});
+public final ModeProperty mode = new ModeProperty("mode", 0, new String[]{"VANILLA", "JUMP", "DELAY", "REVERSE", "LEGIT_TEST"});
     public final IntProperty delayTicks = new IntProperty("delay-ticks", 3, 1, 20, () -> this.mode.getValue() == 2);
     public final PercentProperty delayChance = new PercentProperty("delay-chance", 100, () -> this.mode.getValue() == 2);
     public final PercentProperty chance = new PercentProperty("chance", 100);

@@ -145,6 +145,10 @@ public final class EventManager {
      *
      * @param onlyEmptyEntries If true only remove the entries with an empty list, otherwise remove all the entries.
      */
+    public static void clear() {
+        REGISTRY_MAP.clear();
+    }
+
     public static void cleanMap(boolean onlyEmptyEntries) {
         Iterator<Map.Entry<Class<? extends Event>, List<MethodData>>> mapIterator = REGISTRY_MAP.entrySet().iterator();
         while (mapIterator.hasNext()) {

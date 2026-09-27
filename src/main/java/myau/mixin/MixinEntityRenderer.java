@@ -7,6 +7,7 @@ import myau.events.PickEvent;
 import myau.events.RaytraceEvent;
 import myau.events.Render3DEvent;
 import myau.module.modules.*;
+import myau.util.ReflectionUtils;
 import net.minecraft.block.Block;
 import net.minecraft.block.material.Material;
 import net.minecraft.client.Minecraft;
@@ -15,8 +16,10 @@ import net.minecraft.client.renderer.EntityRenderer;
 import net.minecraft.client.renderer.GLAllocation;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityLivingBase;
+import net.minecraft.item.EnumAction;
 import net.minecraft.item.ItemStack;
 import net.minecraft.potion.Potion;
+import net.minecraft.util.BlockPos;
 import net.minecraft.util.Vec3;
 import net.minecraft.world.biome.BiomeGenBase;
 import net.minecraftforge.fml.relauncher.Side;
@@ -380,6 +383,29 @@ public abstract class MixinEntityRenderer {
             }
         }
         return biome.getEnableSnow();
+    }
+
+    /**
+     * Vanilla renderRainSnow decides snow vs rain by temperature:
+     * (temperatureAtHeight < 0.15F) renders snow, otherwise rain.
+     * Force a sub-zero temperature so the vanilla renderer draws snow
+     * (same approach as Rise's Ambience weather module).
+     */
+    @Redirect(
+            method = {"renderRainSnow"},
+            at = @At(
+                    value = "INVOKE",
+                    target = "Lnet/minecraft/world/biome/BiomeGenBase;getFloatTemperature(Lnet/minecraft/util/BlockPos;)F"
+            )
+    )
+    private float snowfogBiomeTemperature(BiomeGenBase biome, BlockPos pos) {
+        if (OpenMyau.moduleManager != null) {
+            SnowFog snowFog = (SnowFog) OpenMyau.moduleManager.modules.get(SnowFog.class);
+            if (snowFog.isEnabled() && snowFog.snowDensity.getValue() > 0) {
+                return 0.1F;
+            }
+        }
+        return biome.getFloatTemperature(pos);
     }
 
     /** Re-tune the vanilla fog into a white snow-fog after setupFog. */

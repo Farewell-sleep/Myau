@@ -69,13 +69,15 @@ public class BedNuker extends Module {
     private boolean readyToBreak = false;
     private boolean breaking = false;
     private boolean waitingForStart = false;
+    /** Legit-mode dig path: outermost block first, walking along a 3D line to the bed. */
+    private final ArrayList<BlockPos> legitPath = new ArrayList<BlockPos>();
     public final ModeProperty mode = new ModeProperty("mode", 0, new String[]{"LEGIT", "SWAP"});
     public final FloatProperty range = new FloatProperty("range", 4.5F, 3.0F, 6.0F);
     public final PercentProperty speed = new PercentProperty("speed", 0);
     public final BooleanProperty groundSpeed = new BooleanProperty("ground-spoof", false);
     public final ModeProperty ignoreVelocity = new ModeProperty("ignore-velocity", 0, new String[]{"NONE", "CANCEL", "DELAY"});
     public final BooleanProperty surroundings = new BooleanProperty("surroundings", true);
-    public final BooleanProperty legit = new BooleanProperty("legit", false, () -> this.surroundings.getValue());
+    public final BooleanProperty legit = new BooleanProperty("legit", false);
     public final BooleanProperty toolCheck = new BooleanProperty("tool-check", true);
     public final BooleanProperty whiteList = new BooleanProperty("whitelist", true);
     public final BooleanProperty swing = new BooleanProperty("swing", true);
@@ -272,7 +274,92 @@ public class BedNuker extends Module {
         return null;
     }
 
+    /**
+     * Skidded from Expo BedNuker legit mode: build a dig path from the
+     * outermost reachable block, walking along a 3D line towards the bed,
+     * ending with the bed itself. Returns outermost-first order.
+     */
+    private ArrayList<BlockPos> buildLegitPath(BlockPos bedPos) {
+        ArrayList<BlockPos> path = new ArrayList<>();
+        int radius = (int) Math.min(this.range.getValue().doubleValue(), 8.0);
+        int bx = bedPos.getX();
+        int by = bedPos.getY();
+        int bz = bedPos.getZ();
+        double rangeSq = this.range.getValue().doubleValue() * this.range.getValue().doubleValue();
+        // 1) pick the starting block: outermost first (furthest from the bed),
+        //    reachable by the player, slightly biased towards the player
+        BlockPos start = null;
+        double bestScore = Double.MAX_VALUE;
+        for (int x = bx - radius; x <= bx + radius; x++) {
+            for (int y = by; y <= by + radius; y++) {
+                for (int z = bz - radius; z <= bz + radius; z++) {
+                    BlockPos pos = new BlockPos(x, y, z);
+                    Block block = mc.theWorld.getBlockState(pos).getBlock();
+                    if (!BlockUtil.isReplaceable(block) && !(block instanceof BlockBed)) {
+                        double distPlayer = pos.distanceSqToCenter(mc.thePlayer.posX, mc.thePlayer.posY + (double) mc.thePlayer.getEyeHeight(), mc.thePlayer.posZ);
+                        if (distPlayer > rangeSq) {
+                            continue;
+                        }
+                        double distBed = pos.distanceSqToCenter((double) bx + 0.5, (double) by + 0.5, (double) bz + 0.5);
+                        double score = -distBed + distPlayer * 0.1;
+                        if (start == null || score < bestScore) {
+                            bestScore = score;
+                            start = pos;
+                        }
+                    }
+                }
+            }
+        }
+        if (start == null) {
+            return path;
+        }
+        // 2) walk a 3D line from start to the bed, collecting every solid block
+        int x = start.getX();
+        int y = start.getY();
+        int z = start.getZ();
+        int ex = bx;
+        int ey = by;
+        int ez = bz;
+        int maxSteps = (int) (this.range.getValue().doubleValue() * 3.0);
+        int iter = 0;
+        ArrayList<BlockPos> visited = new ArrayList<>();
+        while ((x != ex || y != ey || z != ez) && iter++ <= maxSteps) {
+            BlockPos current = new BlockPos(x, y, z);
+            if (visited.contains(current)) {
+                break;
+            }
+            visited.add(current);
+            Block block = mc.theWorld.getBlockState(current).getBlock();
+            if (!BlockUtil.isReplaceable(block)) {
+                path.add(current);
+            }
+            int dx = ex - x;
+            int dy = ey - y;
+            int dz = ez - z;
+            if (Math.abs(dx) >= Math.abs(dy) && Math.abs(dx) >= Math.abs(dz)) {
+                x += dx > 0 ? 1 : -1;
+            } else if (Math.abs(dz) >= Math.abs(dx) && Math.abs(dz) >= Math.abs(dy)) {
+                z += dz > 0 ? 1 : -1;
+            } else {
+                y += dy > 0 ? 1 : -1;
+            }
+            BlockPos next = new BlockPos(x, y, z);
+            if (next.distanceSqToCenter(mc.thePlayer.posX, mc.thePlayer.posY + (double) mc.thePlayer.getEyeHeight(), mc.thePlayer.posZ) > rangeSq) {
+                break;
+            }
+        }
+        // 3) the bed itself at the end
+        path.add(bedPos);
+        // 4) drop anything that turned out to be replaceable (air/fluid)
+        path.removeIf(pos -> BlockUtil.isReplaceable(mc.theWorld.getBlockState(pos).getBlock()));
+        return path;
+    }
+
     private BlockPos findNearestBed() {
+        if (this.legit.getValue() && !this.legitPath.isEmpty()) {
+            // continue down the already-built legit path
+            return this.legitPath.remove(0);
+        }
         return this.findTargetBed(mc.thePlayer.posX, mc.thePlayer.posY + (double) mc.thePlayer.getEyeHeight(), mc.thePlayer.posZ);
     }
 
@@ -304,6 +391,15 @@ public class BedNuker extends Module {
                     )
             );
             for (BlockPos blockPos : targets) {
+                if (this.legit.getValue()) {
+                    // legit: mine from the outermost block, walking the line to the bed
+                    this.legitPath.clear();
+                    this.legitPath.addAll(this.buildLegitPath(blockPos));
+                    if (!this.legitPath.isEmpty()) {
+                        return this.legitPath.remove(0);
+                    }
+                    return blockPos;
+                }
                 if (this.surroundings.getValue()) {
                     BlockPos pos = this.validateBedPlacement(blockPos);
                     if (pos != null) {
@@ -362,9 +458,17 @@ public class BedNuker extends Module {
             if(autoBlockIn.isEnabled()) return;
             if (this.targetBed != null) {
                 if (mc.theWorld.isAirBlock(this.targetBed) || !PlayerUtil.canReach(this.targetBed, this.range.getValue().doubleValue())) {
-                    this.restoreSlot();
-                    this.resetBreaking();
-                } else if (!this.isBed) {
+                    if (this.legit.getValue()) {
+                        if (this.isBed || this.legitPath.isEmpty()) {
+                            this.legitPath.clear();
+                        }
+                        this.restoreSlot();
+                        this.resetBreaking();
+                    } else {
+                        this.restoreSlot();
+                        this.resetBreaking();
+                    }
+                } else if (!this.isBed && !this.legit.getValue()) {
                     BlockPos nearestBed = this.findNearestBed();
                     if (nearestBed != null && mc.theWorld.getBlockState(nearestBed).getBlock() instanceof BlockBed) {
                         this.resetBreaking();
@@ -654,6 +758,7 @@ public class BedNuker extends Module {
 
     @Override
     public void onDisabled() {
+        this.legitPath.clear();
         this.resetBreaking();
         this.savedSlot = -1;
         OpenMyau.delayManager.setDelayState(false, DelayModules.BED_NUKER);

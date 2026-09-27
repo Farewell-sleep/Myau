@@ -96,11 +96,11 @@ public class NewScaffold extends Module {
     public final PercentProperty groundMotion = new PercentProperty("ground-motion", 100);
     public final PercentProperty airMotion = new PercentProperty("air-motion", 100);
     public final PercentProperty speedMotion = new PercentProperty("speed-motion", 100);
-    public final ModeProperty tower = new ModeProperty("tower", 0, new String[]{"NONE", "VANILLA", "EXTRA", "TELLY"});
+    public final ModeProperty tower = new ModeProperty("tower", 0, new String[]{"NONE", "VANILLA", "EXTRA", "TELLY", "UPTELLY"});
     public final BooleanProperty hypixeltower = new BooleanProperty("hypixeltower", false, () -> this.tower.getValue() == 3);
     public final BooleanProperty safe = new BooleanProperty("safe", false, () -> this.tower.getValue() == 3);
     public final IntProperty safeStuckDelayTicksProperty = new IntProperty("safe-delay-ticks", 1, 1, 3, () -> this.tower.getValue() == 3 && this.safe.getValue());
-    public final ModeProperty keepY = new ModeProperty("keep-y", 0, new String[]{"NONE", "VANILLA", "EXTRA", "TELLY", "EXTRATELLY"});
+    public final ModeProperty keepY = new ModeProperty("keep-y", 0, new String[]{"NONE", "VANILLA", "EXTRA", "TELLY", "EXTRATELLY", "CLUTCH"}, () -> true);
     public final BooleanProperty keepYonPress = new BooleanProperty("keep-y-on-press", false, () -> this.keepY.getValue() != 0);
     public final BooleanProperty disableWhileJumpActive = new BooleanProperty("no-keep-y-on-jump-potion", false, () -> this.keepY.getValue() != 0);
     public final BooleanProperty multiplace = new BooleanProperty("multi-place", true);
@@ -429,8 +429,9 @@ public class NewScaffold extends Module {
     private boolean isTowering() {
         if (mc.thePlayer.onGround && MoveUtil.isForwardPressed() && !PlayerUtil.isAirAbove()) {
             boolean keepY = this.keepY.getValue() == 3 || this.keepY.getValue() == 4;
-            boolean tower = this.tower.getValue() == 3;
-            return keepY && this.stage > 0 || tower && mc.gameSettings.keyBindJump.isKeyDown();
+            boolean tower = (this.tower.getValue() == 3 || this.tower.getValue() == 4)
+                    && mc.gameSettings.keyBindJump.isKeyDown();
+            return keepY && this.stage > 0 || tower;
         } else {
             return false;
         }
@@ -447,6 +448,21 @@ public class NewScaffold extends Module {
     @EventTarget(Priority.HIGH)
     public void onUpdate(UpdateEvent event) {
         if (this.isEnabled() && event.getType() == EventType.PRE) {
+            // keep-y CLUTCH: auto-activate the Clutch module (clutch + scaffold)
+            if (this.keepY.getValue() == 5) {
+                Clutch clutch = (Clutch) OpenMyau.moduleManager.modules.get(Clutch.class);
+                if (clutch != null) {
+                    clutch.setExternalActive(true);
+                    if (!clutch.isEnabled()) {
+                        clutch.setEnabled(true);
+                    }
+                }
+            } else {
+                Clutch clutch = (Clutch) OpenMyau.moduleManager.modules.get(Clutch.class);
+                if (clutch != null) {
+                    clutch.setExternalActive(false);
+                }
+            }
             this.placedThisTick = false;
             this.updateThreeFmcState();
             this.quietThreeFmcMovement();
@@ -809,6 +825,17 @@ public class NewScaffold extends Module {
                         this.place(belowPlayer, this.targetFacing, hitVec);
                     }
                     this.targetFacing = null;
+                } else if (this.tower.getValue() == 4 && !mc.thePlayer.onGround) {
+                    // UPTELLY: telly-style tower — jump while moving forward, scaffold
+                    // under the player mid-air, land back on the new layer to climb up
+                    this.shouldKeepY = true;
+                    BlockData upData = this.getBlockData();
+                    if (upData != null && this.rotationTick <= 0 && !this.placedThisTick) {
+                        MovingObjectPosition upMop = this.getPlacementMop(upData, this.yaw, this.pitch);
+                        if (upMop != null) {
+                            this.place(upData.blockPos(), upData.facing(), upMop.hitVec);
+                        }
+                    }
                 } else if ((this.keepY.getValue() == 2 || this.keepY.getValue() == 4) && this.stage > 0 && !mc.thePlayer.onGround) {
                     int nextBlockY = MathHelper.floor_double(mc.thePlayer.posY + mc.thePlayer.motionY);
                     if (nextBlockY <= this.startY && mc.thePlayer.posY > (double) (this.startY + 1)) {
@@ -959,6 +986,53 @@ public class NewScaffold extends Module {
                                     mc.thePlayer.motionY *= 0.98F;
                                     mc.thePlayer.motionY -= 0.08;
                                     mc.thePlayer.motionY *= 0.98F;
+                                }
+                                return;
+                            default:
+                                this.towerTick = 0;
+                                this.towerDelay = 0;
+                                return;
+                        }
+                    case 4: // UPTELLY — telly tower that climbs forward and up (EXTRATELLY logic, bps-optimized)
+                        switch (this.towerTick) {
+                            case 0:
+                                if (mc.thePlayer.onGround) {
+                                    this.towerTick = 1;
+                                    mc.thePlayer.motionY = -0.0784000015258789;
+                                }
+                                return;
+                            case 1:
+                                if (yState == 0 && PlayerUtil.isAirBelow()) {
+                                    this.startY = MathHelper.floor_double(mc.thePlayer.posY);
+                                    this.towerTick = 2;
+                                    mc.thePlayer.motionY = 0.42F;
+                                    if (MoveUtil.isForwardPressed()) {
+                                        // keep full forward momentum -> better bps while climbing
+                                        MoveUtil.setSpeed(MoveUtil.getSpeed(), MoveUtil.getMoveYaw());
+                                    } else {
+                                        this.towerTick = 0;
+                                        this.towerDelay = 0;
+                                        MoveUtil.setSpeed(0.0);
+                                        event.setForward(0.0F);
+                                        event.setStrafe(0.0F);
+                                    }
+                                    return;
+                                } else {
+                                    this.towerTick = 0;
+                                    return;
+                                }
+                            case 2:
+                                this.towerTick = 3;
+                                mc.thePlayer.motionY = 0.75 - mc.thePlayer.posY % 1.0;
+                                if (MoveUtil.isForwardPressed()) {
+                                    MoveUtil.setSpeed(MoveUtil.getSpeed(), MoveUtil.getMoveYaw());
+                                }
+                                return;
+                            case 3:
+                                this.towerTick = 1;
+                                mc.thePlayer.motionY = 1.0 - mc.thePlayer.posY % 1.0;
+                                if (MoveUtil.isForwardPressed()) {
+                                    MoveUtil.setSpeed(MoveUtil.getSpeed(), MoveUtil.getMoveYaw());
                                 }
                                 return;
                             default:

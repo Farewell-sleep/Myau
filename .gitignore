@@ -33,3 +33,8 @@ er_dump.txt
 er_srg.txt
 of_dump.txt
 
+
+# CMake build output
+myau-natives/build/
+*.exe
+*.dll

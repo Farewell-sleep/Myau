@@ -49,6 +49,8 @@ public abstract class MixinEntityPlayerSP extends MixinEntityPlayer {
             at = {@At("HEAD")}
     )
     private void onUpdate(CallbackInfo callbackInfo) {
+        myau.util.RotationUtil.serverRotations[0] = this.lastReportedYaw;
+        myau.util.RotationUtil.serverRotations[1] = this.lastReportedPitch;
         if (this.worldObj.isBlockLoaded(new BlockPos(this.posX, 0.0, this.posZ))) {
             UpdateEvent event = new UpdateEvent(EventType.PRE, this.lastReportedYaw, this.lastReportedPitch, this.rotationYaw, this.rotationPitch);
             EventManager.call(event);

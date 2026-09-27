@@ -33,6 +33,13 @@ public class KeyBindUtil {
         return Keyboard.getKeyName(keyCode);
     }
 
+    private static final ThreadLocal<Boolean> SYNTHETIC = new ThreadLocal<Boolean>();
+
+    public static boolean isSynthetic() {
+        return Boolean.TRUE.equals(SYNTHETIC.get());
+    }
+
+
     public static boolean isKeyDown(int keyCode) {
         return keyCode < 0 ? Mouse.isButtonDown(keyCode + 100) : Keyboard.isKeyDown(keyCode);
     }

@@ -1,7 +1,6 @@
 package myau.module.modules;
 
 import myau.module.Module;
-import myau.ui.ToastManager;
 import myau.util.ChatUtil;
 import net.minecraft.client.Minecraft;
 
@@ -27,7 +26,6 @@ public final class ModuleToggleNotify extends Module {
     /** Invoked by OpenMyau.init() after all modules are registered. */
     public static void init() {
         instance = new ModuleToggleNotify();
-        ToastManager.register();
         ready = true;
     }
 
@@ -40,9 +38,7 @@ public final class ModuleToggleNotify extends Module {
             return;
         }
         boolean enabled = module.isEnabled();
-        // modern on-screen toast (right edge, slide-in, colored accent)
-        ToastManager.push(module.getName(), enabled);
-        // chat message, upgraded style: prefix + name + arrow separator + bold colored state
+        // chat message: prefix + name + arrow separator + bold colored state
         String state = enabled ? "&a&lON" : "&c&lOFF";
         ChatUtil.sendFormatted("&7[&bMyau&7] &f" + module.getName() + " &8» " + state);
     }

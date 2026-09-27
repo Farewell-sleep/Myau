@@ -55,7 +55,7 @@ public class LiquidClickGui extends GuiScreen {
         int i = 0;
         panels.add(new GlassPanel("Combat", category(AimAssist.class, AutoClicker.class, KillAura.class, Wtap.class,
                 Velocity.class, Freeze.class, Reach.class, TargetStrafe.class, NoHitDelay.class, AntiFireball.class,
-                LagRange.class, BackTrack.class, BlockHit.class, AutoBlock.class, HitBox.class, MoreKB.class, Refill.class, HitSelect.class), i++));
+                LagRange.class, BackTrack.class, BlockHit.class, Autoblock.class, HitBox.class, MoreKB.class, Refill.class, HitSelect.class, AutoThrow.class, NewKillAura.class, SmartAttack.class), i++));
         panels.add(new GlassPanel("Movement", category(AntiAFK.class, Fly.class, Speed.class, LongJump.class, Sprint.class,
                 SafeWalk.class, Jesus.class, Blink.class, NoFall.class, NoSlow.class, KeepSprint.class, Eagle.class,
                 NoJumpDelay.class, AntiVoid.class), i++));
@@ -63,12 +63,12 @@ public class LiquidClickGui extends GuiScreen {
                 Xray.class, TargetHUD.class, Indicators.class, BedESP.class, ItemESP.class, ItemPhysics.class, BreakProgress.class,
                 Freelook.class, ViewClip.class, NoHurtCam.class,
                 HUD.class, GuiModule.class, ChestESP.class, Trajectories.class, Radar.class, CuteVisuals.class, SnowFog.class), i++));
-        panels.add(new GlassPanel("Player", category(AutoHeal.class, AutoTool.class, ChestStealer.class, InvManager.class,
+        panels.add(new GlassPanel("Player", category(Clutch.class, AutoHeal.class, AutoTool.class, ChestStealer.class, InvManager.class,
                 InvWalk.class, Scaffold.class, NewScaffold.class, Telly.class, AutoBlockIn.class, SpeedMine.class, FastPlace.class,
                 GhostHand.class, MCF.class, AntiDebuff.class), i++));
         panels.add(new GlassPanel("Misc", category(Spammer.class, BedNuker.class, BedTracker.class, LightningTracker.class,
                 NoRotate.class, NickHider.class, AntiObbyTrap.class, AntiObfuscate.class, AutoAnduril.class,
-                InventoryClicker.class), i));
+                InventoryClicker.class, Disabler.class), i));
 
         int px = 14;
         for (GlassPanel p : panels) {
@@ -140,12 +140,6 @@ public class LiquidClickGui extends GuiScreen {
         drawGlassCapsuleBg(styleX, 8, 82, 18, styleHover ? 1.0F : 0.85F);
         mc.fontRendererObj.drawString("State: " + (GlassModuleEntry.switchStyle ? "Switch" : "Accent"),
                 styleX + 10, 12, GlassRenderer.TEXT_MAIN);
-
-        // GUI style switch -> Modern (LiquidGlass is this screen)
-        int modernX = width - 180;
-        boolean modernHover = mouseX >= modernX && mouseX <= modernX + 82 && mouseY >= 8 && mouseY <= 26;
-        drawGlassCapsuleBg(modernX, 8, 82, 18, modernHover ? 1.0F : 0.85F);
-        mc.fontRendererObj.drawString("Modern UI", modernX + 10, 12, GlassRenderer.TEXT_MAIN);
 
         // search bar — same liquid glass refraction as the panels
         int sy = 12;
@@ -374,14 +368,6 @@ public class LiquidClickGui extends GuiScreen {
         int styleX = width - 92;
         if (mouseButton == 0 && mouseX >= styleX && mouseX <= styleX + 82 && mouseY >= 8 && mouseY <= 26) {
             GlassModuleEntry.switchStyle = !GlassModuleEntry.switchStyle;
-            return;
-        }
-        // GUI style switch -> Modern
-        int modernX = width - 180;
-        if (mouseButton == 0 && mouseX >= modernX && mouseX <= modernX + 82 && mouseY >= 8 && mouseY <= 26) {
-            myau.module.modules.GuiModule gm = (myau.module.modules.GuiModule) OpenMyau.moduleManager.getModule(myau.module.modules.GuiModule.class);
-            if (gm != null) gm.setStyle(1);
-            mc.displayGuiScreen(new myau.ui.modern.ModernClickGui());
             return;
         }
         for (GlassPanel p : panels) {

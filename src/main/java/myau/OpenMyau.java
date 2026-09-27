@@ -7,6 +7,7 @@ import myau.command.CommandManager;
 import myau.command.commands.*;
 import myau.config.Config;
 import myau.event.EventManager;
+import myau.lag.handler.UnifiedLagHandler;
 import myau.management.*;
 import myau.module.Module;
 import myau.module.ModuleManager;
@@ -26,6 +27,7 @@ public class OpenMyau {
     public static RotationManager rotationManager;
     public static FloatManager floatManager;
     public static BlinkManager blinkManager;
+    public static UnifiedLagHandler lagHandler;
     public static DelayManager delayManager;
     public static LagManager lagManager;
     public static PlayerStateManager playerStateManager;
@@ -39,10 +41,44 @@ public class OpenMyau {
         this.init();
     }
 
+    public static synchronized void shutdown() {
+        net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getMinecraft();
+        if (moduleManager != null) {
+            for (Module module : moduleManager.modules.values()) {
+                if (module.isEnabled()) {
+                    try {
+                        module.setEnabled(false);
+                    } catch (Throwable ignored) {
+                    }
+                }
+            }
+        }
+        try {
+            if (blinkManager != null) {
+                blinkManager.setBlinkState(false, blinkManager.getBlinkingModule());
+            }
+            if (delayManager != null) {
+                delayManager.setDelayState(false, delayManager.getDelayModule());
+            }
+            if (lagManager != null) {
+                lagManager.setDelay(0);
+            }
+            if (mc.thePlayer != null) {
+                EventManager.call(new myau.events.TickEvent(myau.event.types.EventType.POST));
+            }
+        } catch (Throwable ignored) {
+        }
+        try {
+            new Config("default", true).save();
+        } catch (Throwable ignored) {
+        }
+        EventManager.clear();
+    }
     public void init() {
         rotationManager = new RotationManager();
         floatManager = new FloatManager();
         blinkManager = new BlinkManager();
+        lagHandler = new UnifiedLagHandler();
         delayManager = new DelayManager();
         lagManager = new LagManager();
         playerStateManager = new PlayerStateManager();
@@ -54,6 +90,7 @@ public class OpenMyau {
         EventManager.register(rotationManager);
         EventManager.register(floatManager);
         EventManager.register(blinkManager);
+        EventManager.register(lagHandler);
         EventManager.register(delayManager);
         EventManager.register(lagManager);
         EventManager.register(moduleManager);
@@ -70,6 +107,7 @@ public class OpenMyau {
         moduleManager.modules.put(AutoAnduril.class, new AutoAnduril());
         moduleManager.modules.put(AutoHeal.class, new AutoHeal());
         moduleManager.modules.put(AutoTool.class, new AutoTool());
+        moduleManager.modules.put(AutoThrow.class, new AutoThrow());
         moduleManager.modules.put(BedNuker.class, new BedNuker());
         moduleManager.modules.put(BedESP.class, new BedESP());
         moduleManager.modules.put(BedTracker.class, new BedTracker());
@@ -78,6 +116,7 @@ public class OpenMyau {
         moduleManager.modules.put(Chams.class, new Chams());
         moduleManager.modules.put(ChestESP.class, new ChestESP());
         moduleManager.modules.put(ChestStealer.class, new ChestStealer());
+        moduleManager.modules.put(Clutch.class, new Clutch());
         moduleManager.modules.put(CuteVisuals.class, new CuteVisuals());
         moduleManager.modules.put(Eagle.class, new Eagle());
         moduleManager.modules.put(ESP.class, new ESP());
@@ -101,10 +140,13 @@ public class OpenMyau {
         moduleManager.modules.put(KeepSprint.class, new KeepSprint());
         moduleManager.modules.put(HitBox.class, new HitBox());
         moduleManager.modules.put(KillAura.class, new KillAura());
+        moduleManager.modules.put(NewKillAura.class, new NewKillAura());
+        moduleManager.modules.put(SmartAttack.class, new SmartAttack());
+        moduleManager.modules.put(Disabler.class, new Disabler());
         moduleManager.modules.put(LagRange.class, new LagRange());
         moduleManager.modules.put(BackTrack.class, new BackTrack());
         moduleManager.modules.put(BlockHit.class, new BlockHit());
-        moduleManager.modules.put(AutoBlock.class, new AutoBlock());
+        moduleManager.modules.put(Autoblock.class, new Autoblock());
         moduleManager.modules.put(LightningTracker.class, new LightningTracker());
         moduleManager.modules.put(LongJump.class, new LongJump());
         moduleManager.modules.put(MCF.class, new MCF());

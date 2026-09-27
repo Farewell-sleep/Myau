@@ -3,11 +3,13 @@ package myau.mixin;
 import myau.event.EventManager;
 import myau.events.AttackEvent;
 import myau.events.CancelUseEvent;
+import myau.events.UseItemEvent;
 import myau.events.WindowClickEvent;
 import net.minecraft.client.multiplayer.PlayerControllerMP;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
+import net.minecraft.world.World;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 import org.spongepowered.asm.mixin.Mixin;
@@ -29,6 +31,22 @@ public abstract class MixinPlayerControllerMP {
         AttackEvent event = new AttackEvent(targetEntity);
         EventManager.call(event);
     }
+    @Inject(
+            method = {"sendUseItem"},
+            at = {@At("HEAD")},
+            cancellable = true
+    )
+    private void sendUseItem(
+            EntityPlayer entityPlayer, World world, ItemStack itemStack,
+            CallbackInfoReturnable<Boolean> callbackInfoReturnable
+    ) {
+        UseItemEvent event = new UseItemEvent(itemStack);
+        EventManager.call(event);
+        if (event.isCancelled()) {
+            callbackInfoReturnable.setReturnValue(false);
+        }
+    }
+
     @Inject(
             method = {"windowClick"},
             at = {@At("HEAD")},

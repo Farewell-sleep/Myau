@@ -51,6 +51,9 @@ import myau.module.modules.GuiModule;
 import myau.module.modules.HUD;
 import myau.module.modules.HitBox;
 import myau.module.modules.HitSelect;
+import myau.module.modules.Disabler;
+import myau.module.modules.NewKillAura;
+import myau.module.modules.SmartAttack;
 import myau.module.modules.Indicators;
 import myau.module.modules.InvManager;
 import myau.module.modules.InvWalk;
@@ -117,6 +120,8 @@ public class ClickGui extends GuiScreen {
         combatModules.add(OpenMyau.moduleManager.getModule(MoreKB.class));
         combatModules.add(OpenMyau.moduleManager.getModule(Refill.class));
         combatModules.add(OpenMyau.moduleManager.getModule(HitSelect.class));
+        combatModules.add(OpenMyau.moduleManager.getModule(NewKillAura.class));
+        combatModules.add(OpenMyau.moduleManager.getModule(SmartAttack.class));
 
         List<Module> movementModules = new ArrayList<>();
         movementModules.add(OpenMyau.moduleManager.getModule(AntiAFK.class));
@@ -179,6 +184,7 @@ public class ClickGui extends GuiScreen {
         miscModules.add(OpenMyau.moduleManager.getModule(AntiObfuscate.class));
         miscModules.add(OpenMyau.moduleManager.getModule(AutoAnduril.class));
         miscModules.add(OpenMyau.moduleManager.getModule(InventoryClicker.class));
+        miscModules.add(OpenMyau.moduleManager.getModule(Disabler.class));
 
         Comparator<Module> comparator = Comparator.comparing(m -> m.getName().toLowerCase());
         combatModules.sort(comparator);

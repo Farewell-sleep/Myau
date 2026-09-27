@@ -92,6 +92,19 @@ public abstract class MixinMinecraft {
     }
 
     @Inject(
+            method = {"runTick"},
+            at = {@At(
+                    value = "FIELD",
+                    target = "Lnet/minecraft/client/settings/GameSettings;chatVisibility:"
+                            + "Lnet/minecraft/entity/player/EntityPlayer$EnumChatVisibility;",
+                    shift = At.Shift.BEFORE
+            )}
+    )
+    private void prePlayerInteract(CallbackInfo callbackInfo) {
+        EventManager.call(new PrePlayerInteractEvent());
+    }
+
+    @Inject(
             method = {"clickMouse"},
             at = {@At("HEAD")},
             cancellable = true
@@ -142,6 +155,13 @@ public abstract class MixinMinecraft {
             )
     )
     private void setKeyBindState(int integer, boolean boolean2) {
+        if (integer < 0) {
+            MouseButtonEvent mouseEvent = new MouseButtonEvent(integer + 100, boolean2);
+            EventManager.call(mouseEvent);
+            if (mouseEvent.isCancelled()) {
+                return;
+            }
+        }
         KeyBinding.setKeyBindState(integer, boolean2);
         if (boolean2 && this.currentScreen == null) {
             EventManager.call(new KeyEvent(integer));

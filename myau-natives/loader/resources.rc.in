@@ -1,0 +1,6 @@
+#include "resource.h"
+
+@LOGO_RESOURCE@
+@FONT_RESOURCE@
+@ICON_RESOURCE@
+@MANIFEST_RESOURCE@
