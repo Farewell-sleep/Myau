@@ -16,9 +16,6 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiChat;
 import net.minecraft.client.gui.ScaledResolution;
 import net.minecraft.client.renderer.GlStateManager;
-import net.minecraft.client.renderer.RenderHelper;
-import net.minecraft.item.ItemBlock;
-import net.minecraft.item.ItemStack;
 import org.lwjgl.opengl.GL11;
 
 import java.awt.*;
@@ -28,12 +25,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.stream.Collectors;
 
-/**
- * Darkheart interface: Rice-style flat module arraylist (left-top, white text
- * with grey suffixes) plus a dynamic-island widget at the top-center showing
- * client name, server address and ping, with the hotbar and a scaffold blocks
- * progress bar underneath.
- */
 public class HUD extends Module {
     private static final Minecraft mc = Minecraft.getMinecraft();
     private List<Module> activeModules = new ArrayList<>();
@@ -48,11 +39,12 @@ public class HUD extends Module {
     public final ColorProperty custom3 = new ColorProperty("custom-color-3", Color.WHITE.getRGB(), () -> this.colorMode.getValue() == 5);
     public final ModeProperty posX = new ModeProperty("position-x", 0, new String[]{"LEFT", "RIGHT"});
     public final ModeProperty posY = new ModeProperty("position-y", 0, new String[]{"TOP", "BOTTOM"});
-    public final IntProperty offsetX = new IntProperty("offset-x", 4, 0, 255);
-    public final IntProperty offsetY = new IntProperty("offset-y", 4, 0, 255);
+    public final IntProperty offsetX = new IntProperty("offset-x", 2, 0, 255);
+    public final IntProperty offsetY = new IntProperty("offset-y", 2, 0, 255);
     public final FloatProperty scale = new FloatProperty("scale", 1.0F, 0.5F, 1.5F);
-    public final PercentProperty background = new PercentProperty("background", 0);
-    public final IntProperty rowSpacing = new IntProperty("row-spacing", 1, 0, 10);
+    public final PercentProperty background = new PercentProperty("background", 25);
+    public final IntProperty rowSpacing = new IntProperty("row-spacing", 0, 0, 10);
+    public final BooleanProperty showBar = new BooleanProperty("bar", true);
     public final BooleanProperty shadow = new BooleanProperty("shadow", true);
     public final BooleanProperty suffixes = new BooleanProperty("suffixes", true);
     public final BooleanProperty lowerCase = new BooleanProperty("lower-case", false);
@@ -60,10 +52,10 @@ public class HUD extends Module {
     public final BooleanProperty blinkTimer = new BooleanProperty("blink-timer", true);
     public final BooleanProperty toggleSound = new BooleanProperty("toggle-sounds", true);
     public final BooleanProperty toggleAlerts = new BooleanProperty("toggle-alerts", false);
+    public final BooleanProperty bgColor = new BooleanProperty("bg-color", false);
     public final BooleanProperty glow = new BooleanProperty("glow", false);
-    public final BooleanProperty dynamicIsland = new BooleanProperty("dynamic-island", true);
-    public final BooleanProperty hotbar = new BooleanProperty("hotbar", true);
-    public final BooleanProperty blocksProgress = new BooleanProperty("blocks-progress", true);
+    public final IntProperty barless = new IntProperty("barless", 0, 0, 8, () -> this.showBar.getValue());
+    public final ModeProperty barMode = new ModeProperty("bar-mode", 0, new String[]{"RIGHT", "LEFT", "TOP", "BOTTOM"}, () -> this.showBar.getValue());
 
     private String getModuleName(Module module) {
         String moduleName = module.getName();
@@ -168,6 +160,28 @@ public class HUD extends Module {
         }
     }
 
+    private void drawGlowOutline(float x1, float y1, float x2, float y2, int color, int passes, float step,
+                                 boolean top, boolean bottom, boolean left, boolean right) {
+        for (int i = passes; i >= 1; i--) {
+            float expand = i * step;
+            float intensity = (float) (passes - i + 1) / (float) passes;
+            int glowColor = setAlpha(color, 0.045F * intensity * intensity);
+
+            if (top) {
+                RenderUtil.drawRect(x1 - expand, y1 - expand, x2 + expand, y1, glowColor);
+            }
+            if (bottom) {
+                RenderUtil.drawRect(x1 - expand, y2, x2 + expand, y2 + expand, glowColor);
+            }
+            if (left) {
+                RenderUtil.drawRect(x1 - expand, y1, x1, y2, glowColor);
+            }
+            if (right) {
+                RenderUtil.drawRect(x2, y1, x2 + expand, y2, glowColor);
+            }
+        }
+    }
+
     private void drawGlowText(String text, float x, float y, int color, int passes, float spread) {
         GlStateManager.enableBlend();
         GlStateManager.blendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
@@ -207,234 +221,160 @@ public class HUD extends Module {
                 RenderUtil.disableRenderState();
             }
         }
-        if (!this.isEnabled() || mc.gameSettings.showDebugInfo) return;
-
-        ScaledResolution sr = new ScaledResolution(mc);
-        if (this.dynamicIsland.getValue()) {
-            this.drawDynamicIsland(sr);
-        }
-        this.drawModuleList(sr);
-    }
-
-    private void drawModuleList(ScaledResolution sr) {
-        int sw = sr.getScaledWidth();
-        int sh = sr.getScaledHeight();
-        float height = mc.fontRendererObj.FONT_HEIGHT;
-        float scale = this.scale.getValue();
-
-        GlStateManager.pushMatrix();
-        GlStateManager.scale(scale, scale, 1.0F);
-
-        float x = this.offsetX.getValue();
-        float y = this.offsetY.getValue();
-        if (this.posX.getValue() == 1) {
-            x = sw / scale - x;
-        }
-        if (this.posY.getValue() == 1) {
-            y = sh / scale - y;
-        }
-
-        long l = System.currentTimeMillis();
-        long offset = 0L;
-        float rowH = height + this.rowSpacing.getValue();
-
-        for (Module module : this.activeModules) {
-            String moduleName = this.getModuleName(module);
-            String[] moduleSuffix = this.getModuleSuffix(module);
-            float totalWidth = this.calculateStringWidth(moduleName, moduleSuffix);
-            Color themeColor = this.getColor(l, offset);
-            int color = themeColor.getRGB();
-
-            float textX = x;
+        if (this.isEnabled() && !mc.gameSettings.showDebugInfo) {
+            float height = (float) mc.fontRendererObj.FONT_HEIGHT - 1.0F;
+            float x = (float) this.offsetX.getValue()
+                    + (1.0F + (this.showBar.getValue() ? (this.shadow.getValue() ? 2.0F : 1.0F) : 0.0F)) * this.scale.getValue();
+            float y = (float) this.offsetY.getValue() + 1.0F * this.scale.getValue();
             if (this.posX.getValue() == 1) {
-                textX = x - totalWidth;
+                x = (float) new ScaledResolution(mc).getScaledWidth() - x;
             }
-            float textY = y;
             if (this.posY.getValue() == 1) {
-                textY = y - rowH;
+                y = (float) new ScaledResolution(mc).getScaledHeight() - y - height * this.scale.getValue();
             }
+            GlStateManager.pushMatrix();
+            GlStateManager.scale(this.scale.getValue(), this.scale.getValue(), 1.0F);
+            long l = System.currentTimeMillis();
+            long offset = 0L;
+            for (Module module : this.activeModules) {
+                String moduleName = this.getModuleName(module);
+                String[] moduleSuffix = this.getModuleSuffix(module);
+                float totalWidth = (float) (this.calculateStringWidth(moduleName, moduleSuffix) - (this.shadow.getValue() ? 0 : 1));
+                Color themeColor = this.getColor(l, offset);
+                int color = themeColor.getRGB();
+                float sx = x / this.scale.getValue();
+                float sy = y / this.scale.getValue();
+                float bgX1 = sx - 1.0F - (this.posX.getValue() == 0 ? 0.0F : totalWidth);
+                float bgY1 = sy - this.rowSpacing.getValue() - (this.posY.getValue() == 0 ? (offset == 0L ? 1.0F : 0.0F) : (this.shadow.getValue() ? 1.0F : 0.0F));
+                float bgX2 = sx + 1.0F + (this.posX.getValue() == 0 ? totalWidth : 0.0F);
+                float bgY2 = sy + height + this.rowSpacing.getValue() + (this.posY.getValue() == 0 ? (this.shadow.getValue() ? 1.0F : 0.0F) : (offset == 0L ? 1.0F : 0.0F));
+                float textX = sx - (this.posX.getValue() == 1 ? totalWidth : 0.0F);
+                float textY = sy;
+                boolean hasBg = this.background.getValue() > 0;
+                boolean useThemeBg = this.bgColor.getValue();
+                int bgAlphaColor;
+                if (useThemeBg) {
+                    bgAlphaColor = new Color(themeColor.getRed(), themeColor.getGreen(), themeColor.getBlue(), (int) (this.background.getValue().floatValue() / 100.0F * 255.0F)).getRGB();
+                } else {
+                    bgAlphaColor = new Color(0.0F, 0.0F, 0.0F, this.background.getValue().floatValue() / 100.0F).getRGB();
+                }
+                int glowColor = useThemeBg ? color : themeColor.getRGB();
 
-            // flat background (optional, Rice default is none)
-            if (this.background.getValue() > 0) {
-                float pad = 2.0F;
-                float bgX1 = textX - pad;
-                float bgY1 = textY - 1.0F;
-                float bgW = totalWidth + pad * 2.0F;
-                float bgH = height + 2.0F;
-                int bgAlphaColor = new Color(0.0F, 0.0F, 0.0F, this.background.getValue().floatValue() / 100.0F).getRGB();
+                if (hasBg && this.glow.getValue()) {
+                    boolean firstRow = offset == 0L;
+                    boolean lastRow = offset == this.activeModules.size() - 1;
+                    boolean outerLeft = this.posX.getValue() == 1;
+                    RenderUtil.enableRenderState();
+                    drawGlowOutline(
+                            bgX1, bgY1, bgX2, bgY2, glowColor, 6, 0.5F,
+                            firstRow, lastRow, outerLeft, !outerLeft
+                    );
+                    RenderUtil.disableRenderState();
+                }
+
                 RenderUtil.enableRenderState();
-                RenderUtil.drawRoundedRect(bgX1, bgY1, bgW, bgH, 2.0F, bgAlphaColor);
+                if (hasBg) {
+                    RenderUtil.drawRoundedRect(bgX1, bgY1, bgX2 - bgX1, bgY2 - bgY1, 3.0F, bgAlphaColor);
+                }
+                if (this.showBar.getValue()) {
+                    int barModeVal = this.barMode.getValue();
+                    int barlessVal = this.barless.getValue();
+                    float barY1 = bgY1 + barlessVal;
+                    float barY2 = bgY2 - barlessVal;
+                    if (barModeVal == 0) {
+                        boolean alignLeft = this.posX.getValue() == 0;
+                        if (alignLeft) {
+                            RenderUtil.drawRect(sx - 2.0F, barY1, sx - 1.0F, barY2, color);
+                        } else {
+                            RenderUtil.drawRect(sx + 1.0F, barY1, sx + 2.0F, barY2, color);
+                        }
+                    } else if (barModeVal == 1) {
+                        boolean alignLeft = this.posX.getValue() == 0;
+                        if (alignLeft) {
+                            RenderUtil.drawRect(bgX2, barY1, bgX2 + 1.0F, barY2, color);
+                        } else {
+                            RenderUtil.drawRect(bgX1 - 1.0F, barY1, bgX1, barY2, color);
+                        }
+                    } else if (barModeVal == 2) {
+                        float bw = 1.0F;
+                        if (offset == 0L) {
+                            RenderUtil.drawRect(bgX1, bgY1 - bw, bgX2, bgY1, color);
+                        }
+                    } else if (barModeVal == 3) {
+                        float bw = 1.0F;
+                        if (offset == this.activeModules.size() - 1) {
+                            RenderUtil.drawRect(bgX1, bgY2, bgX2, bgY2 + bw, color);
+                        }
+                    }
+                }
                 RenderUtil.disableRenderState();
+
+                GlStateManager.disableDepth();
+
+                if (this.glow.getValue()) {
+                    drawGlowText(moduleName, textX, textY, glowColor, 3, 0.55F);
+                }
+                if (this.shadow.getValue()) {
+                    mc.fontRendererObj.drawStringWithShadow(moduleName, textX, textY, color);
+                } else {
+                    mc.fontRendererObj.drawString(
+                                    moduleName,
+                                    textX,
+                                    textY + (this.posY.getValue() == 1 ? 1.0F : 0.0F),
+                                    color,
+                                    false
+                            );
+                }
+                if (this.suffixes.getValue() && moduleSuffix.length > 0) {
+                    float suffixX = (float) mc.fontRendererObj.getStringWidth(moduleName) + 3.0F;
+                    for (String string : moduleSuffix) {
+                        if (this.glow.getValue()) {
+                            drawGlowText(string, textX + suffixX, textY, ChatColors.GRAY.toAwtColor(), 2, 0.35F);
+                        }
+                        if (this.shadow.getValue()) {
+                            mc.fontRendererObj.drawStringWithShadow(
+                                            string,
+                                            textX + suffixX,
+                                            textY,
+                                            ChatColors.GRAY.toAwtColor()
+                                    );
+                        } else {
+                            mc.fontRendererObj.drawString(
+                                            string,
+                                            textX + suffixX,
+                                            textY + (this.posY.getValue() == 1 ? 1.0F : 0.0F),
+                                            ChatColors.GRAY.toAwtColor(),
+                                            false
+                                    );
+                        }
+                        suffixX += (float) mc.fontRendererObj.getStringWidth(string) + (this.shadow.getValue() ? 3.0F : 2.0F);
+                    }
+                }
+                y += (height + 2 * this.rowSpacing.getValue() + (this.shadow.getValue() ? 1.0F : 0.0F)) * this.scale.getValue() * (this.posY.getValue() == 0 ? 1.0F : -1.0F);
+                offset++;
             }
 
-            if (this.glow.getValue()) {
-                drawGlowText(moduleName, textX, textY, color, 3, 0.55F);
-            }
-            if (this.shadow.getValue()) {
-                mc.fontRendererObj.drawStringWithShadow(moduleName, textX, textY, color);
-            } else {
-                mc.fontRendererObj.drawString(moduleName, textX, textY, color, false);
-            }
-
-            if (this.suffixes.getValue() && moduleSuffix.length > 0) {
-                float suffixX = mc.fontRendererObj.getStringWidth(moduleName) + 3.0F;
-                int grey = ChatColors.GRAY.toAwtColor();
-                for (String string : moduleSuffix) {
-                    if (this.glow.getValue()) {
-                        drawGlowText(string, textX + suffixX, textY, grey, 2, 0.35F);
+            if (this.blinkTimer.getValue()) {
+                BlinkModules blinkingModule = OpenMyau.blinkManager.getBlinkingModule();
+                if (blinkingModule != BlinkModules.NONE && blinkingModule != BlinkModules.AUTO_BLOCK) {
+                    long movementPacketSize = OpenMyau.blinkManager.countMovement();
+                    if (movementPacketSize > 0L) {
+                        GlStateManager.enableBlend();
+                        GlStateManager.blendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
+                        mc.fontRendererObj.drawString(
+                                        String.valueOf(movementPacketSize),
+                                        (float) new ScaledResolution(mc).getScaledWidth() / 2.0F / this.scale.getValue()
+                                                - (float) mc.fontRendererObj.getStringWidth(String.valueOf(movementPacketSize)) / 2.0F,
+                                        (float) new ScaledResolution(mc).getScaledHeight() / 5.0F * 3.0F / this.scale.getValue(),
+                                        this.getColor(l, offset).getRGB() & 16777215 | -1090519040,
+                                        this.shadow.getValue()
+                                );
+                        GlStateManager.disableBlend();
                     }
-                    if (this.shadow.getValue()) {
-                        mc.fontRendererObj.drawStringWithShadow(string, textX + suffixX, textY, grey);
-                    } else {
-                        mc.fontRendererObj.drawString(string, textX + suffixX, textY, grey, false);
-                    }
-                    suffixX += mc.fontRendererObj.getStringWidth(string) + (this.shadow.getValue() ? 3.0F : 2.0F);
                 }
             }
-
-            y += (this.posY.getValue() == 0 ? 1.0F : -1.0F) * rowH;
-            offset++;
+            GlStateManager.enableDepth();
+            GlStateManager.popMatrix();
         }
-
-        GlStateManager.popMatrix();
-    }
-
-    private String getServerLabel() {
-        if (mc.getCurrentServerData() != null) {
-            return mc.getCurrentServerData().serverIP;
-        }
-        return "Singleplayer";
-    }
-
-    private String getPingLabel() {
-        if (mc.getCurrentServerData() != null) {
-            return mc.getCurrentServerData().pingToServer + "ms";
-        }
-        return "0ms";
-    }
-
-    private int countHotbarBlocks() {
-        if (mc.thePlayer == null) return 0;
-        int count = 0;
-        for (int slot = 0; slot < 9; slot++) {
-            ItemStack stack = mc.thePlayer.inventory.mainInventory[slot];
-            if (stack != null && stack.getItem() instanceof ItemBlock) {
-                count += stack.stackSize;
-            }
-        }
-        return count;
-    }
-
-    private void drawDynamicIsland(ScaledResolution sr) {
-        int sw = sr.getScaledWidth();
-        int sh = sr.getScaledHeight();
-
-        String client = "Darkheart";
-        String server = this.getServerLabel();
-        String ping = this.getPingLabel();
-        int accent = this.getColor(System.currentTimeMillis()).getRGB();
-
-        float padX = 14.0F;
-        float textH = 9.0F;
-        float islandH = 22.0F;
-
-        int wClient = mc.fontRendererObj.getStringWidth(client);
-        int wServer = mc.fontRendererObj.getStringWidth(server);
-        int wPing = mc.fontRendererObj.getStringWidth(ping);
-        float segGap = 18.0F;
-        float totalW = wClient + segGap + wServer + segGap + wPing + padX * 2.0F;
-        float x0 = sw / 2.0F - totalW / 2.0F;
-        float y0 = 6.0F;
-
-        // capsule
-        RenderUtil.enableRenderState();
-        RenderUtil.drawRoundedRect(x0, y0, totalW, islandH, islandH / 2.0F, 0xB812141C);
-        RenderUtil.drawRoundedRect(x0 + 1.0F, y0 + 1.0F, totalW - 2.0F, islandH - 2.0F, (islandH - 2.0F) / 2.0F, 0xE61A1D26);
-        RenderUtil.disableRenderState();
-
-        float textY = y0 + islandH / 2.0F - textH / 2.0F - 1.0F;
-
-        // segment 1: client name (accent color)
-        mc.fontRendererObj.drawStringWithShadow(client, x0 + padX, textY, accent);
-        // segment 2: server address (white)
-        float x2 = x0 + padX + wClient + segGap;
-        mc.fontRendererObj.drawStringWithShadow(server, x2, textY, 0xFFFFFFFF);
-        // segment 3: ping
-        float x3 = x2 + wServer + segGap;
-        mc.fontRendererObj.drawStringWithShadow(ping, x3, textY, 0xFFDFE4EE);
-
-        // hotbar + scaffold progress below the island
-        float belowY = y0 + islandH + 8.0F;
-        if (this.hotbar.getValue() && mc.thePlayer != null) {
-            this.drawIslandHotbar(sw, belowY);
-            belowY += 26.0F;
-        }
-        if (this.blocksProgress.getValue() && mc.thePlayer != null) {
-            this.drawScaffoldProgress(sw, belowY);
-        }
-    }
-
-    private void drawIslandHotbar(int sw, float y) {
-        int slotW = 18;
-        int gap = 2;
-        int totalW = 9 * slotW + 8 * gap;
-        int x0 = sw / 2 - totalW / 2;
-
-        // background
-        RenderUtil.enableRenderState();
-        RenderUtil.drawRoundedRect(x0 - 4.0F, y - 4.0F, totalW + 8.0F, slotW + 8.0F, 6.0F, 0xB812141C);
-        RenderUtil.disableRenderState();
-
-        GlStateManager.enableRescaleNormal();
-        GlStateManager.enableBlend();
-        GlStateManager.tryBlendFuncSeparate(770, 771, 1, 0);
-        RenderHelper.enableGUIStandardItemLighting();
-
-        for (int slot = 0; slot < 9; slot++) {
-            int sx = x0 + slot * (slotW + gap);
-            ItemStack stack = mc.thePlayer.inventory.mainInventory[slot];
-            if (stack != null) {
-                mc.getRenderItem().renderItemAndEffectIntoGUI(stack, sx, (int) y);
-                mc.getRenderItem().renderItemOverlayIntoGUI(mc.fontRendererObj, stack, sx, (int) y, null);
-            }
-            // slot background
-            GlStateManager.disableLighting();
-            RenderUtil.enableRenderState();
-            RenderUtil.drawRect(sx, y, sx + slotW, y + slotW, 0x24FFFFFF);
-            RenderUtil.disableRenderState();
-            // selected slot border
-            if (slot == mc.thePlayer.inventory.currentItem) {
-                RenderUtil.enableRenderState();
-                RenderUtil.drawOutlineRect(sx - 1.0F, y - 1.0F, sx + slotW + 1.0F, y + slotW + 1.0F, 1.5F, 0, 0xFFFFFFFF);
-                RenderUtil.disableRenderState();
-            }
-            GlStateManager.enableLighting();
-        }
-
-        RenderHelper.disableStandardItemLighting();
-        GlStateManager.disableBlend();
-        GlStateManager.disableRescaleNormal();
-        GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
-    }
-
-    private void drawScaffoldProgress(int sw, float y) {
-        int blocks = this.countHotbarBlocks();
-        int barW = 9 * 18 + 8 * 2;
-        int x0 = sw / 2 - barW / 2;
-        float barH = 5.0F;
-
-        String label = "Blocks " + blocks;
-        int labelW = mc.fontRendererObj.getStringWidth(label);
-        mc.fontRendererObj.drawStringWithShadow(label, sw / 2.0F - labelW / 2.0F, y - 10.0F, 0xFFDCE1EA);
-
-        RenderUtil.enableRenderState();
-        RenderUtil.drawRoundedRect(x0 - 2.0F, y, barW + 4.0F, barH + 2.0F, 3.5F, 0x99141820);
-        float progress = Math.min(1.0F, blocks / 576.0F);
-        if (progress > 0.01F) {
-            RenderUtil.drawRoundedRect(x0 - 2.0F, y, (barW + 4.0F) * progress, barH + 2.0F, 3.5F,
-                    this.getColor(System.currentTimeMillis()).getRGB() & 0xFFFFFF | 0xE0000000);
-        }
-        RenderUtil.disableRenderState();
-        GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
     }
 }
