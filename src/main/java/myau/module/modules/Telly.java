@@ -66,6 +66,7 @@ public class Telly extends Module {
     public final BooleanProperty disableSafeWalk = new BooleanProperty("disable-safewalk", true);
     public final BooleanProperty showActivationHitbox = new BooleanProperty("show-activation-hitbox", false);
     public final BooleanProperty print = new BooleanProperty("print", false);
+    public final BooleanProperty speed = new BooleanProperty("speed", false);
 
     private final ClientApi client = new ClientApi();
     private final ModulesApi modules = new ModulesApi();
@@ -272,6 +273,27 @@ float[] strafeCurve = new float[] {
     0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f,
     0.0f, 0.0f, 0.0f, -1.0f, -1.0f, -1.0f, -1.0f
 };
+
+// Speed telly cycle (9 phases, mirrors the manual sequence):
+// phase 0-1: hold A + W (strafe -1, forward 1, sprint) - run-up
+// phase 2-3: release W, hold S, look back (yaw +180) - the turn
+// phase 4-8: hold S and place one bridge block (use on) - the speed unit
+// Placement internally always aims at baseYaw (facing the bridge), while the
+// visible rotation stays turned around, so blocks keep extending the lane.
+final float[] SPEED_YAW_CURVE = new float[] {
+    0.0f, 0.0f, 180.0f, 180.0f, 180.0f, 180.0f, 180.0f, 180.0f, 180.0f
+};
+final float[] SPEED_PITCH_CURVE = new float[] {
+    74.52f, 74.52f, 74.52f, 74.52f, 74.52f, 74.52f, 74.52f, 74.52f, 74.52f
+};
+final float[] SPEED_FORWARD_CURVE = new float[] {
+    1.0f, 1.0f, -1.0f, -1.0f, -1.0f, -1.0f, -1.0f, -1.0f, -1.0f
+};
+final float[] SPEED_STRAFE_CURVE = new float[] {
+    -1.0f, -1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f
+};
+int speedPhase = 0;
+boolean speedCycleInitialized = false;
 
 void onLoad() {
     modules.registerDescription("Decrypted");
@@ -876,9 +898,12 @@ void onPostPlayerInput() {
 
 void advanceTellyCycle() {
     if (!running) return;
+    if (speed.getValue()) {
+        advanceSpeedCycle();
+        return;
+    }
     suppressSneakInput();
     enforceSafeWalkDisabledForRun();
-
     if (setupTick >= 0) {
         if (setupTick < 12) {
             boolean setupJump = setupTick >= 6;
@@ -930,6 +955,28 @@ void advanceTellyCycle() {
     int nextPhase = (phase + 1) % yawCurve.length;
     setRotationTarget(baseYaw + yawCurve[nextPhase], pitchCurve[nextPhase], 50L);
     cyclePhase = nextPhase;
+}
+
+void advanceSpeedCycle() {
+    suppressSneakInput();
+    enforceSafeWalkDisabledForRun();
+    if (!speedCycleInitialized) {
+        speedCycleInitialized = true;
+        speedPhase = 0;
+        firstTellyPlacementPending = false;
+        adaptiveAimValid = false;
+        clearCachedCandidate();
+        resetControllerState();
+    }
+    int phase = speedPhase;
+    stagedForward = SPEED_FORWARD_CURVE[phase];
+    stagedStrafe = SPEED_STRAFE_CURVE[phase];
+    stagedJump = false;
+    stagedSprint = phase <= 1;
+    applyUse(phase >= 4);
+    int next = (phase + 1) % SPEED_YAW_CURVE.length;
+    setRotationTarget(baseYaw + SPEED_YAW_CURVE[next], SPEED_PITCH_CURVE[next], 50L);
+    speedPhase = next;
 }
 
 void applyTellyMovementInput() {
@@ -1813,7 +1860,7 @@ void processAutoPlaceTick(Entity player) {
     }
 
     // 运行中用脚本视角搜点；相机视角会导致候选块偏到后左并首块放空。
-    float yaw = running ? scriptedRotationYaw : player.getYaw();
+    float yaw = running ? (speed.getValue() ? baseYaw : scriptedRotationYaw) : player.getYaw();
     float basePitch = sanitizePitch(running ? scriptedRotationPitch : player.getPitch(), player.getPitch());
     Object[] candidate = resolveCandidateWithOffCursorSilentPitch(player, yaw, basePitch, heldStack);
     if (candidate != null) {
@@ -1846,7 +1893,7 @@ void processAutoPlaceTick(Entity player) {
 
     if (placedInCurrentWindow()) return;
 
-    float retryYaw = running ? scriptedRotationYaw : player.getYaw();
+    float retryYaw = running ? (speed.getValue() ? baseYaw : scriptedRotationYaw) : player.getYaw();
     float retryPitch = running ? scriptedRotationPitch : player.getPitch();
     clearCachedCandidate();
     Object[] retryCandidate = findBelowPlacement(player, retryYaw, retryPitch, heldStack, client.time() + (useExtendedSearch() ? 4L : 2L));
@@ -3182,6 +3229,7 @@ int faceFromName(String name) {
                 if (normalized.equals("disablesafewalk")) return disableSafeWalk.getValue();
                 if (normalized.equals("showactivationhitbox")) return showActivationHitbox.getValue();
                 if (normalized.equals("print")) return print.getValue();
+                if (normalized.equals("speed")) return speed.getValue();
             }
             Module module = getModule(moduleName);
             if (module == null || OpenMyau.propertyManager == null) return false;
