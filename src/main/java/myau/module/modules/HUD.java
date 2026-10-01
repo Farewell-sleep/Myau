@@ -316,7 +316,7 @@ public class HUD extends Module {
                 GlStateManager.disableDepth();
 
                 if (this.glow.getValue()) {
-                    drawGlowText(moduleName, textX, textY, glowColor, 4, 0.65F);
+                    drawGlowText(moduleName, textX, textY, glowColor, 3, 0.55F);
                 }
                 if (this.shadow.getValue()) {
                     FontManager.drawStringWithShadow(moduleName, textX, textY, color);

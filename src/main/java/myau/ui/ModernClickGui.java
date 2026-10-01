@@ -54,13 +54,13 @@ import java.util.Set;
  * search, draggable window, animated sliders/switches/color pickers.
  */
 public class ModernClickGui extends GuiScreen {
-    private static final int W = 560;
-    private static final int H = 350;
-    private static final int SIDEBAR = 132;
-    private static final int LIST_W = 164;
-    private static final int HEADER = 46;
-    private static final float ROW = 26.0F;
-    private static final float ROW_GAP = 3.0F;
+    private static final int W = 520;
+    private static final int H = 330;
+    private static final int SIDEBAR = 118;
+    private static final int LIST_W = 150;
+    private static final int HEADER = 42;
+    private static final float ROW = 24.0F;
+    private static final float ROW_GAP = 2.0F;
     private static final String[] CATEGORY_NAMES = {"Combat", "Movement", "Render", "Player", "Misc"};
 
     private static final Set<String> COMBAT = set("AimAssist", "AutoClicker", "KillAura", "NewKillAura", "SmartAttack", "Wtap", "BlockHit", "Autoblock", "AutoBlockIn", "Disabler", "HitSelect", "Velocity", "MoreKB", "NoHitDelay", "Reach", "BackTrack", "LagRange", "HitBox", "TargetStrafe", "Telly", "AutoAnduril", "AntiFireball", "AntiObbyTrap", "AntiDebuff", "AntiObfuscate");
@@ -405,12 +405,12 @@ public class ModernClickGui extends GuiScreen {
             });
             addHit(lx, ry, swX - 4.0F, ry + ROW, (button, mX, mY) -> {
                 if (button == 0) {
+                    module.toggle();
+                } else if (button == 1) {
                     if (selectedModule != module) {
                         selectedModule = module;
                         settingScroll = settingScrollTarget = 0.0F;
                     }
-                } else if (button == 1) {
-                    module.toggle();
                 }
             });
         }
@@ -452,11 +452,11 @@ public class ModernClickGui extends GuiScreen {
         drawSwitch(swX, hy, swW, 13.0F, on);
         addHit(swX - 30.0F, hy - 9.0F, swX + swW, hy + 9.0F, (button, mX, mY) -> module.toggle());
         RenderUtil.enableRenderState();
-        RenderUtil.drawRect(sx + 12.0F, sy + 36.0F, sx + sw - 12.0F, sy + 36.5F, col(255, 255, 255, 12));
+        RenderUtil.drawRect(sx + 12.0F, sy + 34.0F, sx + sw - 12.0F, sy + 34.5F, col(255, 255, 255, 12));
         RenderUtil.disableRenderState();
 
-        float cy = sy + 40.0F;
-        float ch = sh - 44.0F;
+        float cy = sy + 38.0F;
+        float ch = sh - 42.0F;
         float rx = sx + 12.0F;
         float rw = sw - 24.0F;
 
@@ -510,7 +510,7 @@ public class ModernClickGui extends GuiScreen {
     }
 
     private float drawBoolean(final BooleanProperty property, float rx, float ry, float rw, int mouseX, int mouseY) {
-        float h = 22.0F;
+        float h = 20.0F;
         String id = "b" + System.identityHashCode(property);
         rowBackground(id + "h", rx, ry, rw, h, mouseX, mouseY);
         float cy = ry + h / 2.0F;
@@ -524,7 +524,7 @@ public class ModernClickGui extends GuiScreen {
     }
 
     private float drawMode(final ModeProperty property, float rx, float ry, float rw, int mouseX, int mouseY) {
-        float h = 22.0F;
+        float h = 20.0F;
         String id = "m" + System.identityHashCode(property);
         rowBackground(id + "h", rx, ry, rw, h, mouseX, mouseY);
         float cy = ry + h / 2.0F;
@@ -543,16 +543,16 @@ public class ModernClickGui extends GuiScreen {
     }
 
     private float drawSlider(final Property<?> property, float rx, float ry, float rw, int mouseX, int mouseY) {
-        float h = 30.0F;
+        float h = 27.0F;
         String id = "s" + System.identityHashCode(property);
         rowBackground(id + "h", rx, ry, rw, h, mouseX, mouseY);
         String value = sliderText(property);
-        float nameY = ry + 9.0F;
+        float nameY = ry + 8.0F;
         text(GuiText.trim(label(property), (int) (rw - width(value, 13.0F) - 8.0F), 14.0F), rx, nameY, col(205, 210, 222, 255), 14.0F);
         text(value, rx + rw - width(value, 13.0F), nameY, col(240, 243, 248, 255), 13.0F);
 
         float ratio = anim(id, sliderRatio(property), draggingSlider == property ? 40.0F : 16.0F);
-        float trackY = ry + 21.0F;
+        float trackY = ry + 19.0F;
         RenderUtil.drawRoundedRectWithGl(rx, trackY - 1.5F, rx + rw, trackY + 1.5F, 1.5F, col(255, 255, 255, 22));
         float fx = rx + rw * clamp01(ratio);
         if (fx - rx > 0.5F) {
@@ -565,7 +565,7 @@ public class ModernClickGui extends GuiScreen {
 
         final float tx = rx;
         final float tw = rw;
-        addHit(rx - 4.0F, ry + 14.0F, rx + rw + 4.0F, ry + h, (button, mX, mY) -> {
+        addHit(rx - 4.0F, ry + 13.0F, rx + rw + 4.0F, ry + h, (button, mX, mY) -> {
             if (button == 0) {
                 draggingSlider = property;
                 sliderTrackX = tx;
@@ -582,7 +582,7 @@ public class ModernClickGui extends GuiScreen {
     }
 
     private float drawTextProperty(final TextProperty property, float rx, float ry, float rw, int mouseX, int mouseY) {
-        float h = 22.0F;
+        float h = 20.0F;
         String id = "t" + System.identityHashCode(property);
         rowBackground(id + "h", rx, ry, rw, h, mouseX, mouseY);
         float cy = ry + h / 2.0F;
@@ -602,7 +602,7 @@ public class ModernClickGui extends GuiScreen {
         boolean expanded = expandedColors.contains(property);
         String id = "c" + System.identityHashCode(property);
         float open = anim(id, expanded ? 1.0F : 0.0F, 14.0F);
-        float h = 22.0F + 42.0F * open;
+        float h = 20.0F + 38.0F * open;
         rowBackground(id + "h", rx, ry, rw, 22.0F, mouseX, mouseY);
         float cy = ry + 11.0F;
         text(GuiText.trim(label(property), (int) (rw - 30.0F), 14.0F), rx, cy, col(205, 210, 222, 255), 14.0F);
@@ -623,7 +623,7 @@ public class ModernClickGui extends GuiScreen {
                 Color.RGBtoHSB(c.getRed(), c.getGreen(), c.getBlue(), hsb);
             }
             float barH = 6.0F;
-            float[] barY = {ry + 26.0F, ry + 38.0F, ry + 50.0F};
+            float[] barY = {ry + 23.0F, ry + 33.0F, ry + 44.0F};
             float saveTop = clipTop;
             float saveBottom = clipBottom;
             setClip(Math.max(clipTop, ry), Math.min(clipBottom, ry + h));
@@ -656,7 +656,7 @@ public class ModernClickGui extends GuiScreen {
     }
 
     private float drawBind(final Module module, float rx, float ry, float rw, int mouseX, int mouseY) {
-        float h = 22.0F;
+        float h = 20.0F;
         rowBackground("bindh", rx, ry, rw, h, mouseX, mouseY);
         float cy = ry + h / 2.0F;
         boolean binding = bindingModule == module;

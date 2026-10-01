@@ -2,6 +2,9 @@ package myau.util;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.GlStateManager;
+import net.minecraft.client.renderer.Tessellator;
+import net.minecraft.client.renderer.WorldRenderer;
+import net.minecraft.client.renderer.vertex.DefaultVertexFormats;
 import org.lwjgl.opengl.GL11;
 
 import java.awt.Color;
@@ -16,9 +19,15 @@ import java.util.Map;
 
 /**
  * Modern font renderer used by the HUD, ClickGUI and other UI.
- * Rasterizes TTF glyphs (bundled HarmonyOS Sans, rendered at 2x) into
- * power-of-two texture cells so every GL context renders text correctly.
- * Falls back to the vanilla font when disabled.
+ *
+ * Every size class owns one glyph-atlas texture (power-of-two). Glyphs are
+ * rasterized from the bundled HarmonyOS Sans TTF and uploaded with
+ * glTexSubImage2D. Text is drawn with the standard Tessellator quad path
+ * (same as the vanilla FontRenderer), which is reliable in every GL context
+ * and far cheaper than per-character immediate-mode batches.
+ *
+ * The renderer never disables the texture or blend state it did not own, so
+ * world rendering is never corrupted after the HUD is drawn.
  */
 public class FontManager {
 
@@ -97,6 +106,9 @@ public class FontManager {
 
     /** Disposes all cached glyph textures (called on shutdown if needed). */
     public static void clear() {
+        for (FontRenderer r : CACHE.values()) {
+            r.deleteAtlas();
+        }
         CACHE.clear();
     }
 
@@ -105,6 +117,13 @@ public class FontManager {
         private final float scale;
         private final int fontSize;
         private final Map<Character, Glyph> glyphs = new HashMap<>();
+
+        private int atlasTexture = -1;
+        private int atlasW = 256;
+        private int atlasH = 256;
+        private int cursorX = 2;
+        private int cursorY = 2;
+        private int rowH = 0;
 
         private FontRenderer(int size) {
             this.fontSize = size;
@@ -120,11 +139,15 @@ public class FontManager {
         }
 
         private static final class Glyph {
-            int textureId;
             int width;
             int height;
-            int texWidth;
-            int texHeight;
+            int x;
+            int y;
+            float u1;
+            float v1;
+            float u2;
+            float v2;
+            BufferedImage image;
         }
 
         private int getHeight() {
@@ -148,6 +171,61 @@ public class FontManager {
             return glyph;
         }
 
+        private void ensureAtlas() {
+            if (this.atlasTexture != -1) return;
+            this.atlasTexture = GL11.glGenTextures();
+            GL11.glBindTexture(GL11.GL_TEXTURE_2D, this.atlasTexture);
+            GL11.glTexImage2D(GL11.GL_TEXTURE_2D, 0, GL11.GL_RGBA, this.atlasW, this.atlasH, 0,
+                    GL11.GL_RGBA, GL11.GL_UNSIGNED_BYTE, (ByteBuffer) null);
+            this.setTexParams();
+        }
+
+        private void setTexParams() {
+            GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MIN_FILTER, GL11.GL_LINEAR);
+            GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MAG_FILTER, GL11.GL_LINEAR);
+            GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_S, 0x812F); // GL_CLAMP_TO_EDGE
+            GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_T, 0x812F); // GL_CLAMP_TO_EDGE
+        }
+
+        private void growAtlas() {
+            int newW = this.atlasW * 2;
+            int newH = this.atlasH * 2;
+            int newTex = GL11.glGenTextures();
+            GL11.glBindTexture(GL11.GL_TEXTURE_2D, newTex);
+            GL11.glTexImage2D(GL11.GL_TEXTURE_2D, 0, GL11.GL_RGBA, newW, newH, 0,
+                    GL11.GL_RGBA, GL11.GL_UNSIGNED_BYTE, (ByteBuffer) null);
+            this.setTexParams();
+            for (Glyph g : this.glyphs.values()) {
+                this.uploadGlyph(g, newTex, g.x, g.y);
+                g.u1 = g.x / (float) newW;
+                g.v1 = g.y / (float) newH;
+                g.u2 = (g.x + g.width) / (float) newW;
+                g.v2 = (g.y + g.height) / (float) newH;
+            }
+            GL11.glDeleteTextures(this.atlasTexture);
+            this.atlasTexture = newTex;
+            this.atlasW = newW;
+            this.atlasH = newH;
+            this.cursorX = 2;
+            this.cursorY = 2;
+            this.rowH = 0;
+        }
+
+        private void uploadGlyph(Glyph g, int texture, int x, int y) {
+            int[] pixels = g.image.getRGB(0, 0, g.width, g.height, null, 0, g.width);
+            ByteBuffer buffer = ByteBuffer.allocateDirect(g.width * g.height * 4);
+            for (int pixel : pixels) {
+                buffer.put((byte) ((pixel >> 16) & 0xFF));
+                buffer.put((byte) ((pixel >> 8) & 0xFF));
+                buffer.put((byte) (pixel & 0xFF));
+                buffer.put((byte) ((pixel >> 24) & 0xFF));
+            }
+            buffer.flip();
+            GL11.glBindTexture(GL11.GL_TEXTURE_2D, texture);
+            GL11.glTexSubImage2D(GL11.GL_TEXTURE_2D, 0, x, y, g.width, g.height,
+                    GL11.GL_RGBA, GL11.GL_UNSIGNED_BYTE, buffer);
+        }
+
         private Glyph renderGlyph(char c) {
             Graphics2D probe = new BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB).createGraphics();
             probe.setFont(this.awtFont);
@@ -157,13 +235,23 @@ public class FontManager {
             int baseline = metrics.getAscent();
             probe.dispose();
 
-            // power-of-two texture cell: NPOT textures break on old GL contexts
-            int texW = 1;
-            while (texW < width) texW <<= 1;
-            int texH = 1;
-            while (texH < height) texH <<= 1;
+            this.ensureAtlas();
+            int pad = 1;
+            if (this.cursorX + width + pad > this.atlasW) {
+                this.cursorX = 2;
+                this.cursorY += this.rowH + pad;
+                this.rowH = 0;
+            }
+            if (this.cursorY + height + pad > this.atlasH) {
+                this.growAtlas();
+            }
+            if (this.cursorX + width + pad > this.atlasW) {
+                this.cursorX = 2;
+                this.cursorY += this.rowH + pad;
+                this.rowH = 0;
+            }
 
-            BufferedImage image = new BufferedImage(texW, texH, BufferedImage.TYPE_INT_ARGB);
+            BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
             Graphics2D g = image.createGraphics();
             g.setFont(this.awtFont);
             g.setColor(Color.WHITE);
@@ -172,35 +260,31 @@ public class FontManager {
             g.drawString(String.valueOf(c), 0, baseline);
             g.dispose();
 
-            int textureId = GL11.glGenTextures();
-            GL11.glBindTexture(GL11.GL_TEXTURE_2D, textureId);
-            int[] pixels = image.getRGB(0, 0, texW, texH, null, 0, texW);
-            ByteBuffer buffer = ByteBuffer.allocateDirect(texW * texH * 4);
-            for (int pixel : pixels) {
-                buffer.put((byte) ((pixel >> 16) & 0xFF));
-                buffer.put((byte) ((pixel >> 8) & 0xFF));
-                buffer.put((byte) (pixel & 0xFF));
-                buffer.put((byte) ((pixel >> 24) & 0xFF));
-            }
-            buffer.flip();
-            GL11.glTexImage2D(GL11.GL_TEXTURE_2D, 0, GL11.GL_RGBA, texW, texH, 0,
-                    GL11.GL_RGBA, GL11.GL_UNSIGNED_BYTE, buffer);
-            GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MIN_FILTER, GL11.GL_LINEAR);
-            GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MAG_FILTER, GL11.GL_LINEAR);
-            GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_S, GL11.GL_CLAMP);
-            GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_T, GL11.GL_CLAMP);
-
             Glyph glyph = new Glyph();
-            glyph.textureId = textureId;
             glyph.width = width;
             glyph.height = height;
-            glyph.texWidth = texW;
-            glyph.texHeight = texH;
+            glyph.x = this.cursorX;
+            glyph.y = this.cursorY;
+            glyph.image = image;
+            glyph.u1 = glyph.x / (float) this.atlasW;
+            glyph.v1 = glyph.y / (float) this.atlasH;
+            glyph.u2 = (glyph.x + width) / (float) this.atlasW;
+            glyph.v2 = (glyph.y + height) / (float) this.atlasH;
+            this.uploadGlyph(glyph, this.atlasTexture, glyph.x, glyph.y);
+
+            this.cursorX += width + pad;
+            this.rowH = Math.max(this.rowH, height);
             return glyph;
         }
 
+        private void deleteAtlas() {
+            if (this.atlasTexture != -1) {
+                GL11.glDeleteTextures(this.atlasTexture);
+                this.atlasTexture = -1;
+            }
+        }
+
         private void drawString(String text, float x, float y, int color, boolean shadow) {
-            if (text == null || text.isEmpty()) return;
             if (shadow) {
                 this.drawInternal(text, x + 0.6F, y + 0.6F, (color & 0xFF000000) | 0x00101010);
             }
@@ -213,35 +297,32 @@ public class FontManager {
             float green = (float) ((color >> 8) & 0xFF) / 255.0F;
             float blue = (float) (color & 0xFF) / 255.0F;
 
+            this.ensureAtlas();
             GlStateManager.enableBlend();
             GlStateManager.blendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
             GlStateManager.enableTexture2D();
             GlStateManager.disableAlpha();
-            GL11.glColor4f(red, green, blue, alpha);
+            GlStateManager.bindTexture(this.atlasTexture);
+
+            Tessellator tessellator = Tessellator.getInstance();
+            WorldRenderer wr = tessellator.getWorldRenderer();
+            wr.begin(GL11.GL_QUADS, DefaultVertexFormats.POSITION_TEX_COLOR);
             float cursor = x;
             for (char c : text.toCharArray()) {
                 Glyph glyph = this.getGlyph(c);
                 float glyphWidth = glyph.width * this.scale;
                 float glyphHeight = glyph.height * this.scale;
-                float u = glyph.width / (float) glyph.texWidth;
-                float v = glyph.height / (float) glyph.texHeight;
-                GlStateManager.bindTexture(glyph.textureId);
-                GL11.glBegin(GL11.GL_QUADS);
-                GL11.glTexCoord2f(0.0F, 0.0F);
-                GL11.glVertex2f(cursor, y);
-                GL11.glTexCoord2f(u, 0.0F);
-                GL11.glVertex2f(cursor + glyphWidth, y);
-                GL11.glTexCoord2f(u, v);
-                GL11.glVertex2f(cursor + glyphWidth, y + glyphHeight);
-                GL11.glTexCoord2f(0.0F, v);
-                GL11.glVertex2f(cursor, y + glyphHeight);
-                GL11.glEnd();
+                wr.pos(cursor, y, 0.0D).tex(glyph.u1, glyph.v1).color(red, green, blue, alpha).endVertex();
+                wr.pos(cursor + glyphWidth, y, 0.0D).tex(glyph.u2, glyph.v1).color(red, green, blue, alpha).endVertex();
+                wr.pos(cursor + glyphWidth, y + glyphHeight, 0.0D).tex(glyph.u2, glyph.v2).color(red, green, blue, alpha).endVertex();
+                wr.pos(cursor, y + glyphHeight, 0.0D).tex(glyph.u1, glyph.v2).color(red, green, blue, alpha).endVertex();
                 cursor += glyphWidth;
             }
-            GL11.glColor4f(1.0F, 1.0F, 1.0F, 1.0F);
+            tessellator.draw();
+
+            // Restore only the states we changed; never leave texture/alpha disabled.
             GlStateManager.enableAlpha();
-            GlStateManager.disableTexture2D();
-            GlStateManager.disableBlend();
+            GlStateManager.enableTexture2D();
         }
     }
 }

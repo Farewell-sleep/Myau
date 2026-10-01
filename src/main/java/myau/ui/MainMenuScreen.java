@@ -23,9 +23,9 @@ import java.util.Random;
  */
 public class MainMenuScreen extends GuiScreen {
 
-    private static final int BTN_W = 220;
-    private static final int BTN_H = 34;
-    private static final float BTN_GAP = 12.0F;
+    private static final int BTN_W = 180;
+    private static final int BTN_H = 28;
+    private static final float BTN_GAP = 10.0F;
     private static final String[] BUTTONS = {"Singleplayer", "Multiplayer", "Options", "Quit"};
 
     private final List<Particle> particles = new ArrayList<>();
@@ -96,7 +96,7 @@ public class MainMenuScreen extends GuiScreen {
 
     private void drawLogo(float cx, float cy, float fade, float t) {
         float scale = 0.94F + 0.06F * (float) Math.sin(t * 0.9F);
-        float size = 46.0F * scale;
+        float size = 38.0F * scale;
         String a = "Dark";
         String b = "heart";
         float aw = FontManager.getStringWidth(a, size);
@@ -118,7 +118,7 @@ public class MainMenuScreen extends GuiScreen {
                 rgba(accent, (int) (150 * fade * pulse)), rgba(accent, (int) (20 * fade * pulse)));
 
         String tag = "A modern 1.8.9 utility client";
-        float ts = 13.0F;
+        float ts = 12.0F;
         FontManager.drawString(tag, cx - FontManager.getStringWidth(tag, ts) / 2.0F, uy + 18.0F,
                 rgba(140, 150, 170, (int) (210 * fade)), false, ts);
     }
@@ -146,7 +146,7 @@ public class MainMenuScreen extends GuiScreen {
             }
 
             int textColor = rgba(mix(new Color(170, 177, 192), new Color(245, 247, 252), a), (int) (255 * fade));
-            float textSize = 16.0F;
+            float textSize = 15.0F;
             float dx = a * 3.0F;
             FontManager.drawString(BUTTONS[i], cx - FontManager.getStringWidth(BUTTONS[i], textSize) / 2.0F + dx,
                     by + BTN_H / 2.0F - FontManager.getBaseline(textSize) + FontManager.getCapHeight(textSize) / 2.0F,
