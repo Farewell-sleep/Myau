@@ -57,7 +57,6 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Random;
 
 public class Telly extends Module {
     private static final Minecraft mc = Minecraft.getMinecraft();
@@ -69,7 +68,6 @@ public class Telly extends Module {
     public final BooleanProperty print = new BooleanProperty("print", false);
     public final BooleanProperty speed = new BooleanProperty("speed", false);
 
-    private final Random random = new Random();
     private final ClientApi client = new ClientApi();
     private final ModulesApi modules = new ModulesApi();
     private final KeybindsApi keybinds = new KeybindsApi();
@@ -276,31 +274,8 @@ float[] strafeCurve = new float[] {
     0.0f, 0.0f, 0.0f, -1.0f, -1.0f, -1.0f, -1.0f
 };
 
-// Real Speed Telly cycle (7 phases, from the manual technique):
-// W held the whole time; jump on every tick (hold variant - auto re-jump on land).
-// phase 0: jump, facing the bridge (yaw 0)
-// phase 1: in air, turn around (yaw -> 180)
-// phase 2-3: turned around, hold RMB and place the block behind (use on)
-// phase 4: turn back (yaw -> 0)
-// phase 5-6: face forward, land and re-jump
-// Placement internally always aims at baseYaw (facing the bridge), so the
-// block behind = next lane block. Every 4th placed block goes +1 up (3 flat,
-// 1 up slope) so the jump keeps gaining height.
-final float[] SPEED_YAW_CURVE = new float[] {
-    0.0f, 180.0f, 180.0f, 180.0f, 0.0f, 0.0f, 0.0f
-};
-final float[] SPEED_PITCH_CURVE = new float[] {
-    74.52f, 74.52f, 74.52f, 74.52f, 74.52f, 74.52f, 74.52f
-};
-final float[] SPEED_FORWARD_CURVE = new float[] {
-    1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f
-};
-final float[] SPEED_STRAFE_CURVE = new float[] {
-    0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f
-};
 int speedPhase = 0;
 boolean speedCycleInitialized = false;
-int speedPlaceCounter = 0;
 
 void onLoad() {
     modules.registerDescription("Decrypted");
@@ -806,7 +781,6 @@ void clearInitialMovementHolds() {
 }
 
 boolean detectManualCameraTakeover() {
-    if (speed.getValue()) return false;
     if (!running || setupTick >= 0 || client.time() < takeoverDetectionAt) return false;
     Entity player = client.getPlayer();
     if (player == null) return false;
@@ -970,38 +944,28 @@ void advanceSpeedCycle() {
     enforceSafeWalkDisabledForRun();
     if (!speedCycleInitialized) {
         speedCycleInitialized = true;
-        speedPhase = 0;
+        speedPhase = 19;
         firstTellyPlacementPending = false;
         adaptiveAimValid = false;
         clearCachedCandidate();
         resetControllerState();
-        scriptedRotationYaw = baseYaw;
-        scriptedRotationPitch = 74.52f;
-        rotationActive = false;
-        holdScriptedRotation();
     }
+    // Same curves and placement windows as normal Telly, but the cycle phase
+    // advances two steps per tick instead of one: the whole bridge rhythm runs
+    // at double speed while keeping the exact same movement/rotation profile.
     int phase = speedPhase;
-    stagedForward = SPEED_FORWARD_CURVE[phase];
-    stagedStrafe = SPEED_STRAFE_CURVE[phase];
-    stagedJump = true;
-    stagedSprint = true;
-    applyUse(phase >= 2 && phase <= 3);
-    // Snap the turn in a single tick instead of 50ms interpolation: with a
-    // smooth turn the W input direction follows the in-between yaw every tick
-    // and shreds the momentum (player spins in place). A snap only changes
-    // future acceleration while mid-air, the current velocity stays intact.
-    if (phase == 1) {
-        scriptedRotationYaw = baseYaw + 180.0f;
-        scriptedRotationPitch = 74.52f;
-        rotationActive = false;
-        holdScriptedRotation();
-    } else if (phase == 4) {
-        scriptedRotationYaw = baseYaw;
-        scriptedRotationPitch = 74.52f;
-        rotationActive = false;
-        holdScriptedRotation();
-    }
-    speedPhase = (phase + 1) % SPEED_YAW_CURVE.length;
+    float strafe = strafeCurve[phase];
+    boolean sprinting = phase == 0 || phase == 1;
+    boolean jumping = phase >= 1 && phase <= 19;
+    boolean use = phase >= 7;
+    stagedForward = forwardCurve[phase];
+    stagedStrafe = strafe;
+    stagedJump = jumping;
+    stagedSprint = sprinting;
+    applyUse(use);
+    int next = (phase + 2) % yawCurve.length;
+    setRotationTarget(baseYaw + yawCurve[next], pitchCurve[next], 50L);
+    speedPhase = next;
 }
 
 void applyTellyMovementInput() {
@@ -1885,7 +1849,7 @@ void processAutoPlaceTick(Entity player) {
     }
 
     // 运行中用脚本视角搜点；相机视角会导致候选块偏到后左并首块放空。
-    float yaw = running ? (speed.getValue() ? baseYaw : scriptedRotationYaw) : player.getYaw();
+    float yaw = running ? scriptedRotationYaw : player.getYaw();
     float basePitch = sanitizePitch(running ? scriptedRotationPitch : player.getPitch(), player.getPitch());
     Object[] candidate = resolveCandidateWithOffCursorSilentPitch(player, yaw, basePitch, heldStack);
     if (candidate != null) {
@@ -1918,7 +1882,7 @@ void processAutoPlaceTick(Entity player) {
 
     if (placedInCurrentWindow()) return;
 
-    float retryYaw = running ? (speed.getValue() ? baseYaw : scriptedRotationYaw) : player.getYaw();
+    float retryYaw = running ? scriptedRotationYaw : player.getYaw();
     float retryPitch = running ? scriptedRotationPitch : player.getPitch();
     clearCachedCandidate();
     Object[] retryCandidate = findBelowPlacement(player, retryYaw, retryPitch, heldStack, client.time() + (useExtendedSearch() ? 4L : 2L));
@@ -1943,7 +1907,7 @@ boolean attemptPlacement(Entity player, Object[] candidate, ItemStack heldStack)
     if (placedInCurrentWindow()) return false;
 
     float placementPitch = sanitizePitch(candidatePitch(candidate), running ? scriptedRotationPitch : player.getPitch());
-    Object[] prePlaceHit = resolveVerifiedHit(running ? (speed.getValue() ? baseYaw : scriptedRotationYaw) : player.getYaw(), placementPitch, supportPos, face, placedPos);
+    Object[] prePlaceHit = resolveVerifiedHit(running ? scriptedRotationYaw : player.getYaw(), placementPitch, supportPos, face, placedPos);
     if (prePlaceHit == null) return false;
 
     if (cancelledGhostBlocks.contains(posKey(supportPos))) return false;
@@ -1953,24 +1917,8 @@ boolean attemptPlacement(Entity player, Object[] candidate, ItemStack heldStack)
 
     long counterBefore = totalC08Counter;
     Vec3 hitAbs = (Vec3) prePlaceHit[2];
-    int placeSupportX = supportPos[0];
-    int placeSupportY = supportPos[1];
-    int placeSupportZ = supportPos[2];
-    int placeFace = face;
-    Vec3 placeHit = hitAbs;
-    if (speed.getValue()) {
-        Object[] slope = buildSpeedPlacement(player, placedPos, supportPos, face);
-        if (slope != null) {
-            int[] slopeSupport = (int[]) slope[0];
-            placeSupportX = slopeSupport[0];
-            placeSupportY = slopeSupport[1];
-            placeSupportZ = slopeSupport[2];
-            placeFace = (Integer) slope[1];
-            placeHit = (Vec3) slope[2];
-        }
-    }
     placingViaModule = true;
-    boolean placed = client.placeBlock(new Vec3(placeSupportX, placeSupportY, placeSupportZ), faceName(placeFace), placeHit);
+    boolean placed = client.placeBlock(new Vec3(supportPos[0], supportPos[1], supportPos[2]), faceName(face), hitAbs);
     placingViaModule = false;
     boolean packetSent = totalC08Counter > counterBefore;
 
@@ -1987,20 +1935,6 @@ boolean attemptPlacement(Entity player, Object[] candidate, ItemStack heldStack)
     forceSuppressTick = currentClientTick;
     client.swing();
     return true;
-}
-
-Object[] buildSpeedPlacement(Entity player, int[] placedPos, int[] supportPos, int face) {
-    speedPlaceCounter++;
-    if (speedPlaceCounter % 4 != 0) return null;
-    int[] newPlaced = new int[]{placedPos[0], placedPos[1] + 1, placedPos[2]};
-    int[] newSupport = offsetPos(newPlaced, opposite(face));
-    if (!isReplaceable(newPlaced[0], newPlaced[1], newPlaced[2])) return null;
-    if (!isSupportAvailable(newSupport[0], newSupport[1], newSupport[2])) return null;
-    if (doesPlacementIntersectPlayer(player, newPlaced)) return null;
-    double hx = 0.3 + random.nextDouble() * 0.4;
-    double hz = 0.3 + random.nextDouble() * 0.4;
-    Vec3 hit = getSupportFaceHitVec(newSupport, face, hx, hz);
-    return new Object[]{newSupport, face, hit};
 }
 
 Object[] resolveVerifiedHit(float yaw, float pitch, int[] expectedSupport, int expectedFace, int[] expectedPlaced) {
