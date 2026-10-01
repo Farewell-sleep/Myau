@@ -114,6 +114,21 @@ public class RotationUtil {
         return Math.abs(MathHelper.wrapAngleTo180_float((float) (Math.atan2(deltaZ, deltaX) * 180.0 / Math.PI) - 90.0f - RotationUtil.mc.thePlayer.rotationYaw)) * 2.0f;
     }
 
+    public static float pitchToEntity(Entity entity) {
+        Vec3 eyePos = RotationUtil.mc.thePlayer.getPositionEyes(1.0f);
+        float borderSize = entity.getCollisionBorderSize();
+        AxisAlignedBB boundingBox = entity.getEntityBoundingBox().expand(borderSize, borderSize, borderSize);
+        if (boundingBox.isVecInside(eyePos)) {
+            return 0.0f;
+        }
+        double deltaX = entity.posX - eyePos.xCoord;
+        double deltaY = entity.posY - eyePos.yCoord;
+        double deltaZ = entity.posZ - eyePos.zCoord;
+        double horizontalDistance = Math.sqrt(deltaX * deltaX + deltaZ * deltaZ);
+        float pitch = (float) (-Math.atan2(deltaY, horizontalDistance) * 180.0 / Math.PI);
+        return Math.abs(MathHelper.wrapAngleTo180_float(pitch - RotationUtil.mc.thePlayer.rotationPitch));
+    }
+
     public static float getYawBetween(double x1, double z1, double x2, double z2) {
         return MathHelper.wrapAngleTo180_float((float) (Math.atan2(z2 - z1, x2 - x1) * 180.0 / Math.PI) - 90.0f - RotationUtil.mc.thePlayer.rotationYaw);
     }

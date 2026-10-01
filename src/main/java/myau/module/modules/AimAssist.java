@@ -8,6 +8,7 @@ import myau.events.TickEvent;
 import myau.module.Module;
 import myau.util.*;
 import myau.property.properties.BooleanProperty;
+import myau.property.properties.ModeProperty;
 import myau.property.properties.FloatProperty;
 import myau.property.properties.PercentProperty;
 import myau.property.properties.IntProperty;
@@ -32,6 +33,9 @@ public class AimAssist extends Module {
     public final BooleanProperty allowTools = new BooleanProperty("allow-tools", false, this.weaponOnly::getValue);
     public final BooleanProperty botChecks = new BooleanProperty("bot-check", true);
     public final BooleanProperty team = new BooleanProperty("teams", true);
+    public final ModeProperty mode = new ModeProperty("mode", 0, new String[]{"NORMAL", "LOCK-ON"});
+    public final ModeProperty sort = new ModeProperty("sort", 0, new String[]{"DISTANCE", "ANGLE", "HEALTH"});
+    public final BooleanProperty aimInvis = new BooleanProperty("aim-invis", false);
 
     private boolean isValidTarget(EntityPlayer entityPlayer) {
         if (entityPlayer != mc.thePlayer && entityPlayer != mc.thePlayer.ridingEntity) {
@@ -44,6 +48,8 @@ public class AimAssist extends Module {
             } else if (RotationUtil.angleToEntity(entityPlayer) > (float) this.fov.getValue()) {
                 return false;
             } else if (RotationUtil.rayTrace(entityPlayer) != null) {
+                return false;
+            } else if (!this.aimInvis.getValue() && entityPlayer.isInvisible()) {
                 return false;
             } else if (TeamUtil.isFriend(entityPlayer)) {
                 return false;
@@ -78,14 +84,7 @@ public class AimAssist extends Module {
                 boolean attacking = PlayerUtil.isAttacking();
                 if (!attacking || !this.isLookingAtBlock()) {
                     if (attacking || !this.timer.hasTimeElapsed(350L)) {
-                        List<EntityPlayer> inRange = mc.theWorld
-                                .loadedEntityList
-                                .stream()
-                                .filter(entity -> entity instanceof EntityPlayer)
-                                .map(entity -> (EntityPlayer) entity)
-                                .filter(this::isValidTarget)
-                                .sorted(Comparator.comparingDouble(RotationUtil::distanceToEntity))
-                                .collect(Collectors.toList());
+                        List<EntityPlayer> inRange = this.collectTargets();
                         if (!inRange.isEmpty()) {
                             if (inRange.stream().anyMatch(this::isInReach)) {
                                 inRange.removeIf(entityPlayer -> !this.isInReach(entityPlayer));
@@ -99,23 +98,57 @@ public class AimAssist extends Module {
                                         mc.thePlayer.rotationYaw,
                                         mc.thePlayer.rotationPitch,
                                         180.0F,
-                                        (float) this.smoothing.getValue() / 100.0F
+                                        this.mode.getValue() == 1 ? 1.0F : (float) this.smoothing.getValue() / 100.0F
                                 );
-                                float yaw = Math.min(Math.abs(this.hSpeed.getValue()), 10.0F);
-                                float pitch = Math.min(Math.abs(this.vSpeed.getValue()), 10.0F);
-                                OpenMyau.rotationManager
-                                        .setRotation(
-                                                mc.thePlayer.rotationYaw + (rotation[0] - mc.thePlayer.rotationYaw) * 0.1F * yaw,
-                                                mc.thePlayer.rotationPitch + (rotation[1] - mc.thePlayer.rotationPitch) * 0.1F * pitch,
-                                                0,
-                                                false
-                                        );
+                                if (this.mode.getValue() == 1) {
+                                    // LOCK-ON: skid of Raven AimAssist normal mode - snap directly onto the target
+                                    mc.thePlayer.rotationYaw = rotation[0];
+                                    mc.thePlayer.rotationPitch = rotation[1];
+                                } else {
+                                    float yaw = Math.min(Math.abs(this.hSpeed.getValue()), 10.0F);
+                                    float pitch = Math.min(Math.abs(this.vSpeed.getValue()), 10.0F);
+                                    OpenMyau.rotationManager
+                                            .setRotation(
+                                                    mc.thePlayer.rotationYaw + (rotation[0] - mc.thePlayer.rotationYaw) * 0.1F * yaw,
+                                                    mc.thePlayer.rotationPitch + (rotation[1] - mc.thePlayer.rotationPitch) * 0.1F * pitch,
+                                                    0,
+                                                    false
+                                            );
+                                }
                             }
                         }
                     }
                 }
             }
         }
+    }
+
+    private List<EntityPlayer> collectTargets() {
+        return mc.theWorld
+                .loadedEntityList
+                .stream()
+                .filter(entity -> entity instanceof EntityPlayer)
+                .map(entity -> (EntityPlayer) entity)
+                .filter(this::isValidTarget)
+                .sorted(this.targetComparator())
+                .collect(Collectors.toList());
+    }
+
+    private Comparator<EntityPlayer> targetComparator() {
+        switch (this.sort.getValue()) {
+            case 0:
+                return Comparator.comparingDouble(RotationUtil::distanceToEntity);
+            case 1:
+                return Comparator.comparingDouble(this::aimDelta);
+            default:
+                return Comparator.comparingDouble(p -> p.getHealth() + p.getAbsorptionAmount());
+        }
+    }
+
+    private double aimDelta(EntityPlayer entityPlayer) {
+        double yawDelta = Math.abs(RotationUtil.angleToEntity(entityPlayer));
+        double pitchDelta = Math.abs(RotationUtil.pitchToEntity(entityPlayer));
+        return yawDelta + pitchDelta;
     }
 
     @EventTarget

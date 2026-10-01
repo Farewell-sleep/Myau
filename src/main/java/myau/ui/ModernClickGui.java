@@ -210,8 +210,17 @@ public class ModernClickGui extends GuiScreen {
         RenderUtil.drawRect(0.0F, 0.0F, this.width, this.height, col(0, 0, 0, 100));
         RenderUtil.disableRenderState();
 
-        RenderUtil.drawRoundedRectWithGl(x - 0.5F, y - 0.5F, x + W + 0.5F, y + H + 0.5F, 12.5F, col(255, 255, 255, 18));
-        RenderUtil.drawRoundedRectWithGl(x, y, x + W, y + H, 12.0F, col(14, 15, 20, 200));
+        // soft drop shadow
+        for (int i = 3; i >= 1; i--) {
+            float s = i * 1.6F;
+            RenderUtil.drawRoundedRectWithGl(x - s, y - s, x + W + s, y + H + s, 12.0F + s, col(0, 0, 0, 22 / i));
+        }
+        RenderUtil.drawRoundedRectWithGl(x - 0.5F, y - 0.5F, x + W + 0.5F, y + H + 0.5F, 12.5F, col(255, 255, 255, 22));
+        RenderUtil.drawRoundedRectWithGl(x, y, x + W, y + H, 12.0F, col(12, 13, 18, 234));
+        // subtle top inner highlight
+        RenderUtil.enableRenderState();
+        RenderUtil.drawRoundedRectWithGl(x + 6.0F, y + 5.0F, x + W - 6.0F, y + 10.0F, 5.0F, col(255, 255, 255, 12));
+        RenderUtil.disableRenderState();
         RenderUtil.enableRenderState();
         RenderUtil.drawRect(x + SIDEBAR, y + 12.0F, x + SIDEBAR + 0.5F, y + H - 12.0F, col(255, 255, 255, 14));
         RenderUtil.drawRect(x + SIDEBAR + 12.0F, y + HEADER, x + W - 12.0F, y + HEADER + 0.5F, col(255, 255, 255, 12));
@@ -397,7 +406,8 @@ public class ModernClickGui extends GuiScreen {
 
             RenderUtil.drawRoundedRectWithGl(lx, ry, lx + lw - 4.0F, ry + ROW, 7.0F, col(255, 255, 255, (int) (6 + 6 * hover)));
             if (sel > 0.01F) {
-                RenderUtil.drawRoundedRectWithGl(lx, ry, lx + lw - 4.0F, ry + ROW, 7.0F, col(accent, (int) (38 * sel)));
+                RenderUtil.drawRoundedRectWithGl(lx, ry, lx + lw - 4.0F, ry + ROW, 7.0F, col(accent, (int) (46 * sel)));
+                RenderUtil.drawRoundedRectWithGl(lx + 2.0F, ry + 5.0F, lx + 4.0F, ry + ROW - 5.0F, 1.0F, col(accent, (int) (220 * sel)));
             }
             float cy = ry + ROW / 2.0F;
             float swW = 20.0F;
@@ -426,7 +436,7 @@ public class ModernClickGui extends GuiScreen {
         if (total > lh) {
             float thumbH = Math.max(20.0F, lh * lh / total);
             float thumbY = ly + (lh - thumbH) * (moduleScroll / Math.max(1.0F, maxScroll));
-            RenderUtil.drawRoundedRectWithGl(lx + lw - 2.0F, thumbY, lx + lw, thumbY + thumbH, 1.0F, col(255, 255, 255, 50));
+            RenderUtil.drawRoundedRectWithGl(lx + lw - 3.0F, thumbY, lx + lw - 1.0F, thumbY + thumbH, 1.0F, col(accent, 110));
         }
     }
 
@@ -459,6 +469,8 @@ public class ModernClickGui extends GuiScreen {
         addHit(swX - 30.0F, hy - 9.0F, swX + swW, hy + 9.0F, (button, mX, mY) -> module.toggle());
         RenderUtil.enableRenderState();
         RenderUtil.drawRect(sx + 12.0F, sy + 34.0F, sx + sw - 12.0F, sy + 34.5F, col(255, 255, 255, 12));
+        float headLineW = Math.min(70.0F, width(module.getName(), 18.0F));
+        RenderUtil.drawRoundedRectWithGl(sx + 12.0F, sy + 34.5F, sx + 12.0F + headLineW, sy + 35.5F, 0.5F, col(accent, (int) (90 * on + 40)));
         RenderUtil.disableRenderState();
 
         float cy = sy + 38.0F;
@@ -487,7 +499,7 @@ public class ModernClickGui extends GuiScreen {
         if (maxScroll > 0.0F) {
             float thumbH = Math.max(20.0F, ch * ch / offset);
             float thumbY = cy + (ch - thumbH) * (settingScroll / maxScroll);
-            RenderUtil.drawRoundedRectWithGl(sx + sw - 4.0F, thumbY, sx + sw - 2.0F, thumbY + thumbH, 1.0F, col(255, 255, 255, 50));
+            RenderUtil.drawRoundedRectWithGl(sx + sw - 5.0F, thumbY, sx + sw - 3.0F, thumbY + thumbH, 1.0F, col(accent, 110));
         }
     }
 
