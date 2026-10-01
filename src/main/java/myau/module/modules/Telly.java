@@ -66,7 +66,6 @@ public class Telly extends Module {
     public final BooleanProperty disableSafeWalk = new BooleanProperty("disable-safewalk", true);
     public final BooleanProperty showActivationHitbox = new BooleanProperty("show-activation-hitbox", false);
     public final BooleanProperty print = new BooleanProperty("print", false);
-    public final BooleanProperty speed = new BooleanProperty("speed", false);
 
     private final ClientApi client = new ClientApi();
     private final ModulesApi modules = new ModulesApi();
@@ -274,8 +273,6 @@ float[] strafeCurve = new float[] {
     0.0f, 0.0f, 0.0f, -1.0f, -1.0f, -1.0f, -1.0f
 };
 
-int speedPhase = 0;
-boolean speedCycleInitialized = false;
 
 void onLoad() {
     modules.registerDescription("Decrypted");
@@ -697,7 +694,7 @@ boolean onKey(String keyName, int keyCode, boolean state, boolean inGui) {
             && setupTick < 0
             && isManualMovementKey(keyCode)
             && !isScriptHeldKey(keyCode)
-            && (speed.getValue() || !isInitialMovementHold(keyCode))) {
+            && !isInitialMovementHold(keyCode)) {
         stopAutomation(true);
         return true;
     }
@@ -880,10 +877,6 @@ void onPostPlayerInput() {
 
 void advanceTellyCycle() {
     if (!running) return;
-    if (speed.getValue()) {
-        advanceSpeedCycle();
-        return;
-    }
     suppressSneakInput();
     enforceSafeWalkDisabledForRun();
     if (setupTick >= 0) {
@@ -937,35 +930,6 @@ void advanceTellyCycle() {
     int nextPhase = (phase + 1) % yawCurve.length;
     setRotationTarget(baseYaw + yawCurve[nextPhase], pitchCurve[nextPhase], 50L);
     cyclePhase = nextPhase;
-}
-
-void advanceSpeedCycle() {
-    suppressSneakInput();
-    enforceSafeWalkDisabledForRun();
-    if (!speedCycleInitialized) {
-        speedCycleInitialized = true;
-        speedPhase = 19;
-        firstTellyPlacementPending = false;
-        adaptiveAimValid = false;
-        clearCachedCandidate();
-        resetControllerState();
-    }
-    // Same curves and placement windows as normal Telly, but the cycle phase
-    // advances two steps per tick instead of one: the whole bridge rhythm runs
-    // at double speed while keeping the exact same movement/rotation profile.
-    int phase = speedPhase;
-    float strafe = strafeCurve[phase];
-    boolean sprinting = phase == 0 || phase == 1;
-    boolean jumping = phase >= 1 && phase <= 19;
-    boolean use = phase >= 7;
-    stagedForward = forwardCurve[phase];
-    stagedStrafe = strafe;
-    stagedJump = jumping;
-    stagedSprint = sprinting;
-    applyUse(use);
-    int next = (phase + 2) % yawCurve.length;
-    setRotationTarget(baseYaw + yawCurve[next], pitchCurve[next], 50L);
-    speedPhase = next;
 }
 
 void applyTellyMovementInput() {
@@ -3218,7 +3182,6 @@ int faceFromName(String name) {
                 if (normalized.equals("disablesafewalk")) return disableSafeWalk.getValue();
                 if (normalized.equals("showactivationhitbox")) return showActivationHitbox.getValue();
                 if (normalized.equals("print")) return print.getValue();
-                if (normalized.equals("speed")) return speed.getValue();
             }
             Module module = getModule(moduleName);
             if (module == null || OpenMyau.propertyManager == null) return false;
