@@ -714,8 +714,8 @@ boolean onKey(String keyName, int keyCode, boolean state, boolean inGui) {
     if (state
             && setupTick < 0
             && isManualMovementKey(keyCode)
-            && !isInitialMovementHold(keyCode)
-            && !isScriptHeldKey(keyCode)) {
+            && !isScriptHeldKey(keyCode)
+            && (speed.getValue() || !isInitialMovementHold(keyCode))) {
         stopAutomation(true);
         return true;
     }
@@ -799,6 +799,7 @@ void clearInitialMovementHolds() {
 }
 
 boolean detectManualCameraTakeover() {
+    if (speed.getValue()) return false;
     if (!running || setupTick >= 0 || client.time() < takeoverDetectionAt) return false;
     Entity player = client.getPlayer();
     if (player == null) return false;
@@ -969,14 +970,32 @@ void advanceSpeedCycle() {
         resetControllerState();
     }
     int phase = speedPhase;
-    stagedForward = SPEED_FORWARD_CURVE[phase];
-    stagedStrafe = SPEED_STRAFE_CURVE[phase];
-    stagedJump = false;
-    stagedSprint = phase <= 1;
-    applyUse(phase >= 4);
-    int next = (phase + 1) % SPEED_YAW_CURVE.length;
-    setRotationTarget(baseYaw + SPEED_YAW_CURVE[next], SPEED_PITCH_CURVE[next], 50L);
-    speedPhase = next;
+    if (phase <= 1) {
+        // tick 0-1: hold A + W (run-up, facing the bridge)
+        stagedForward = 1.0f;
+        stagedStrafe = -1.0f;
+        stagedJump = false;
+        stagedSprint = true;
+        applyUse(false);
+        setRotationTarget(baseYaw, 74.52f, 50L);
+    } else if (phase <= 3) {
+        // tick 2-3: release W, hold S, look back (single 180 turn)
+        stagedForward = -1.0f;
+        stagedStrafe = 0.0f;
+        stagedJump = false;
+        stagedSprint = false;
+        applyUse(false);
+        setRotationTarget(baseYaw + 180.0f, 74.52f, 50L);
+    } else {
+        // tick 4+: hold S, place one speed unit every tick window
+        stagedForward = -1.0f;
+        stagedStrafe = 0.0f;
+        stagedJump = false;
+        stagedSprint = false;
+        applyUse(true);
+        setRotationTarget(baseYaw + 180.0f, 74.52f, 50L);
+    }
+    speedPhase++;
 }
 
 void applyTellyMovementInput() {
