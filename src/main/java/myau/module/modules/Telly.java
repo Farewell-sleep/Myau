@@ -975,6 +975,10 @@ void advanceSpeedCycle() {
         adaptiveAimValid = false;
         clearCachedCandidate();
         resetControllerState();
+        scriptedRotationYaw = baseYaw;
+        scriptedRotationPitch = 74.52f;
+        rotationActive = false;
+        holdScriptedRotation();
     }
     int phase = speedPhase;
     stagedForward = SPEED_FORWARD_CURVE[phase];
@@ -982,9 +986,22 @@ void advanceSpeedCycle() {
     stagedJump = true;
     stagedSprint = true;
     applyUse(phase >= 2 && phase <= 3);
-    int next = (phase + 1) % SPEED_YAW_CURVE.length;
-    setRotationTarget(baseYaw + SPEED_YAW_CURVE[next], SPEED_PITCH_CURVE[next], 50L);
-    speedPhase = next;
+    // Snap the turn in a single tick instead of 50ms interpolation: with a
+    // smooth turn the W input direction follows the in-between yaw every tick
+    // and shreds the momentum (player spins in place). A snap only changes
+    // future acceleration while mid-air, the current velocity stays intact.
+    if (phase == 1) {
+        scriptedRotationYaw = baseYaw + 180.0f;
+        scriptedRotationPitch = 74.52f;
+        rotationActive = false;
+        holdScriptedRotation();
+    } else if (phase == 4) {
+        scriptedRotationYaw = baseYaw;
+        scriptedRotationPitch = 74.52f;
+        rotationActive = false;
+        holdScriptedRotation();
+    }
+    speedPhase = (phase + 1) % SPEED_YAW_CURVE.length;
 }
 
 void applyTellyMovementInput() {
