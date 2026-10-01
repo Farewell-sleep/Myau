@@ -8,17 +8,16 @@ import myau.module.Module;
 import myau.property.properties.IntProperty;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.play.server.S2BPacketChangeGameState;
+import net.minecraft.world.World;
 
 /**
- * SnowFog — render-category module driven entirely by the vanilla weather
- * system (equivalent to the vanilla /weather command):
- *   - snow: raises the rain strength so the vanilla weather renderer draws
- *     falling snow (a mixin forces the snow branch of renderRainSnow);
- *     snow-density maps 1:1 to the rain strength.
- *   - fog: the vanilla GL fog is re-tuned to a white snow-fog after
- *     EntityRenderer.setupFog; fog-strength maps to the fog distance.
- * Server weather-change packets (rain/thunder) are cancelled so the client
- * keeps the chosen weather.
+ * SnowFog — render-category module driven by the vanilla weather system.
+ *
+ * On enable it snapshots the current weather state; while enabled it forces
+ * a snowy client render (rain strength = snow density) and re-tunes the GL
+ * fog into white snow-fog (mixin in MixinEntityRenderer). On disable it
+ * restores the exact snapshot, so the world/server state is never corrupted
+ * and no rendering artifacts remain.
  */
 public class SnowFog extends Module {
     private static final Minecraft mc = Minecraft.getMinecraft();
@@ -26,25 +25,34 @@ public class SnowFog extends Module {
     public final IntProperty snowDensity = new IntProperty("snow-density", 40, 0, 100);
     public final IntProperty fogStrength = new IntProperty("fog-strength", 35, 0, 100);
 
+    private boolean savedRaining;
+    private int savedRainTime;
+    private float savedRainStrength;
+    private boolean savedThundering;
+    private int savedThunderTime;
+    private boolean weatherSaved;
+
     public SnowFog() {
         super("SnowFog", false);
     }
 
     @Override
     public void onEnabled() {
-        applyWeather(true);
+        saveWeather();
+        applySnow();
     }
 
     @EventTarget
     public void onTick(TickEvent event) {
         if (!this.isEnabled() || event.getType() != EventType.PRE) return;
         if (mc.theWorld == null) return;
-        applyWeather(true);
+        if (!weatherSaved) saveWeather();
+        applySnow();
     }
 
     @Override
     public void onDisabled() {
-        applyWeather(false);
+        restoreWeather();
     }
 
     @EventTarget
@@ -58,21 +66,37 @@ public class SnowFog extends Module {
         }
     }
 
-    private void applyWeather(boolean snow) {
+    private void saveWeather() {
         if (mc.theWorld == null) return;
-        if (snow) {
-            mc.theWorld.setRainStrength(this.snowDensity.getValue() / 100.0F);
-            mc.theWorld.getWorldInfo().setRainTime(Integer.MAX_VALUE);
-            mc.theWorld.getWorldInfo().setRaining(true);
-            mc.theWorld.getWorldInfo().setThunderTime(0);
-            mc.theWorld.getWorldInfo().setThundering(false);
+        this.savedRaining = mc.theWorld.getWorldInfo().isRaining();
+        this.savedRainTime = mc.theWorld.getWorldInfo().getRainTime();
+        this.savedRainStrength = mc.theWorld.getRainStrength(1.0F);
+        this.savedThundering = mc.theWorld.getWorldInfo().isThundering();
+        this.savedThunderTime = mc.theWorld.getWorldInfo().getThunderTime();
+        this.weatherSaved = true;
+    }
+
+    private void applySnow() {
+        if (mc.theWorld == null) return;
+        mc.theWorld.setRainStrength(this.snowDensity.getValue() / 100.0F);
+        mc.theWorld.getWorldInfo().setRaining(true);
+        mc.theWorld.getWorldInfo().setRainTime(Integer.MAX_VALUE);
+        mc.theWorld.getWorldInfo().setThunderTime(0);
+        mc.theWorld.getWorldInfo().setThundering(false);
+    }
+
+    private void restoreWeather() {
+        this.weatherSaved = false;
+        if (mc.theWorld == null) return;
+        if (this.savedRainStrength > 0.0F) {
+            mc.theWorld.setRainStrength(this.savedRainStrength);
         } else {
             mc.theWorld.setRainStrength(0.0F);
-            mc.theWorld.getWorldInfo().setRainTime(0);
-            mc.theWorld.getWorldInfo().setRaining(false);
-            mc.theWorld.getWorldInfo().setThunderTime(0);
-            mc.theWorld.getWorldInfo().setThundering(false);
         }
+        mc.theWorld.getWorldInfo().setRaining(this.savedRaining);
+        mc.theWorld.getWorldInfo().setRainTime(this.savedRainTime);
+        mc.theWorld.getWorldInfo().setThundering(this.savedThundering);
+        mc.theWorld.getWorldInfo().setThunderTime(this.savedThunderTime);
     }
 
     @Override

@@ -10,7 +10,6 @@ import myau.events.TickEvent;
 import myau.mixin.IAccessorGuiChat;
 import myau.module.Module;
 import myau.util.ColorUtil;
-import myau.util.FontManager;
 import myau.util.RenderUtil;
 import myau.property.properties.*;
 import net.minecraft.client.Minecraft;
@@ -55,7 +54,6 @@ public class HUD extends Module {
     public final BooleanProperty toggleAlerts = new BooleanProperty("toggle-alerts", false);
     public final BooleanProperty bgColor = new BooleanProperty("bg-color", false);
     public final BooleanProperty glow = new BooleanProperty("glow", false);
-    public final BooleanProperty customFont = new BooleanProperty("custom-font", true);
     public final IntProperty barless = new IntProperty("barless", 0, 0, 8, () -> this.showBar.getValue());
     public final ModeProperty barMode = new ModeProperty("bar-mode", 0, new String[]{"RIGHT", "LEFT", "TOP", "BOTTOM"}, () -> this.showBar.getValue());
 
@@ -84,10 +82,10 @@ public class HUD extends Module {
     }
 
     private int calculateStringWidth(String string, String[] arr) {
-        int width = FontManager.getStringWidth(string);
+        int width = mc.fontRendererObj.getStringWidth(string);
         if (this.suffixes.getValue()) {
             for (String str : arr) {
-                width += 3 + FontManager.getStringWidth(str);
+                width += 3 + mc.fontRendererObj.getStringWidth(str);
             }
         }
         return width;
@@ -185,7 +183,6 @@ public class HUD extends Module {
     }
 
     private void drawGlowText(String text, float x, float y, int color, int passes, float spread) {
-        if (!this.customFont.getValue()) return;
         GlStateManager.enableBlend();
         GlStateManager.blendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
         GlStateManager.enableTexture2D();
@@ -194,21 +191,20 @@ public class HUD extends Module {
             float intensity = (float) (passes - i + 1) / (float) passes;
             int glowColor = setAlpha(color, 0.10F * intensity * intensity);
             float diagonal = offset * 0.65F;
-            FontManager.drawString(text, x + offset, y, glowColor, false);
-            FontManager.drawString(text, x - offset, y, glowColor, false);
-            FontManager.drawString(text, x, y + offset, glowColor, false);
-            FontManager.drawString(text, x, y - offset, glowColor, false);
-            FontManager.drawString(text, x + diagonal, y + diagonal, glowColor, false);
-            FontManager.drawString(text, x - diagonal, y + diagonal, glowColor, false);
-            FontManager.drawString(text, x + diagonal, y - diagonal, glowColor, false);
-            FontManager.drawString(text, x - diagonal, y - diagonal, glowColor, false);
+            mc.fontRendererObj.drawString(text, x + offset, y, glowColor, false);
+            mc.fontRendererObj.drawString(text, x - offset, y, glowColor, false);
+            mc.fontRendererObj.drawString(text, x, y + offset, glowColor, false);
+            mc.fontRendererObj.drawString(text, x, y - offset, glowColor, false);
+            mc.fontRendererObj.drawString(text, x + diagonal, y + diagonal, glowColor, false);
+            mc.fontRendererObj.drawString(text, x - diagonal, y + diagonal, glowColor, false);
+            mc.fontRendererObj.drawString(text, x + diagonal, y - diagonal, glowColor, false);
+            mc.fontRendererObj.drawString(text, x - diagonal, y - diagonal, glowColor, false);
         }
         GlStateManager.disableBlend();
     }
 
     @EventTarget
     public void onRender2D(Render2DEvent event) {
-        FontManager.enabled = this.customFont.getValue();
         if (this.chatOutline.getValue() && mc.currentScreen instanceof GuiChat) {
             String text = ((IAccessorGuiChat) mc.currentScreen).getInputField().getText().trim();
             if (OpenMyau.commandManager != null && OpenMyau.commandManager.isTypingCommand(text)) {
@@ -226,7 +222,7 @@ public class HUD extends Module {
             }
         }
         if (this.isEnabled() && !mc.gameSettings.showDebugInfo) {
-            float height = (float) FontManager.getFontHeight() - 1.0F;
+            float height = (float) mc.fontRendererObj.FONT_HEIGHT - 1.0F;
             float x = (float) this.offsetX.getValue()
                     + (1.0F + (this.showBar.getValue() ? (this.shadow.getValue() ? 2.0F : 1.0F) : 0.0F)) * this.scale.getValue();
             float y = (float) this.offsetY.getValue() + 1.0F * this.scale.getValue();
@@ -319,9 +315,9 @@ public class HUD extends Module {
                     drawGlowText(moduleName, textX, textY, glowColor, 3, 0.55F);
                 }
                 if (this.shadow.getValue()) {
-                    FontManager.drawStringWithShadow(moduleName, textX, textY, color);
+                    mc.fontRendererObj.drawStringWithShadow(moduleName, textX, textY, color);
                 } else {
-                    FontManager.drawString(
+                    mc.fontRendererObj.drawString(
                                     moduleName,
                                     textX,
                                     textY + (this.posY.getValue() == 1 ? 1.0F : 0.0F),
@@ -330,20 +326,20 @@ public class HUD extends Module {
                             );
                 }
                 if (this.suffixes.getValue() && moduleSuffix.length > 0) {
-                    float suffixX = (float) FontManager.getStringWidth(moduleName) + 3.0F;
+                    float suffixX = (float) mc.fontRendererObj.getStringWidth(moduleName) + 3.0F;
                     for (String string : moduleSuffix) {
                         if (this.glow.getValue()) {
                             drawGlowText(string, textX + suffixX, textY, ChatColors.GRAY.toAwtColor(), 2, 0.35F);
                         }
                         if (this.shadow.getValue()) {
-                            FontManager.drawStringWithShadow(
+                            mc.fontRendererObj.drawStringWithShadow(
                                             string,
                                             textX + suffixX,
                                             textY,
                                             ChatColors.GRAY.toAwtColor()
                                     );
                         } else {
-                            FontManager.drawString(
+                            mc.fontRendererObj.drawString(
                                             string,
                                             textX + suffixX,
                                             textY + (this.posY.getValue() == 1 ? 1.0F : 0.0F),
@@ -351,7 +347,7 @@ public class HUD extends Module {
                                             false
                                     );
                         }
-                        suffixX += (float) FontManager.getStringWidth(string) + (this.shadow.getValue() ? 3.0F : 2.0F);
+                        suffixX += (float) mc.fontRendererObj.getStringWidth(string) + (this.shadow.getValue() ? 3.0F : 2.0F);
                     }
                 }
                 y += (height + 2 * this.rowSpacing.getValue() + (this.shadow.getValue() ? 1.0F : 0.0F)) * this.scale.getValue() * (this.posY.getValue() == 0 ? 1.0F : -1.0F);
@@ -365,10 +361,10 @@ public class HUD extends Module {
                     if (movementPacketSize > 0L) {
                         GlStateManager.enableBlend();
                         GlStateManager.blendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
-                        FontManager.drawString(
+                        mc.fontRendererObj.drawString(
                                         String.valueOf(movementPacketSize),
                                         (float) new ScaledResolution(mc).getScaledWidth() / 2.0F / this.scale.getValue()
-                                                - (float) FontManager.getStringWidth(String.valueOf(movementPacketSize)) / 2.0F,
+                                                - (float) mc.fontRendererObj.getStringWidth(String.valueOf(movementPacketSize)) / 2.0F,
                                         (float) new ScaledResolution(mc).getScaledHeight() / 5.0F * 3.0F / this.scale.getValue(),
                                         this.getColor(l, offset).getRGB() & 16777215 | -1090519040,
                                         this.shadow.getValue()

@@ -159,10 +159,7 @@ public class MainMenuScreen extends GuiScreen {
         float vs = 12.0F;
         FontManager.drawString(version, (this.width - FontManager.getStringWidth(version, vs)) / 2.0F, this.height - 34.0F,
                 rgba(125, 134, 152, (int) (200 * fade)), false, vs);
-        String credit = "Built with pride - github.com/Farewell-sleep/Myau";
-        float cs = 11.0F;
-        FontManager.drawString(credit, (this.width - FontManager.getStringWidth(credit, cs)) / 2.0F, this.height - 20.0F,
-                rgba(90, 98, 115, (int) (160 * fade)), false, cs);
+
     }
 
     private void drawGlow(float cx, float cy, float radius, Color color, int alpha) {

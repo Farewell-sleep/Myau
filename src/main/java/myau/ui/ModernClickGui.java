@@ -235,12 +235,15 @@ public class ModernClickGui extends GuiScreen {
 
     private void drawSidebar(float x, float y, int mouseX, int mouseY) {
         float chipX = x + 14.0F;
-        float chipY = y + 12.0F;
-        float centerY = chipY + 11.0F;
-        RenderUtil.drawRoundedRectWithGl(chipX, chipY, chipX + 22.0F, chipY + 22.0F, 7.0F, col(accent, 48));
-        RenderUtil.drawRoundedRectWithGl(chipX + 6.0F, chipY + 6.0F, chipX + 16.0F, chipY + 16.0F, 4.0F, col(accent, 255));
-        text("Dark", chipX + 30.0F, centerY, col(245, 247, 252, 255), 18.0F);
-        text("heart", chipX + 30.0F + width("Dark", 18.0F) + 3.0F, centerY, col(accent, 255), 18.0F);
+        float chipY = y + 14.0F;
+        float centerY = chipY + 8.0F;
+        RenderUtil.drawRoundedRectWithGl(chipX, chipY, chipX + 16.0F, chipY + 16.0F, 5.0F, col(accent, 48));
+        RenderUtil.drawRoundedRectWithGl(chipX + 5.0F, chipY + 5.0F, chipX + 11.0F, chipY + 11.0F, 2.5F, col(accent, 255));
+        float logoX = chipX + 22.0F;
+        float logoLimit = x + SIDEBAR - 8.0F;
+        float darkW = width("Dark", 12.0F);
+        text("Dark", logoX, centerY, col(245, 247, 252, 255), 12.0F);
+        text(GuiText.trim("heart", (int) (logoLimit - logoX - darkW - 2.0F), 12.0F), logoX + darkW + 2.0F, centerY, col(accent, 255), 12.0F);
 
         text("CATEGORIES", x + 16.0F, y + 62.0F, col(120, 128, 145, 255), 11.0F);
 
@@ -269,9 +272,12 @@ public class ModernClickGui extends GuiScreen {
             float cy = ry + rowH / 2.0F;
             int iconColor = mix(new Color(125, 133, 150), accent, sel).getRGB();
             RenderUtil.drawRoundedRectWithGl(x + 22.0F, cy - 3.0F, x + 26.0F, cy + 3.0F, 1.5F, iconColor);
-            text(name, x + 40.0F, cy, mixCol(new Color(165, 172, 188), new Color(246, 248, 252), Math.max(sel, hover * 0.6F), 255), 15.0F);
             String count = String.valueOf(categories.get(name).size());
-            text(count, x + SIDEBAR - 18.0F - width(count, 12.0F), cy, col(110, 118, 135, 255), 12.0F);
+            float countW = width(count, 12.0F);
+            float countX = x + SIDEBAR - 14.0F - countW;
+            text(GuiText.trim(name, (int) (countX - (x + 36.0F) - 8.0F), 13.0F), x + 36.0F, cy,
+                    mixCol(new Color(165, 172, 188), new Color(246, 248, 252), Math.max(sel, hover * 0.6F), 255), 13.0F);
+            text(count, countX, cy, col(110, 118, 135, 255), 12.0F);
             addHit(x + 10.0F, ry, x + SIDEBAR - 10.0F, ry + rowH, (button, mX, mY) -> {
                 search = "";
                 if (selectedCategory != index) {
