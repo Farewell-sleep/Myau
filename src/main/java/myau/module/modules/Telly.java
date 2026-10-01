@@ -57,7 +57,6 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Random;
 
 public class Telly extends Module {
     private static final Minecraft mc = Minecraft.getMinecraft();
@@ -67,9 +66,7 @@ public class Telly extends Module {
     public final BooleanProperty disableSafeWalk = new BooleanProperty("disable-safewalk", true);
     public final BooleanProperty showActivationHitbox = new BooleanProperty("show-activation-hitbox", false);
     public final BooleanProperty print = new BooleanProperty("print", false);
-    public final BooleanProperty randomPlacement = new BooleanProperty("random-placement", false);
 
-    private final Random random = new Random();
     private final ClientApi client = new ClientApi();
     private final ModulesApi modules = new ModulesApi();
     private final KeybindsApi keybinds = new KeybindsApi();
@@ -1884,24 +1881,8 @@ boolean attemptPlacement(Entity player, Object[] candidate, ItemStack heldStack)
 
     long counterBefore = totalC08Counter;
     Vec3 hitAbs = (Vec3) prePlaceHit[2];
-    int placeSupportX = supportPos[0];
-    int placeSupportY = supportPos[1];
-    int placeSupportZ = supportPos[2];
-    int placeFace = face;
-    Vec3 placeHit = hitAbs;
-    if (randomPlacement.getValue()) {
-        Object[] rnd = buildRandomPlacement(player, placedPos, supportPos, face);
-        if (rnd != null) {
-            int[] rndSupport = (int[]) rnd[0];
-            placeSupportX = rndSupport[0];
-            placeSupportY = rndSupport[1];
-            placeSupportZ = rndSupport[2];
-            placeFace = (Integer) rnd[1];
-            placeHit = (Vec3) rnd[2];
-        }
-    }
     placingViaModule = true;
-    boolean placed = client.placeBlock(new Vec3(placeSupportX, placeSupportY, placeSupportZ), faceName(placeFace), placeHit);
+    boolean placed = client.placeBlock(new Vec3(supportPos[0], supportPos[1], supportPos[2]), faceName(face), hitAbs);
     placingViaModule = false;
     boolean packetSent = totalC08Counter > counterBefore;
 
@@ -1918,25 +1899,6 @@ boolean attemptPlacement(Entity player, Object[] candidate, ItemStack heldStack)
     forceSuppressTick = currentClientTick;
     client.swing();
     return true;
-}
-
-Object[] buildRandomPlacement(Entity player, int[] placedPos, int[] supportPos, int face) {
-    for (int attempt = 0; attempt < 6; attempt++) {
-        int progress = random.nextInt(3);
-        int vert = random.nextInt(3) - 1;
-        if (progress == 0 && vert == 0) continue;
-        int[] newPlaced = new int[]{placedPos[0] + travelX * progress, placedPos[1] + vert, placedPos[2] + travelZ * progress};
-        int[] newSupport = offsetPos(newPlaced, opposite(face));
-        if (!isStraightTellyTarget(newPlaced)) continue;
-        if (!isReplaceable(newPlaced[0], newPlaced[1], newPlaced[2])) continue;
-        if (!isSupportAvailable(newSupport[0], newSupport[1], newSupport[2])) continue;
-        if (doesPlacementIntersectPlayer(player, newPlaced)) continue;
-        double hx = 0.3 + random.nextDouble() * 0.4;
-        double hz = 0.3 + random.nextDouble() * 0.4;
-        Vec3 hit = getSupportFaceHitVec(newSupport, face, hx, hz);
-        return new Object[]{newSupport, face, hit};
-    }
-    return null;
 }
 
 Object[] resolveVerifiedHit(float yaw, float pitch, int[] expectedSupport, int expectedFace, int[] expectedPlaced) {
@@ -3220,7 +3182,6 @@ int faceFromName(String name) {
                 if (normalized.equals("disablesafewalk")) return disableSafeWalk.getValue();
                 if (normalized.equals("showactivationhitbox")) return showActivationHitbox.getValue();
                 if (normalized.equals("print")) return print.getValue();
-                if (normalized.equals("randomplacement")) return randomPlacement.getValue();
             }
             Module module = getModule(moduleName);
             if (module == null || OpenMyau.propertyManager == null) return false;
