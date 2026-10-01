@@ -22,7 +22,7 @@ import java.util.ArrayList;
 import java.util.Objects;
 
 public class OpenMyau {
-    public static String clientName = "&7[&cO&6p&ee&an&bM&9y&da&cu&b++&7]&r ";
+    public static String clientName = "&7[&cD&6a&er&ak&9h&de&ca&ur&bt&7]&r ";
     public static String version;
     public static RotationManager rotationManager;
     public static FloatManager floatManager;

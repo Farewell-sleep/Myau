@@ -131,7 +131,7 @@ public class LiquidClickGui extends GuiScreen {
 
         // header — liquid glass title pill (true capsule)
         drawGlassCapsuleBg(12, 6, 118, 34, 1.0F);
-        mc.fontRendererObj.drawStringWithShadow("OpenMyau++", 20, 12, GlassRenderer.ACCENT);
+        mc.fontRendererObj.drawStringWithShadow("Darkheart", 20, 12, GlassRenderer.ACCENT);
         mc.fontRendererObj.drawStringWithShadow("Dev TTHILLTT", 20, 24, GlassRenderer.TEXT_FAINT);
 
         // module state style toggle button (top-right) — same liquid glass pill
