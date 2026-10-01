@@ -13,153 +13,121 @@ import net.minecraft.client.renderer.vertex.DefaultVertexFormats;
 import org.lwjgl.opengl.GL11;
 
 import java.awt.Color;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Random;
 
 /**
- * Modern Darkheart main menu: animated gradient background with drifting
- * particles and soft glows, centered logo and rounded glass buttons.
+ * Darkheart main menu: Rise-style minimal dark backdrop, animated falling
+ * client title and vanilla-sized buttons (200x20, original layout).
  */
 public class MainMenuScreen extends GuiScreen {
 
-    private static final int BTN_W = 180;
-    private static final int BTN_H = 28;
-    private static final float BTN_GAP = 10.0F;
+    private static final int BTN_W = 200;
+    private static final int BTN_H = 20;
+    private static final int BTN_GAP = 24;
     private static final String[] BUTTONS = {"Singleplayer", "Multiplayer", "Options", "Quit"};
 
-    private final List<Particle> particles = new ArrayList<>();
-    private final Random random = new Random();
-    private final Color accent = new Color(110, 170, 255);
+    private final Color accent = new Color(120, 170, 255);
     private long openedAt;
+    private float titleSlide = 0.0F;
+    private float fade = 0.0F;
     private int hoveredButton = -1;
     private float[] buttonAnims = new float[BUTTONS.length];
-    private float logoGlow;
-
-    private static final class Particle {
-        float x, y, speed, size;
-        float phase;
-    }
 
     @Override
     public void initGui() {
         this.openedAt = System.currentTimeMillis();
-        if (particles.isEmpty()) {
-            for (int i = 0; i < 90; i++) {
-                Particle p = new Particle();
-                p.x = random.nextFloat() * this.width;
-                p.y = random.nextFloat() * this.height;
-                p.speed = 6.0F + random.nextFloat() * 14.0F;
-                p.size = 0.8F + random.nextFloat() * 1.8F;
-                p.phase = random.nextFloat() * (float) Math.PI * 2.0F;
-                particles.add(p);
-            }
-        }
+        this.titleSlide = 0.0F;
+        this.fade = 0.0F;
     }
 
     @Override
     public void drawScreen(int mouseX, int mouseY, float partialTicks) {
         long now = System.currentTimeMillis();
-        float t = (now - openedAt) / 1000.0F;
-        float fade = Math.min(1.0F, (now - openedAt) / 700.0F);
+        float t = (now - this.openedAt) / 1000.0F;
+        this.fade = Math.min(1.0F, (now - this.openedAt) / 600.0F);
 
-        // vertical gradient backdrop
-        drawVGradient(0, 0, this.width, this.height, 0xFF0A0C12, 0xFF06070B);
+        // dark minimal backdrop, subtle vertical gradient
+        drawVGradient(0, 0, this.width, this.height, 0xFF0B0D13, 0xFF04050A);
 
-        // drifting soft glows
-        drawGlow(this.width * (0.22F + 0.05F * (float) Math.sin(t * 0.22F)), this.height * 0.30F, 240.0F + 30.0F * (float) Math.sin(t * 0.35F), accent, 60);
-        drawGlow(this.width * (0.78F + 0.05F * (float) Math.cos(t * 0.18F)), this.height * 0.72F, 300.0F + 40.0F * (float) Math.cos(t * 0.28F), new Color(90, 130, 255), 42);
-        drawGlow(this.width * 0.5F, this.height * 0.52F, 520.0F, new Color(30, 40, 70), 55);
+        // soft radial glow behind the title (very subtle)
+        drawGlow(this.width / 2.0F, this.height * 0.20F, 320.0F, accent, 26);
 
-        // drifting particles
-        GlStateManager.enableBlend();
-        GlStateManager.disableTexture2D();
-        GlStateManager.color(1.0F, 1.0F, 1.0F, fade);
-        for (Particle p : particles) {
-            p.y -= p.speed * partialTicks;
-            if (p.y < -5.0F) {
-                p.y = this.height + 5.0F;
-                p.x = random.nextFloat() * this.width;
-            }
-            float alpha = (0.25F + 0.55F * (0.5F + 0.5F * (float) Math.sin(t * 0.8F + p.phase))) * fade;
-            RenderUtil.drawRect(p.x, p.y, p.x + p.size, p.y + p.size, rgba(190, 205, 235, (int) (255 * alpha)));
-        }
-        GlStateManager.enableTexture2D();
-        GlStateManager.disableBlend();
-
-        drawLogo(this.width / 2.0F, this.height * 0.30F, fade, t);
-        drawButtons(this.width / 2.0F, this.height * 0.52F, mouseX, mouseY, fade, t);
-        drawFooter(t, fade);
+        drawTitle(now, fade, t);
+        drawButtons(mouseX, mouseY, fade);
+        drawFooter(fade);
 
         GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
     }
 
-    private void drawLogo(float cx, float cy, float fade, float t) {
-        float scale = 0.94F + 0.06F * (float) Math.sin(t * 0.9F);
-        float size = 38.0F * scale;
-        String a = "Dark";
-        String b = "heart";
-        float aw = FontManager.getStringWidth(a, size);
-        float bw = FontManager.getStringWidth(b, size);
-        float total = aw + 4.0F + bw;
-        float x0 = cx - total / 2.0F;
-        float base = cy + FontManager.getCapHeight(size) / 2.0F;
-        FontManager.drawString(a, x0, base - FontManager.getBaseline(size), rgba(242, 245, 250, (int) (255 * fade)), false, size);
-        FontManager.drawString(b, x0 + aw + 4.0F, base - FontManager.getBaseline(size), rgba(accent, (int) (255 * fade)), false, size);
+    private void drawTitle(long now, float fade, float t) {
+        // Rise-style title that slides down and settles
+        float duration = 0.7F;
+        float p = Math.min(1.0F, t / duration);
+        p = 1.0F - (float) Math.pow(1.0F - p, 4.0); // ease-out quart
+        float startY = this.height * 0.20F - 40.0F;
+        float targetY = this.height * 0.20F;
+        float y = startY + (targetY - startY) * p;
 
-        // glow underline
-        float uw = total + 26.0F;
-        float ux = cx - uw / 2.0F;
-        float uy = cy + size * 0.72F;
-        float pulse = 0.55F + 0.45F * (float) Math.sin(t * 1.2F);
-        RenderUtil.drawRoundedRectGradientH(ux, uy, cx - 2.0F, uy + 2.2F, 1.1F,
-                rgba(accent, (int) (20 * fade * pulse)), rgba(accent, (int) (150 * fade * pulse)));
-        RenderUtil.drawRoundedRectGradientH(cx + 2.0F, uy, ux + uw, uy + 2.2F, 1.1F,
-                rgba(accent, (int) (150 * fade * pulse)), rgba(accent, (int) (20 * fade * pulse)));
+        float size = 44.0F;
+        String title = "Darkheart";
+        float tw = FontManager.getStringWidth(title, size);
+        float alpha = 255.0F * fade;
+        float x0 = this.width / 2.0F - tw / 2.0F;
 
-        String tag = "A modern 1.8.9 utility client";
-        float ts = 12.0F;
-        FontManager.drawString(tag, cx - FontManager.getStringWidth(tag, ts) / 2.0F, uy + 18.0F,
-                rgba(140, 150, 170, (int) (210 * fade)), false, ts);
+        FontManager.drawString(title, x0, y - FontManager.getBaseline(size) + FontManager.getCapHeight(size) / 2.0F,
+                rgba(246, 249, 253, (int) alpha), false, size);
+
+        // thin accent underline
+        float uw = tw * 0.82F;
+        float uy = y + size * 0.62F;
+        float pulse = 0.55F + 0.45F * (float) Math.sin(t * 1.1F);
+        RenderUtil.drawRoundedRect(this.width / 2.0F - uw / 2.0F, uy, uw, 2.0F, 1.0F,
+                rgba(accent, (int) (170 * fade * pulse)));
+
+        // subtitle
+        String sub = "a modern 1.8.9 utility client";
+        float ss = 12.0F;
+        FontManager.drawString(sub, this.width / 2.0F - FontManager.getStringWidth(sub, ss) / 2.0F,
+                uy + 16.0F, rgba(140, 150, 168, (int) (200 * fade)), false, ss);
     }
 
-    private void drawButtons(float cx, float startY, int mouseX, int mouseY, float fade, float t) {
-        float totalH = BUTTONS.length * BTN_H + (BUTTONS.length - 1) * BTN_GAP;
+    private void drawButtons(int mouseX, int mouseY, float fade) {
+        // vanilla layout: 200x20 centered, y = height/4 + 48 + i*24
+        float cx = this.width / 2.0F;
+        float startY = this.height / 4.0F + 48.0F;
         for (int i = 0; i < BUTTONS.length; i++) {
-            float by = startY + i * (BTN_H + BTN_GAP) - totalH / 2.0F;
+            float by = startY + i * BTN_GAP;
             boolean hovered = mouseX >= cx - BTN_W / 2.0F && mouseX <= cx + BTN_W / 2.0F
                     && mouseY >= by && mouseY <= by + BTN_H;
             float target = hovered ? 1.0F : 0.0F;
-            buttonAnims[i] += (target - buttonAnims[i]) * 0.14F;
-            float a = buttonAnims[i];
+            this.buttonAnims[i] += (target - this.buttonAnims[i]) * 0.16F;
+            float a = this.buttonAnims[i];
 
-            int bg = rgba(20, 22, 30, (int) ((120 + 60 * a) * fade));
-            int border = rgba(accent, (int) ((50 + 120 * a) * fade));
-            RenderUtil.drawRoundedRectWithGl(cx - BTN_W / 2.0F - 0.75F, by - 0.75F, cx + BTN_W / 2.0F + 0.75F, by + BTN_H + 0.75F, 10.5F, border);
-            RenderUtil.drawRoundedRectWithGl(cx - BTN_W / 2.0F, by, cx + BTN_W / 2.0F, by + BTN_H, 9.75F, bg);
+            int bg = rgba(17, 19, 26, (int) ((130 + 70 * a) * fade));
+            int border = rgba(accent, (int) ((40 + 110 * a) * fade));
+            RenderUtil.drawRoundedRect(cx - BTN_W / 2.0F - 0.5F, by - 0.5F, BTN_W + 1.0F, BTN_H + 1.0F, 5.5F, border);
+            RenderUtil.drawRoundedRect(cx - BTN_W / 2.0F, by, BTN_W, BTN_H, 5.0F, bg);
 
-            // left accent bar that slides in on hover
+            // left accent bar on hover
             if (a > 0.01F) {
-                float barW = 3.0F + a * 2.0F;
-                RenderUtil.drawRoundedRectWithGl(cx - BTN_W / 2.0F + 8.0F, by + 6.0F, cx - BTN_W / 2.0F + 8.0F + barW, by + BTN_H - 6.0F, 1.5F,
-                        rgba(accent, (int) (220 * a * fade)));
+                RenderUtil.drawRoundedRect(cx - BTN_W / 2.0F + 6.0F, by + 4.0F, 2.0F + a * 2.0F, BTN_H - 8.0F, 1.0F,
+                        rgba(accent, (int) (230 * a * fade)));
             }
 
-            int textColor = rgba(mix(new Color(170, 177, 192), new Color(245, 247, 252), a), (int) (255 * fade));
-            float textSize = 15.0F;
-            float dx = a * 3.0F;
-            FontManager.drawString(BUTTONS[i], cx - FontManager.getStringWidth(BUTTONS[i], textSize) / 2.0F + dx,
+            int textColor = rgba(mix(new Color(160, 167, 182), new Color(245, 247, 252), a), (int) (255 * fade));
+            float textSize = 13.0F;
+            float dx = a * 2.0F;
+            FontManager.drawString(BUTTONS[i],
+                    cx - FontManager.getStringWidth(BUTTONS[i], textSize) / 2.0F + dx,
                     by + BTN_H / 2.0F - FontManager.getBaseline(textSize) + FontManager.getCapHeight(textSize) / 2.0F,
                     textColor, false, textSize);
         }
     }
 
-    private void drawFooter(float t, float fade) {
+    private void drawFooter(float fade) {
         String version = "Darkheart 1.0.0   -   MC 1.8.9";
-        float vs = 12.0F;
-        FontManager.drawString(version, (this.width - FontManager.getStringWidth(version, vs)) / 2.0F, this.height - 34.0F,
-                rgba(125, 134, 152, (int) (200 * fade)), false, vs);
-
+        float vs = 11.0F;
+        FontManager.drawString(version, (this.width - FontManager.getStringWidth(version, vs)) / 2.0F,
+                this.height - 26.0F, rgba(120, 129, 147, (int) (190 * fade)), false, vs);
     }
 
     private void drawGlow(float cx, float cy, float radius, Color color, int alpha) {
@@ -219,10 +187,9 @@ public class MainMenuScreen extends GuiScreen {
     protected void mouseClicked(int mouseX, int mouseY, int button) {
         if (button != 0) return;
         float cx = this.width / 2.0F;
-        float startY = this.height * 0.52F;
-        float totalH = BUTTONS.length * BTN_H + (BUTTONS.length - 1) * BTN_GAP;
+        float startY = this.height / 4.0F + 48.0F;
         for (int i = 0; i < BUTTONS.length; i++) {
-            float by = startY + i * (BTN_H + BTN_GAP) - totalH / 2.0F;
+            float by = startY + i * BTN_GAP;
             if (mouseX >= cx - BTN_W / 2.0F && mouseX <= cx + BTN_W / 2.0F && mouseY >= by && mouseY <= by + BTN_H) {
                 switch (i) {
                     case 0:
