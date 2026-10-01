@@ -13,7 +13,6 @@ import net.minecraft.block.material.Material;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.entity.EntityPlayerSP;
 import net.minecraft.client.renderer.EntityRenderer;
-import net.minecraft.client.renderer.GLAllocation;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.item.EnumAction;
@@ -31,10 +30,8 @@ import org.spongepowered.asm.mixin.injection.*;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.LocalCapture;
 
-import java.nio.FloatBuffer;
 import java.util.List;
 
-import org.lwjgl.opengl.GL11;
 
 @SideOnly(Side.CLIENT)
 @Mixin(value = {EntityRenderer.class}, priority = 9999)
@@ -408,27 +405,4 @@ public abstract class MixinEntityRenderer {
         return biome.getFloatTemperature(pos);
     }
 
-    /** Re-tune the vanilla fog into a white snow-fog after setupFog. */
-    @Inject(
-            method = {"setupFog"},
-            at = {@At("RETURN")}
-    )
-    private void snowfogSetupFog(int p_78468_1_, float p_78468_2_, CallbackInfo callbackInfo) {
-        if (OpenMyau.moduleManager == null) {
-            return;
-        }
-        SnowFog snowFog = (SnowFog) OpenMyau.moduleManager.modules.get(SnowFog.class);
-        if (!snowFog.isEnabled() || snowFog.fogStrength.getValue() <= 0) {
-            return;
-        }
-        float strength = snowFog.fogStrength.getValue() / 100.0F;
-        float end = 40.0F - strength * 26.0F;
-        float start = end * 0.82F;
-        GL11.glFogi(GL11.GL_FOG_MODE, GL11.GL_LINEAR);
-        GL11.glFogf(GL11.GL_FOG_START, start);
-        GL11.glFogf(GL11.GL_FOG_END, end);
-        FloatBuffer fogColorBuffer = GLAllocation.createDirectFloatBuffer(4);
-        fogColorBuffer.put(0.78F).put(0.80F).put(0.84F).put(1.0F).flip();
-        GL11.glFog(GL11.GL_FOG_COLOR, fogColorBuffer);
-    }
 }

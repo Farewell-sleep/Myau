@@ -14,16 +14,14 @@ import net.minecraft.world.World;
  * SnowFog — render-category module driven by the vanilla weather system.
  *
  * On enable it snapshots the current weather state; while enabled it forces
- * a snowy client render (rain strength = snow density) and re-tunes the GL
- * fog into white snow-fog (mixin in MixinEntityRenderer). On disable it
- * restores the exact snapshot, so the world/server state is never corrupted
- * and no rendering artifacts remain.
+ * a snowy client render (rain strength = snow density, snow branch enforced
+ * in MixinEntityRenderer). On disable it restores the exact snapshot, so the
+ * world/server state is never corrupted and no rendering artifacts remain.
  */
 public class SnowFog extends Module {
     private static final Minecraft mc = Minecraft.getMinecraft();
 
     public final IntProperty snowDensity = new IntProperty("snow-density", 40, 0, 100);
-    public final IntProperty fogStrength = new IntProperty("fog-strength", 35, 0, 100);
 
     private boolean savedRaining;
     private int savedRainTime;
@@ -101,6 +99,6 @@ public class SnowFog extends Module {
 
     @Override
     public String[] getSuffix() {
-        return new String[]{"Snow " + this.snowDensity.getValue() + "%", "Fog " + this.fogStrength.getValue() + "%"};
+        return new String[]{"Snow " + this.snowDensity.getValue() + "%"};
     }
 }
