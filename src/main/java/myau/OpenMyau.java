@@ -113,6 +113,7 @@ public class OpenMyau {
         moduleManager.modules.put(BedTracker.class, new BedTracker());
         moduleManager.modules.put(Blink.class, new Blink());
         moduleManager.modules.put(BreakProgress.class, new BreakProgress());
+        moduleManager.modules.put(Capes.class, new Capes());
         moduleManager.modules.put(Chams.class, new Chams());
         moduleManager.modules.put(ChestESP.class, new ChestESP());
         moduleManager.modules.put(ChestStealer.class, new ChestStealer());

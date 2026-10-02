@@ -66,7 +66,7 @@ public class ModernClickGui extends GuiScreen {
 
     private static final Set<String> COMBAT = set("AimAssist", "AutoClicker", "KillAura", "NewKillAura", "SmartAttack", "Wtap", "BlockHit", "Autoblock", "AutoBlockIn", "Disabler", "HitSelect", "Velocity", "MoreKB", "NoHitDelay", "Reach", "BackTrack", "LagRange", "HitBox", "TargetStrafe", "Telly", "AutoAnduril", "AntiFireball", "AntiObbyTrap", "AntiDebuff", "AntiObfuscate");
     private static final Set<String> MOVEMENT = set("AntiAFK", "Fly", "Speed", "LongJump", "Sprint", "InvWalk", "Jesus", "NoSlow", "Scaffold", "NewScaffold", "SafeWalk", "Eagle", "Freeze", "FastPlace", "SpeedMine", "NoJumpDelay");
-    private static final Set<String> RENDER = set("ESP", "Chams", "FullBright", "Tracers", "NameTags", "Radar", "Trajectories", "ItemESP", "ChestESP", "BedESP", "Xray", "SnowFog", "CuteVisuals", "TargetHUD", "Indicators", "BreakProgress", "ViewClip", "NoHurtCam", "NickHider", "HUD", "ItemPhysics");
+    private static final Set<String> RENDER = set("Capes", "ESP", "Chams", "FullBright", "Tracers", "NameTags", "Radar", "Trajectories", "ItemESP", "ChestESP", "BedESP", "Xray", "SnowFog", "CuteVisuals", "TargetHUD", "Indicators", "BreakProgress", "ViewClip", "NoHurtCam", "NickHider", "HUD", "ItemPhysics");
     private static final Set<String> PLAYER = set("Clutch", "AutoHeal", "AutoTool", "ChestStealer", "InvManager", "Refill", "InventoryClicker", "NoFall", "GhostHand", "AntiVoid", "AutoThrow", "InventoryMove", "Freecam");
 
     private static ModernClickGui instance;
@@ -255,9 +255,7 @@ public class ModernClickGui extends GuiScreen {
         float chipX = x + 14.0F;
         float chipY = y + 14.0F;
         float centerY = chipY + 8.0F;
-        RenderUtil.drawRoundedRectWithGl(chipX, chipY, chipX + 16.0F, chipY + 16.0F, 5.0F, col(accent, 48));
-        RenderUtil.drawRoundedRectWithGl(chipX + 5.0F, chipY + 5.0F, chipX + 11.0F, chipY + 11.0F, 2.5F, col(accent, 255));
-        float logoX = chipX + 22.0F;
+        float logoX = chipX;
         float logoLimit = x + SIDEBAR - 8.0F;
         float darkW = width("Dark", 12.0F);
         text("Dark", logoX, centerY, col(245, 247, 252, 255), 12.0F);
