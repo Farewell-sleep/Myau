@@ -58,31 +58,18 @@ public class TargetHUD extends Module {
     public final BooleanProperty shadow = new BooleanProperty("shadow", true);
     public final BooleanProperty kaOnly = new BooleanProperty("ka-only", true);
     public final BooleanProperty chatPreview = new BooleanProperty("chat-preview", false);
-    public final ModeProperty mode = new ModeProperty("mode", 0, new String[]{"NORMAL", "MODERN"});
-    public final BooleanProperty followAttacked = new BooleanProperty("follow-attacked", false);
-    public final BooleanProperty attackingRender = new BooleanProperty("attacking-render", false);
 
     private EntityLivingBase resolveTarget() {
         KillAura killAura = (KillAura) OpenMyau.moduleManager.modules.get(KillAura.class);
         if (killAura.isEnabled() && killAura.isAttackAllowed() && TeamUtil.isEntityLoaded(killAura.getTarget())) {
             return killAura.getTarget();
-        }
-        if (this.attackingRender.getValue()
+        } else if (!(Boolean) this.kaOnly.getValue()
                 && !this.lastAttackTimer.hasTimeElapsed(1500L)
                 && TeamUtil.isEntityLoaded(this.lastTarget)) {
             return this.lastTarget;
+        } else {
+            return this.chatPreview.getValue() && mc.currentScreen instanceof GuiChat ? mc.thePlayer : null;
         }
-        if (this.followAttacked.getValue()
-                && TeamUtil.isEntityLoaded(this.lastTarget)
-                && !this.lastTarget.isDead) {
-            return this.lastTarget;
-        }
-        if (!(Boolean) this.kaOnly.getValue()
-                && !this.lastAttackTimer.hasTimeElapsed(1500L)
-                && TeamUtil.isEntityLoaded(this.lastTarget)) {
-            return this.lastTarget;
-        }
-        return this.chatPreview.getValue() && mc.currentScreen instanceof GuiChat ? mc.thePlayer : null;
     }
 
     private ResourceLocation getSkin(EntityLivingBase entityLivingBase) {
@@ -192,10 +179,6 @@ public class TargetHUD extends Module {
                         posY *= -1.0F;
                         posY += (float) scaledResolution.getScaledHeight() / this.scale.getValue() - 27.0F;
                 }
-                if (this.mode.getValue() == 1) {
-                    this.drawModern(targetNameText, healthText, statusText, targetColor, healthBarColor, healthDeltaColor, healthRatio, scaledResolution);
-                    return;
-                }
                 GlStateManager.pushMatrix();
                 GlStateManager.scale(this.scale.getValue(), this.scale.getValue(), 0.0F);
                 GlStateManager.translate(posX, posY, -450.0F);
@@ -227,42 +210,6 @@ public class TargetHUD extends Module {
                 GlStateManager.popMatrix();
             }
         }
-    }
-
-    private void drawModern(String nameText, String healthText, String statusText, Color targetColor, Color healthBarColor, Color statusColor, float healthRatio, ScaledResolution res) {
-        float s = this.scale.getValue();
-        int pad = 8;
-        String line = nameText + " " + healthText;
-        int textW = mc.fontRendererObj.getStringWidth(line);
-        int statusW = mc.fontRendererObj.getStringWidth(statusText);
-        float w = textW + pad * 2.0F;
-        float h = 9.0F + 5.0F + pad * 2.0F;
-        float x = res.getScaledWidth() / 2.0F - w / 2.0F + this.offX.getValue().floatValue() / s;
-        float y = res.getScaledHeight() / 2.0F + 15.0F + this.offY.getValue().floatValue() / s;
-        GlStateManager.pushMatrix();
-        GlStateManager.scale(s, s, 0.0F);
-        GlStateManager.translate(x, y, -450.0F);
-        RenderUtil.enableRenderState();
-        // gradient outline card (soft)
-        int outlineC1 = new Color(targetColor.getRed(), targetColor.getGreen(), targetColor.getBlue(), 90).getRGB();
-        int outlineC2 = new Color(targetColor.getRed(), targetColor.getGreen(), targetColor.getBlue(), 40).getRGB();
-        RenderUtil.drawRoundedRectGradientH(-0.75F, -0.75F, w + 0.75F, h + 0.75F, 8.75F, outlineC1, outlineC2);
-        RenderUtil.drawRoundedRectWithGl(0.0F, 0.0F, w, h, 8.0F, new Color(0, 0, 0, 210).getRGB());
-        // health bar
-        float barW = w - 12.0F;
-        float barY = h - 6.0F - 5.0F;
-        RenderUtil.drawRoundedRectWithGl(6.0F, barY, 6.0F + barW, barY + 5.0F, 2.5F, new Color(0, 0, 0, 130).getRGB());
-        RenderUtil.drawRoundedRectGradientH(6.0F, barY, 6.0F + barW * Math.min(Math.max(healthRatio, 0.0F), 1.0F), barY + 5.0F, 2.5F,
-                healthBarColor.getRGB(), ColorUtil.darker(healthBarColor, 0.15F).getRGB());
-        RenderUtil.disableRenderState();
-        GlStateManager.disableDepth();
-        GlStateManager.enableBlend();
-        GlStateManager.blendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
-        mc.fontRendererObj.drawString(line, pad, pad, -1, true);
-        mc.fontRendererObj.drawString(statusText, w - pad - (float) statusW, pad, statusColor.getRGB(), true);
-        GlStateManager.disableBlend();
-        GlStateManager.enableDepth();
-        GlStateManager.popMatrix();
     }
 
     @EventTarget
