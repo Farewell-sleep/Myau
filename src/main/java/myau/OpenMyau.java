@@ -164,7 +164,6 @@ public class OpenMyau {
         moduleManager.modules.put(Refill.class, new Refill());
         moduleManager.modules.put(SafeWalk.class, new SafeWalk());
         moduleManager.modules.put(Scaffold.class, new Scaffold());
-        moduleManager.modules.put(NewScaffold.class, new NewScaffold());
         moduleManager.modules.put(AutoBlockIn.class, new AutoBlockIn());
         moduleManager.modules.put(Telly.class, new Telly());
         moduleManager.modules.put(Spammer.class, new Spammer());

@@ -103,32 +103,45 @@ public class KillAura extends Module {
     }
 
     private boolean performAttack(float yaw, float pitch) {
-        if (!OpenMyau.playerStateManager.digging && !OpenMyau.playerStateManager.placing) {
-            if (this.isPlayerBlocking() && this.autoBlock.getValue() != 1) {
-                return false;
-            } else if (this.attackDelayMS > 0L) {
-                return false;
-            } else {
-                this.attackDelayMS = this.attackDelayMS + this.getAttackDelay();
-                mc.thePlayer.swingItem();
-                if ((this.rotations.getValue() != 0 || !this.isBoxInAttackRange(this.target.getBox()))
-                        && RotationUtil.rayTrace(this.target.getBox(), yaw, pitch, this.attackRange.getValue()) == null) {
-                    return false;
-                } else {
-                    AttackEvent event = new AttackEvent(this.target.getEntity());
-                    EventManager.call(event);
-                    ((IAccessorPlayerControllerMP) mc.playerController).callSyncCurrentPlayItem();
-                    PacketUtil.sendPacket(new C02PacketUseEntity(this.target.getEntity(), Action.ATTACK));
-                    if (mc.playerController.getCurrentGameType() != GameType.SPECTATOR) {
-                        PlayerUtil.attackEntity(this.target.getEntity());
-                    }
-                    this.hitRegistered = true;
-                    return true;
-                }
-            }
-        } else {
+        if (OpenMyau.playerStateManager.digging || OpenMyau.playerStateManager.placing) {
             return false;
         }
+        if (this.attackDelayMS > 0L) {
+            return false;
+        }
+        // Manual blocking (right-click held) cancels the attack in vanilla
+        // (attackTargetEntityWithCurrentItem returns while using item), so
+        // release the block for the attack frame and restore it right after.
+        boolean restoreManualBlock = false;
+        if (mc.thePlayer.isUsingItem() && ItemUtil.isHoldingSword()) {
+            KeyBindUtil.setKeyBindState(mc.gameSettings.keyBindUseItem.getKeyCode(), false);
+            mc.thePlayer.stopUsingItem();
+            restoreManualBlock = true;
+        } else if (this.blockingState) {
+            this.stopBlock();
+        }
+        this.attackDelayMS = this.attackDelayMS + this.getAttackDelay();
+        mc.thePlayer.swingItem();
+        boolean success;
+        if ((this.rotations.getValue() != 0 || !this.isBoxInAttackRange(this.target.getBox()))
+                && RotationUtil.rayTrace(this.target.getBox(), yaw, pitch, this.attackRange.getValue()) == null) {
+            success = false;
+        } else {
+            AttackEvent event = new AttackEvent(this.target.getEntity());
+            EventManager.call(event);
+            ((IAccessorPlayerControllerMP) mc.playerController).callSyncCurrentPlayItem();
+            PacketUtil.sendPacket(new C02PacketUseEntity(this.target.getEntity(), Action.ATTACK));
+            if (mc.playerController.getCurrentGameType() != GameType.SPECTATOR) {
+                PlayerUtil.attackEntity(this.target.getEntity());
+            }
+            this.hitRegistered = true;
+            success = true;
+        }
+        if (restoreManualBlock) {
+            // Re-press use so the block resumes from the next tick.
+            KeyBindUtil.setKeyBindState(mc.gameSettings.keyBindUseItem.getKeyCode(), true);
+        }
+        return success;
     }
 
     private void sendUseItem() {

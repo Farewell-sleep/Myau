@@ -246,6 +246,16 @@ public class Autoblock extends Module {
             this.resetState(true);
             return;
         }
+        // Yield blocking to KillAura while it has a target and its own
+        // auto-block is active — otherwise both modules fight over the use key.
+        KillAura killAura = (KillAura) OpenMyau.moduleManager.modules.get(KillAura.class);
+        if (killAura != null && killAura.isEnabled()
+                && killAura.autoBlock.getValue() != 0
+                && CombatTargeting.findTarget(this.range.getValue() * this.range.getValue(),
+                this.ignoreTeammates.getValue()) != null) {
+            this.resetState(false);
+            return;
+        }
         int selfHurtTime = mc.thePlayer.hurtTime;
         boolean hurtAgain = selfHurtTime > this.lastSelfHurtTime;
         this.lastSelfHurtTime = selfHurtTime;

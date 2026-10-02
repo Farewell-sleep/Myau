@@ -1,13 +1,13 @@
 package myau.module.modules;
 
 import myau.module.Module;
-import myau.ui.ModernClickGui;
+import myau.ui.liquid.LiquidClickGui;
 import net.minecraft.client.Minecraft;
 import org.lwjgl.input.Keyboard;
 
 public class GuiModule extends Module {
     private static final Minecraft mc = Minecraft.getMinecraft();
-    private ModernClickGui clickGui;
+    private LiquidClickGui clickGui;
 
     public GuiModule() {
         super("ClickGui", false);
@@ -18,7 +18,7 @@ public class GuiModule extends Module {
     public void onEnabled() {
         setEnabled(false);
         if (clickGui == null) {
-            clickGui = new ModernClickGui();
+            clickGui = new LiquidClickGui();
         }
         mc.displayGuiScreen(clickGui);
     }
