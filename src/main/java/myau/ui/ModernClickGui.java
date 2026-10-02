@@ -269,8 +269,6 @@ public class ModernClickGui extends GuiScreen {
         text("Dark", hx, centerY, col(245, 247, 252, 255), 12.0F);
         float heartW = width("heart", 12.0F);
         text(GuiText.trim("heart", (int) (logoLimit - hx - darkW - 2.0F), 12.0F), hx + darkW + 2.0F, centerY, col(accent, 255), 12.0F);
-        // accent underline under the title
-        RenderUtil.drawRoundedRectWithGl(logoX, centerY + 9.0F, logoX + 11.0F + darkW + 2.0F + heartW, centerY + 10.0F, 0.5F, col(accent, 200));
 
         text("CATEGORIES", x + 16.0F, y + 62.0F, col(120, 128, 145, 255), 11.0F);
 
