@@ -363,6 +363,40 @@ public class RenderUtil {
         GL11.glEnd();
     }
 
+    public static Framebuffer createFrameBuffer(Framebuffer framebuffer) {
+        return createFrameBuffer(framebuffer, false);
+    }
+
+    public static Framebuffer createFrameBuffer(Framebuffer framebuffer, boolean depth) {
+        if (needsNewFramebuffer(framebuffer)) {
+            if (framebuffer != null) {
+                framebuffer.deleteFramebuffer();
+            }
+            framebuffer = new Framebuffer(mc.displayWidth, mc.displayHeight, depth);
+            framebuffer.setFramebufferFilter(GL11.GL_LINEAR);
+        }
+        GL11.glBindTexture(GL11.GL_TEXTURE_2D, framebuffer.framebufferTexture);
+        GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MIN_FILTER, GL11.GL_LINEAR);
+        GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MAG_FILTER, GL11.GL_LINEAR);
+        GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_S, 0x812F);
+        GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_T, 0x812F);
+        GL11.glBindTexture(GL11.GL_TEXTURE_2D, 0);
+        return framebuffer;
+    }
+
+    private static boolean needsNewFramebuffer(Framebuffer framebuffer) {
+        return framebuffer == null || framebuffer.framebufferWidth != mc.displayWidth || framebuffer.framebufferHeight != mc.displayHeight;
+    }
+
+    public static void bindTexture(int texture) {
+        GL11.glBindTexture(GL11.GL_TEXTURE_2D, texture);
+    }
+
+    public static void setAlphaLimit(float limit) {
+        GlStateManager.enableAlpha();
+        GlStateManager.alphaFunc(GL11.GL_GREATER, limit * 0.01F);
+    }
+
     public static void fillCircle(double x, double y, double radius, int segments, int color) {
         GlStateManager.enableBlend();
         GlStateManager.disableTexture2D();

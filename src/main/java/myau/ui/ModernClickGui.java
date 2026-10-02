@@ -15,6 +15,7 @@ import myau.property.properties.ModeProperty;
 import myau.property.properties.PercentProperty;
 import myau.property.properties.TextProperty;
 import myau.util.FontManager;
+import myau.util.shader.BlurUtils;
 import myau.util.GuiText;
 import myau.util.KeyBindUtil;
 import myau.util.RenderUtil;
@@ -98,6 +99,7 @@ public class ModernClickGui extends GuiScreen {
     private float dt = 0.016F;
     private float alpha = 1.0F;
     private Color accent = new Color(110, 170, 255);
+    public final BooleanProperty blur = new BooleanProperty("blur", true);
 
     private Property<?> draggingSlider;
     private float sliderTrackX;
@@ -209,6 +211,13 @@ public class ModernClickGui extends GuiScreen {
         RenderUtil.enableRenderState();
         RenderUtil.drawRect(0.0F, 0.0F, this.width, this.height, col(0, 0, 0, 100));
         RenderUtil.disableRenderState();
+
+        // frosted glass: blur the scene behind the window
+        if (this.blur.getValue()) {
+            BlurUtils.prepareBlur();
+            RenderUtil.drawRoundedRectWithGl(x, y, x + W, y + H, 12.0F, col(255, 255, 255, 255));
+            BlurUtils.blurEnd(2, 4.0F);
+        }
 
         // soft drop shadow
         for (int i = 3; i >= 1; i--) {
@@ -404,10 +413,15 @@ public class ModernClickGui extends GuiScreen {
             float sel = anim("ms" + key, selected ? 1.0F : 0.0F, 14.0F);
             float on = anim("me" + key, module.isEnabled() ? 1.0F : 0.0F, 14.0F);
 
-            RenderUtil.drawRoundedRectWithGl(lx, ry, lx + lw - 4.0F, ry + ROW, 7.0F, col(255, 255, 255, (int) (6 + 6 * hover)));
+            // individual module card: background + outline (downui style)
+            RenderUtil.drawRoundedRectWithGl(lx + 1.0F, ry + 1.0F, lx + lw - 5.0F, ry + ROW - 1.0F, 6.5F, col(255, 255, 255, (int) (10 + 14 * hover)));
+            RenderUtil.drawRoundedRectWithGl(lx + 0.5F, ry + 0.5F, lx + lw - 4.5F, ry + ROW - 0.5F, 7.0F, col(255, 255, 255, (int) (16 + 26 * hover)));
             if (sel > 0.01F) {
-                RenderUtil.drawRoundedRectWithGl(lx, ry, lx + lw - 4.0F, ry + ROW, 7.0F, col(accent, (int) (46 * sel)));
-                RenderUtil.drawRoundedRectWithGl(lx + 2.0F, ry + 5.0F, lx + 4.0F, ry + ROW - 5.0F, 1.0F, col(accent, (int) (220 * sel)));
+                RenderUtil.drawRoundedRectWithGl(lx + 0.5F, ry + 0.5F, lx + lw - 4.5F, ry + ROW - 0.5F, 7.0F, col(accent, (int) (80 * sel)));
+                RenderUtil.drawRoundedRectWithGl(lx + 2.5F, ry + 5.0F, lx + 4.5F, ry + ROW - 5.0F, 1.0F, col(accent, (int) (230 * sel)));
+            }
+            if (on > 0.01F) {
+                RenderUtil.drawRoundedRectWithGl(lx + 2.0F, ry + 6.0F, lx + 4.0F, ry + ROW - 6.0F, 1.0F, col(accent, (int) (130 + 70 * on)));
             }
             float cy = ry + ROW / 2.0F;
             float swW = 20.0F;
