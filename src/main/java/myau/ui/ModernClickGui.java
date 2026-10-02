@@ -258,18 +258,19 @@ public class ModernClickGui extends GuiScreen {
         float logoX = chipX;
         float logoLimit = x + SIDEBAR - 8.0F;
         // heart icon + two-tone "Darkheart" title
-        RenderUtil.enableRenderState();
+        GlStateManager.enableBlend();
+        GlStateManager.blendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
+        GlStateManager.enableTexture2D();
+        GlStateManager.disableCull();
+        GlStateManager.disableDepth();
         mc.fontRendererObj.drawString("\u2665", logoX, centerY - 4.0F, col(accent, 255), true);
-        RenderUtil.disableRenderState();
         float hx = logoX + 11.0F;
         float darkW = width("Dark", 12.0F);
         text("Dark", hx, centerY, col(245, 247, 252, 255), 12.0F);
         float heartW = width("heart", 12.0F);
         text(GuiText.trim("heart", (int) (logoLimit - hx - darkW - 2.0F), 12.0F), hx + darkW + 2.0F, centerY, col(accent, 255), 12.0F);
         // accent underline under the title
-        RenderUtil.enableRenderState();
-        RenderUtil.drawRoundedRectWithGl(logoX, centerY + 9.0F, logoX + 11.0F + darkW + 2.0F + heartW, centerY + 9.5F, 0.5F, col(accent, 200));
-        RenderUtil.disableRenderState();
+        RenderUtil.drawRoundedRectWithGl(logoX, centerY + 9.0F, logoX + 11.0F + darkW + 2.0F + heartW, centerY + 10.0F, 0.5F, col(accent, 200));
 
         text("CATEGORIES", x + 16.0F, y + 62.0F, col(120, 128, 145, 255), 11.0F);
 
