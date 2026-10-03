@@ -5,6 +5,9 @@ import myau.events.RenderLivingEvent;
 import myau.module.Module;
 import myau.util.TeamUtil;
 import myau.property.properties.BooleanProperty;
+import myau.property.properties.ColorProperty;
+import myau.property.properties.FloatProperty;
+import myau.property.properties.ModeProperty;
 import net.minecraft.client.Minecraft;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.boss.EntityDragon;
@@ -19,6 +22,11 @@ import org.lwjgl.opengl.GL11;
 
 public class Chams extends Module {
     private static final Minecraft mc = Minecraft.getMinecraft();
+    public final ModeProperty mode = new ModeProperty("mode", 0, new String[]{"WALLS", "ONYX"});
+    // === ONYX tint (skid Onxy ChamsModule) ===
+    public final ColorProperty onyxColor = new ColorProperty("onyx-color", 0xFF4040, () -> this.mode.getValue() == 1);
+    public final FloatProperty onyxOpacity = new FloatProperty("onyx-opacity", 50.0F, 0.0F, 100.0F, () -> this.mode.getValue() == 1);
+    public final FloatProperty onyxStrength = new FloatProperty("onyx-strength", 70.0F, 0.0F, 100.0F, () -> this.mode.getValue() == 1);
     public final BooleanProperty players = new BooleanProperty("players", true);
     public final BooleanProperty friends = new BooleanProperty("friends", true);
     public final BooleanProperty enemiess = new BooleanProperty("enemies", true);
@@ -31,7 +39,7 @@ public class Chams extends Module {
     public final BooleanProperty self = new BooleanProperty("self", false);
     public final BooleanProperty bots = new BooleanProperty("bots", false);
 
-    private boolean shouldRenderChams(EntityLivingBase entityLivingBase) {
+    public boolean shouldRenderChams(EntityLivingBase entityLivingBase) {
         if (entityLivingBase.deathTime > 0) {
             return false;
         } else if (mc.getRenderViewEntity().getDistanceToEntity(entityLivingBase) > 512.0F) {
@@ -70,7 +78,7 @@ public class Chams extends Module {
 
     @EventTarget
     public void onRenderLiving(RenderLivingEvent event) {
-        if (this.isEnabled()) {
+        if (this.isEnabled() && this.mode.getValue() == 0) {
             if (this.shouldRenderChams(event.getEntity())) {
                 switch (event.getType()) {
                     case PRE:

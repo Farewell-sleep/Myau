@@ -4,6 +4,7 @@ import myau.event.EventTarget;
 import myau.event.types.EventType;
 import myau.events.TickEvent;
 import myau.module.Module;
+import myau.property.properties.FloatProperty;
 import myau.property.properties.ModeProperty;
 import net.minecraft.client.Minecraft;
 import net.minecraft.potion.Potion;
@@ -13,7 +14,9 @@ public class FullBright extends Module {
     private static final Minecraft mc = Minecraft.getMinecraft();
     private float prevGamma = Float.NaN;
     private boolean appliedNightVision = false;
-    public final ModeProperty mode = new ModeProperty("mode", 0, new String[]{"GAMMA", "EFFECT"});
+    public final ModeProperty mode = new ModeProperty("mode", 0, new String[]{"GAMMA", "EFFECT", "ONYX"});
+    /** Onxy-style gamma slider (vanilla max is 1). */
+    public final FloatProperty onyxGamma = new FloatProperty("onyx-gamma", 100.0F, 1.0F, 100.0F, () -> this.mode.getValue() == 2);
 
     public FullBright() {
         super("Fullbright", true, true);
@@ -28,6 +31,9 @@ public class FullBright extends Module {
                     break;
                 case 1:
                     mc.thePlayer.addPotionEffect(new PotionEffect(Potion.nightVision.id, 25940, 0));
+                    break;
+                case 2:
+                    mc.gameSettings.gammaSetting = this.onyxGamma.getValue();
             }
         }
     }
@@ -36,6 +42,7 @@ public class FullBright extends Module {
     public void onEnabled() {
         switch (this.mode.getValue()) {
             case 0:
+            case 2:
                 this.prevGamma = mc.gameSettings.gammaSetting;
                 break;
             case 1:

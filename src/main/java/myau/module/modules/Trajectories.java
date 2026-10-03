@@ -6,6 +6,10 @@ import myau.mixin.IAccessorRenderManager;
 import myau.module.Module;
 import myau.util.RenderUtil;
 import myau.property.properties.BooleanProperty;
+import myau.property.properties.ColorProperty;
+import myau.property.properties.FloatProperty;
+import myau.property.properties.IntProperty;
+import myau.property.properties.ModeProperty;
 import myau.property.properties.PercentProperty;
 import net.minecraft.block.material.Material;
 import net.minecraft.client.Minecraft;
@@ -21,13 +25,28 @@ import org.lwjgl.opengl.GL11;
 
 import java.awt.*;
 import java.util.ArrayList;
+import java.util.List;
 
 public class Trajectories extends Module {
     private static final Minecraft mc = Minecraft.getMinecraft();
+    public final ModeProperty mode = new ModeProperty("mode", 0, new String[]{"ORIGINAL", "ONYX"});
     public final PercentProperty opacity = new PercentProperty("opacity", 100);
     public final BooleanProperty bow = new BooleanProperty("bow", true);
     public final BooleanProperty projectiles = new BooleanProperty("projectiles", false);
     public final BooleanProperty pearls = new BooleanProperty("pearls", true);
+
+    // === ONYX (skid Onxy TrajectoriesModule) ===
+    public final IntProperty onyxMaxTicks = new IntProperty("onyx-max-ticks", 120, 20, 300, () -> this.mode.getValue() == 1);
+    public final FloatProperty onyxLineWidth = new FloatProperty("onyx-line-width", 1.5F, 0.5F, 5.0F, () -> this.mode.getValue() == 1);
+    public final BooleanProperty onyxThroughWalls = new BooleanProperty("onyx-through-walls", false, () -> this.mode.getValue() == 1);
+    public final BooleanProperty onyxImpactMarker = new BooleanProperty("onyx-impact-marker", true, () -> this.mode.getValue() == 1);
+    public final BooleanProperty onyxPearls = new BooleanProperty("onyx-pearls", true, () -> this.mode.getValue() == 1);
+    public final BooleanProperty onyxSnowballs = new BooleanProperty("onyx-snowballs", true, () -> this.mode.getValue() == 1);
+    public final BooleanProperty onyxPotions = new BooleanProperty("onyx-potions", true, () -> this.mode.getValue() == 1);
+    public final BooleanProperty onyxBows = new BooleanProperty("onyx-bows", true, () -> this.mode.getValue() == 1);
+    public final BooleanProperty onyxStopAtEntities = new BooleanProperty("onyx-stop-at-entities", true, () -> this.mode.getValue() == 1);
+    public final ColorProperty onyxColor = new ColorProperty("onyx-color", 0xFF7744, () -> this.mode.getValue() == 1);
+    public final ColorProperty onyxImpactColor = new ColorProperty("onyx-impact-color", 0xFFFF22, () -> this.mode.getValue() == 1);
 
     public Trajectories() {
         super("Trajectories", false, true);
@@ -35,7 +54,17 @@ public class Trajectories extends Module {
 
     @EventTarget
     public void onRender3D(Render3DEvent event) {
-        if (this.isEnabled() && mc.thePlayer.getHeldItem() != null && mc.gameSettings.thirdPersonView == 0) {
+        if (!this.isEnabled() || mc.thePlayer == null || mc.theWorld == null
+                || mc.thePlayer.getHeldItem() == null || mc.gameSettings.thirdPersonView != 0) {
+            return;
+        }
+        if (this.mode.getValue() == 1) {
+            this.renderOnyx(event.getPartialTicks());
+        } else {
+            this.renderOriginal();
+        }
+    }
+    private void renderOriginal() {
             Item item = mc.thePlayer.getHeldItem().getItem();
             RenderManager renderManager = mc.getRenderManager();
             boolean isBow = false;
@@ -203,6 +232,182 @@ public class Trajectories extends Module {
                 GlStateManager.resetColor();
                 RenderUtil.disableRenderState();
             }
+    }
+
+    // === ONYX MODE (skid Onxy TrajectoriesModule) ===
+
+    private enum ProjType {
+        PEARL(1.5F, 0.03, 0.0F),
+        SNOWBALL(1.5F, 0.03, 0.0F),
+        POTION(0.5F, 0.05, -20.0F),
+        ARROW(0.0F, 0.05, 0.0F);
+
+        final float velocity;
+        final double gravity;
+        final float pitchOffset;
+
+        ProjType(float velocity, double gravity, float pitchOffset) {
+            this.velocity = velocity;
+            this.gravity = gravity;
+            this.pitchOffset = pitchOffset;
+        }
+    }
+
+    private ProjType getProjType(ItemStack held) {
+        Item item = held.getItem();
+        if (item instanceof ItemEnderPearl) {
+            return this.onyxPearls.getValue() ? ProjType.PEARL : null;
+        } else if (item instanceof ItemSnowball || item instanceof ItemEgg) {
+            return this.onyxSnowballs.getValue() ? ProjType.SNOWBALL : null;
+        } else if (item instanceof ItemPotion) {
+            return this.onyxPotions.getValue() && ItemPotion.isSplash(held.getMetadata()) ? ProjType.POTION : null;
+        } else if (item instanceof ItemBow) {
+            return this.onyxBows.getValue() ? ProjType.ARROW : null;
+        }
+        return null;
+    }
+
+    private float getVelocity(ProjType type) {
+        if (type != ProjType.ARROW) {
+            return type.velocity;
+        }
+        if (!mc.thePlayer.isUsingItem()) {
+            return 0.0F;
+        }
+        float v = mc.thePlayer.getItemInUseDuration() / 20.0F;
+        float out = (v * v + v * 2.0F) / 3.0F;
+        if (out < 0.1F) {
+            return 0.0F;
+        }
+        if (out > 1.0F) {
+            out = 1.0F;
+        }
+        return out * 2.0F * 1.5F;
+    }
+
+    private Vec3 getEntityHit(Vec3 start, Vec3 end) {
+        if (!this.onyxStopAtEntities.getValue()) {
+            return null;
+        }
+        AxisAlignedBB box = AxisAlignedBB.fromBounds(
+                Math.min(start.xCoord, end.xCoord),
+                Math.min(start.yCoord, end.yCoord),
+                Math.min(start.zCoord, end.zCoord),
+                Math.max(start.xCoord, end.xCoord),
+                Math.max(start.yCoord, end.yCoord),
+                Math.max(start.zCoord, end.zCoord)
+        ).expand(1.0, 1.0, 1.0);
+        Vec3 best = null;
+        double bestDist = Double.MAX_VALUE;
+        for (Entity entity : mc.theWorld.getEntitiesWithinAABBExcludingEntity(mc.thePlayer, box)) {
+            if (!entity.canBeCollidedWith() || entity == mc.thePlayer) {
+                continue;
+            }
+            MovingObjectPosition mop = entity.getEntityBoundingBox().expand(0.3, 0.3, 0.3).calculateIntercept(start, end);
+            if (mop != null && mop.hitVec != null) {
+                double dist = start.squareDistanceTo(mop.hitVec);
+                if (dist < bestDist) {
+                    bestDist = dist;
+                    best = mop.hitVec;
+                }
+            }
+        }
+        return best;
+    }
+
+    private void renderOnyx(float partialTicks) {
+        ItemStack held = mc.thePlayer.getHeldItem();
+        ProjType type = getProjType(held);
+        if (type == null) {
+            return;
+        }
+        float velocity = getVelocity(type);
+        if (velocity <= 0.0F) {
+            return;
+        }
+        double yaw = mc.thePlayer.rotationYaw / 180.0 * Math.PI;
+        double pitch = mc.thePlayer.rotationPitch / 180.0 * Math.PI;
+        double pitch2 = (mc.thePlayer.rotationPitch + type.pitchOffset) / 180.0 * Math.PI;
+        double x = mc.thePlayer.posX - Math.cos(yaw) * 0.16;
+        double y = mc.thePlayer.posY + mc.thePlayer.getEyeHeight() - 0.1;
+        double z = mc.thePlayer.posZ - Math.sin(yaw) * 0.16;
+        double dx = -Math.sin(yaw) * Math.cos(pitch);
+        double dy = -Math.sin(pitch2);
+        double dz = Math.cos(yaw) * Math.cos(pitch);
+        double mag = Math.sqrt(dx * dx + dy * dy + dz * dz);
+        if (mag < 1.0E-6) {
+            return;
+        }
+        dx = dx / mag * velocity;
+        dy = dy / mag * velocity;
+        dz = dz / mag * velocity;
+        double gravity = type.gravity;
+        ArrayList<Vec3> points = new ArrayList<>();
+        Vec3 hit = null;
+        points.add(new Vec3(x, y, z));
+        int maxTicks = this.onyxMaxTicks.getValue();
+        for (int i = 0; i < maxTicks; i++) {
+            Vec3 start = new Vec3(x, y, z);
+            x += dx;
+            y += dy;
+            z += dz;
+            Vec3 end = new Vec3(x, y, z);
+            MovingObjectPosition mop = mc.theWorld.rayTraceBlocks(start, end, false, true, false);
+            if (mop != null && mop.hitVec != null) {
+                points.add(mop.hitVec);
+                hit = mop.hitVec;
+                break;
+            }
+            Vec3 entityHit = getEntityHit(start, end);
+            if (entityHit != null) {
+                points.add(entityHit);
+                hit = entityHit;
+                break;
+            }
+            points.add(end);
+            if (y < 0.0) {
+                break;
+            }
+            dx *= 0.99;
+            dy *= 0.99;
+            dz *= 0.99;
+            dy -= gravity;
+        }
+        if (points.size() < 2) {
+            return;
+        }
+        RenderManager rm = mc.getRenderManager();
+        double rx = ((IAccessorRenderManager) rm).getRenderPosX();
+        double ry = ((IAccessorRenderManager) rm).getRenderPosY();
+        double rz = ((IAccessorRenderManager) rm).getRenderPosZ();
+
+        int lineColor = this.onyxColor.getValue() | 0xFF000000;
+        RenderUtil.enableRenderState();
+        RenderUtil.setColor(new Color(lineColor).getRGB());
+        GL11.glLineWidth(this.onyxLineWidth.getValue());
+        GL11.glEnable(GL11.GL_LINE_SMOOTH);
+        GL11.glHint(GL11.GL_LINE_SMOOTH_HINT, GL11.GL_NICEST);
+        WorldRenderer worldRenderer = Tessellator.getInstance().getWorldRenderer();
+        worldRenderer.begin(GL11.GL_LINE_STRIP, DefaultVertexFormats.POSITION);
+        for (Vec3 point : points) {
+            worldRenderer.pos(point.xCoord - rx, point.yCoord - ry, point.zCoord - rz).endVertex();
+        }
+        Tessellator.getInstance().draw();
+        GL11.glDisable(GL11.GL_LINE_SMOOTH);
+        GL11.glLineWidth(2.0F);
+        GlStateManager.resetColor();
+        RenderUtil.disableRenderState();
+
+        if (hit != null && this.onyxImpactMarker.getValue()) {
+            double s = 0.12;
+            AxisAlignedBB box = AxisAlignedBB.fromBounds(
+                    hit.xCoord - s, hit.yCoord - s, hit.zCoord - s,
+                    hit.xCoord + s, hit.yCoord + s, hit.zCoord + s
+            ).offset(-rx, -ry, -rz);
+            Color impact = new Color(this.onyxImpactColor.getValue() | 0xFF000000);
+            RenderUtil.enableRenderState();
+            RenderUtil.drawBoundingBox(box, impact.getRed(), impact.getGreen(), impact.getBlue(), 200, this.onyxLineWidth.getValue());
+            RenderUtil.disableRenderState();
         }
     }
 }
