@@ -361,7 +361,20 @@ public class Autoblock extends Module {
             if (this.shouldStartLag()) {
                 this.startLag(currentTick);
             }
-            this.stopBlocking(true);
+            if (this.isLagMode()) {
+                // Vanilla mode keeps blocking while the target is in range;
+                // only the lag variant releases the hold so the fake block
+                // can be re-issued. This avoids the block gap after an
+                // attack that leaves the player open to combos.
+                this.stopBlocking(true);
+            }
+        }
+
+        // Resync: if KillAura released the block for its attack frame we must
+        // re-press immediately, otherwise there is a no-block window where the
+        // player takes full damage / gets comboed.
+        if (this.isBlocking && !mc.thePlayer.isUsingItem() && !this.isLagging && conditionsMet) {
+            this.startBlocking(currentTick);
         }
     }
 
