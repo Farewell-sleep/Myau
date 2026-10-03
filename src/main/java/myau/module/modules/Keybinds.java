@@ -20,6 +20,7 @@ import java.util.List;
 
 /**
  * Onxy-style keybind list HUD, rewritten with Myau native rendering.
+ * Each entry is wrapped in its own translucent box.
  */
 public class Keybinds extends Module {
     private static final Minecraft mc = Minecraft.getMinecraft();
@@ -52,29 +53,24 @@ public class Keybinds extends Module {
 
         ScaledResolution sr = new ScaledResolution(mc);
         float scale = this.scale.getValue();
-        int maxW = 0;
-        for (Module m : bound) {
-            String line = m.getName() + ": " + KeyBindUtil.getKeyName(m.getKey());
-            maxW = Math.max(maxW, mc.fontRendererObj.getStringWidth(line));
-        }
-        float boxW = (float) (maxW + 10) * scale;
-        float boxH = (float) (bound.size() * mc.fontRendererObj.FONT_HEIGHT + 6) * scale;
-        float x = (float) sr.getScaledWidth() * (this.posX.getValue().floatValue() / 100.0F);
-        float y = (float) sr.getScaledHeight() * (this.posY.getValue().floatValue() / 100.0F);
+        float rowH = (float) (mc.fontRendererObj.FONT_HEIGHT + 4);
+        float gap = 2.0F;
 
         GlStateManager.pushMatrix();
         GlStateManager.scale(scale, scale, 1.0F);
-        float sx = x / scale;
-        float sy = y / scale;
-        if (this.background.getValue()) {
-            RenderUtil.drawRect(sx, sy, sx + boxW / scale, sy + boxH / scale, new Color(0, 0, 0, 90).getRGB());
-        }
-        float rowY = sy + 3.0F;
+        float x = (float) sr.getScaledWidth() * (this.posX.getValue().floatValue() / 100.0F) / scale;
+        float y = (float) sr.getScaledHeight() * (this.posY.getValue().floatValue() / 100.0F) / scale;
+
+        float rowY = y;
         for (Module m : bound) {
             String line = m.getName() + ": " + KeyBindUtil.getKeyName(m.getKey());
-            int color = this.colored.getValue() && m.isEnabled() ? 0xFF55FF55 : 0xFFFFFFFF;
-            mc.fontRendererObj.drawStringWithShadow(line, sx + 5.0F, rowY, color);
-            rowY += (float) mc.fontRendererObj.FONT_HEIGHT;
+            float boxW = (float) (mc.fontRendererObj.getStringWidth(line) + 8);
+            if (this.background.getValue()) {
+                RenderUtil.drawRect(x, rowY, x + boxW, rowY + rowH, new Color(0, 0, 0, 70).getRGB());
+            }
+            int textColor = this.colored.getValue() && m.isEnabled() ? 0xFF55FF55 : 0xFFFFFFFF;
+            mc.fontRendererObj.drawStringWithShadow(line, x + 4.0F, rowY + 2.0F, textColor);
+            rowY += rowH + gap;
         }
         GlStateManager.popMatrix();
     }
