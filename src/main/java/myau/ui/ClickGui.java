@@ -62,18 +62,21 @@ import myau.module.modules.ItemESP;
 import myau.module.modules.Jesus;
 import myau.module.modules.KeepSprint;
 import myau.module.modules.KillAura;
+import myau.module.modules.Keybinds;
 import myau.module.modules.LagRange;
 import myau.module.modules.LightningTracker;
 import myau.module.modules.LongJump;
 import myau.module.modules.MCF;
 import myau.module.modules.MoreKB;
 import myau.module.modules.NameTags;
+import myau.module.modules.NewScaffold;
 import myau.module.modules.NickHider;
 import myau.module.modules.NoFall;
 import myau.module.modules.NoHitDelay;
 import myau.module.modules.NoHurtCam;
 import myau.module.modules.NoJumpDelay;
 import myau.module.modules.NoRotate;
+import myau.module.modules.PotionHUD;
 import myau.module.modules.NoSlow;
 import myau.module.modules.Radar;
 import myau.module.modules.Reach;
@@ -91,6 +94,7 @@ import myau.module.modules.Tracers;
 import myau.module.modules.Trajectories;
 import myau.module.modules.Velocity;
 import myau.module.modules.ViewClip;
+import myau.module.modules.Watermark;
 import myau.module.modules.Wtap;
 import myau.module.modules.Xray;
 import myau.ui.components.CategoryComponent;
@@ -146,17 +150,22 @@ public class ClickGui extends GuiScreen {
         renderModules.add(OpenMyau.moduleManager.getModule(Tracers.class));
         renderModules.add(OpenMyau.moduleManager.getModule(NameTags.class));
         renderModules.add(OpenMyau.moduleManager.getModule(Xray.class));
-        renderModules.add(OpenMyau.moduleManager.getModule(TargetHUD.class));
-        renderModules.add(OpenMyau.moduleManager.getModule(Indicators.class));
         renderModules.add(OpenMyau.moduleManager.getModule(BedESP.class));
         renderModules.add(OpenMyau.moduleManager.getModule(ItemESP.class));
         renderModules.add(OpenMyau.moduleManager.getModule(ViewClip.class));
         renderModules.add(OpenMyau.moduleManager.getModule(NoHurtCam.class));
-        renderModules.add(OpenMyau.moduleManager.getModule(HUD.class));
         renderModules.add(OpenMyau.moduleManager.getModule(GuiModule.class));
         renderModules.add(OpenMyau.moduleManager.getModule(ChestESP.class));
         renderModules.add(OpenMyau.moduleManager.getModule(Trajectories.class));
         renderModules.add(OpenMyau.moduleManager.getModule(Radar.class));
+
+        List<Module> hudModules = new ArrayList<>();
+        hudModules.add(OpenMyau.moduleManager.getModule(HUD.class));
+        hudModules.add(OpenMyau.moduleManager.getModule(TargetHUD.class));
+        hudModules.add(OpenMyau.moduleManager.getModule(Indicators.class));
+        hudModules.add(OpenMyau.moduleManager.getModule(PotionHUD.class));
+        hudModules.add(OpenMyau.moduleManager.getModule(Watermark.class));
+        hudModules.add(OpenMyau.moduleManager.getModule(Keybinds.class));
 
         List<Module> playerModules = new ArrayList<>();
         playerModules.add(OpenMyau.moduleManager.getModule(AutoHeal.class));
@@ -166,6 +175,7 @@ public class ClickGui extends GuiScreen {
         playerModules.add(OpenMyau.moduleManager.getModule(InvWalk.class));
         playerModules.add(OpenMyau.moduleManager.getModule(Scaffold.class));
         playerModules.add(OpenMyau.moduleManager.getModule(Telly.class));
+        playerModules.add(OpenMyau.moduleManager.getModule(NewScaffold.class));
         playerModules.add(OpenMyau.moduleManager.getModule(AutoBlockIn.class));
         playerModules.add(OpenMyau.moduleManager.getModule(SpeedMine.class));
         playerModules.add(OpenMyau.moduleManager.getModule(FastPlace.class));
@@ -190,6 +200,7 @@ public class ClickGui extends GuiScreen {
         combatModules.sort(comparator);
         movementModules.sort(comparator);
         renderModules.sort(comparator);
+        hudModules.sort(comparator);
         playerModules.sort(comparator);
         miscModules.sort(comparator);
 
@@ -197,6 +208,7 @@ public class ClickGui extends GuiScreen {
         registered.addAll(combatModules);
         registered.addAll(movementModules);
         registered.addAll(renderModules);
+        registered.addAll(hudModules);
         registered.addAll(playerModules);
         registered.addAll(miscModules);
 
@@ -223,6 +235,11 @@ public class ClickGui extends GuiScreen {
         CategoryComponent render = new CategoryComponent("Render", renderModules);
         render.setY(topOffset);
         categoryList.add(render);
+        topOffset += 20;
+
+        CategoryComponent hud = new CategoryComponent("HUD", hudModules);
+        hud.setY(topOffset);
+        categoryList.add(hud);
         topOffset += 20;
 
         CategoryComponent player = new CategoryComponent("Player", playerModules);

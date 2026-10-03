@@ -152,6 +152,8 @@ public class OpenMyau {
         moduleManager.modules.put(BackTrack.class, new BackTrack());
         moduleManager.modules.put(BlockHit.class, new BlockHit());
         moduleManager.modules.put(Autoblock.class, new Autoblock());
+        moduleManager.modules.put(Keybinds.class, new Keybinds());
+        moduleManager.modules.put(NewScaffold.class, new NewScaffold());
         moduleManager.modules.put(LightningTracker.class, new LightningTracker());
         moduleManager.modules.put(LongJump.class, new LongJump());
         moduleManager.modules.put(MCF.class, new MCF());
@@ -163,6 +165,7 @@ public class OpenMyau {
         moduleManager.modules.put(NoJumpDelay.class, new NoJumpDelay());
         moduleManager.modules.put(NoRotate.class, new NoRotate());
         moduleManager.modules.put(NoSlow.class, new NoSlow());
+        moduleManager.modules.put(PotionHUD.class, new PotionHUD());
         moduleManager.modules.put(Radar.class, new Radar());
         moduleManager.modules.put(Reach.class, new Reach());
         moduleManager.modules.put(Refill.class, new Refill());
@@ -181,6 +184,7 @@ public class OpenMyau {
         moduleManager.modules.put(Tracers.class, new Tracers());
         moduleManager.modules.put(Trajectories.class, new Trajectories());
         moduleManager.modules.put(Velocity.class, new Velocity());
+        moduleManager.modules.put(Watermark.class, new Watermark());
         moduleManager.modules.put(ViewClip.class, new ViewClip());
         moduleManager.modules.put(Wtap.class, new Wtap());
         moduleManager.modules.put(Xray.class, new Xray());
