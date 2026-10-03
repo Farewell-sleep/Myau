@@ -1,4 +1,4 @@
-# Darkheart
+# Myau
 
 A modern, feature-rich **Minecraft 1.8.9 Forge** client built on the OpenMyau codebase, rebuilt with a clean visual identity, an injectable native loader, and a custom injector.
 
@@ -12,7 +12,7 @@ A modern, feature-rich **Minecraft 1.8.9 Forge** client built on the OpenMyau co
 - **Custom injector** — `MyauInjector.exe`, a WinForms GUI that attaches the DLL to any `javaw` process
 - **Wide module library**:
   - Combat: `NewKillAura`, `SmartAttack`, `AutoBlock`, `BlockHit`, `Velocity`
-  - Movement: `Scaffold`, `NewScaffold` (with Clutch keep-y), `Freecam`, `InventoryMove`, `AutoThrow` (egg/snowball hot-swap)
+  - Movement: `Scaffold`, `Freecam`, `InventoryMove`, `AutoThrow` (egg/snowball hot-swap)
   - Player: `Clutch`, `NoSlow`, `KeepSprint`
   - Render: `HUD`, `TargetHUD`-style indicators, `CuteVisuals`, `SnowFog`
   - Misc: `Disabler`, `BackTrack`, `Blink`, `FriendManager`, `TargetManager`
@@ -35,7 +35,7 @@ Artifacts land in `build/libs/`:
 
 | Artifact | Purpose |
 | --- | --- |
-| `Darkheart-1.0.0.jar` | The client (Mixin + inject bootstrap) |
+| `Myau-1.0.0.jar` | The client (Mixin + inject bootstrap) |
 | `myau_native.dll` | Native injection DLL (embeds the jar) |
 | `myau_loader.exe` / `myau_loader_local.exe` | Standalone loaders |
 | `MyauInjector.exe` | GUI injector (pick process → inject DLL) |
@@ -57,7 +57,7 @@ src/main/java/myau/
 ├── module/        # Module base + all modules (flat layout)
 ├── ui/            # ClickGUI, LiquidClickGUI, modern components
 ├── util/          # Render, rotation, color, font helpers
-├── mixin/         # Mixin classes (targeted via mixins.darkheart.json)
+├── mixin/         # Mixin classes (targeted via mixins.myau.json)
 ├── management/    # Rotation, blink, lag, blockage managers
 myau-natives/      # C++ DLL/loader sources (CMake)
 myau-injector/     # C# WinForms injector source

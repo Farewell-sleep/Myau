@@ -71,7 +71,7 @@ public class ModernClickGui extends GuiScreen {
 
     private static ModernClickGui instance;
 
-    private final File configFile = new File("./config/Darkheart/", "clickgui.txt");
+    private final File configFile = new File("./config/Myau/", "clickgui.txt");
     private final Map<String, List<Module>> categories = new LinkedHashMap<>();
     private final Map<String, Float> anims = new HashMap<>();
     private final Map<ColorProperty, float[]> colorStates = new HashMap<>();
@@ -257,7 +257,7 @@ public class ModernClickGui extends GuiScreen {
         float centerY = chipY + 8.0F;
         float logoX = chipX;
         float logoLimit = x + SIDEBAR - 8.0F;
-        // heart icon + two-tone "Darkheart" title
+        // heart icon + two-tone "Myau" title
         GlStateManager.enableBlend();
         GlStateManager.blendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
         GlStateManager.enableTexture2D();
@@ -265,10 +265,10 @@ public class ModernClickGui extends GuiScreen {
         GlStateManager.disableDepth();
         mc.fontRendererObj.drawString("\u2665", logoX, centerY - 4.0F, col(accent, 255), true);
         float hx = logoX + 11.0F;
-        float darkW = width("Dark", 12.0F);
-        text("Dark", hx, centerY, col(245, 247, 252, 255), 12.0F);
-        float heartW = width("heart", 12.0F);
-        text(GuiText.trim("heart", (int) (logoLimit - hx - darkW - 2.0F), 12.0F), hx + darkW + 2.0F, centerY, col(accent, 255), 12.0F);
+        float darkW = width("My", 12.0F);
+        text("My", hx, centerY, col(245, 247, 252, 255), 12.0F);
+        float heartW = width("au", 12.0F);
+        text(GuiText.trim("au", (int) (logoLimit - hx - darkW - 2.0F), 12.0F), hx + darkW + 2.0F, centerY, col(accent, 255), 12.0F);
 
         text("CATEGORIES", x + 16.0F, y + 62.0F, col(120, 128, 145, 255), 11.0F);
 

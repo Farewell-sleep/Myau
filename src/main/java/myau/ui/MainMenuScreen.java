@@ -15,7 +15,7 @@ import org.lwjgl.opengl.GL11;
 import java.awt.Color;
 
 /**
- * Darkheart main menu: Rise-style minimal dark backdrop, animated falling
+ * Myau main menu: Rise-style minimal dark backdrop, animated falling
  * client title and vanilla-sized buttons (200x20, original layout).
  */
 public class MainMenuScreen extends GuiScreen {
@@ -68,7 +68,7 @@ public class MainMenuScreen extends GuiScreen {
         float y = startY + (targetY - startY) * p;
 
         float size = 44.0F;
-        String title = "Darkheart";
+        String title = "Myau";
         float tw = FontManager.getStringWidth(title, size);
         float alpha = 255.0F * fade;
         float x0 = this.width / 2.0F - tw / 2.0F;
@@ -124,7 +124,7 @@ public class MainMenuScreen extends GuiScreen {
     }
 
     private void drawFooter(float fade) {
-        String version = "Darkheart 1.0.0   -   MC 1.8.9";
+        String version = "Myau 1.0.0   -   MC 1.8.9";
         float vs = 11.0F;
         FontManager.drawString(version, (this.width - FontManager.getStringWidth(version, vs)) / 2.0F,
                 this.height - 26.0F, rgba(120, 129, 147, (int) (190 * fade)), false, vs);

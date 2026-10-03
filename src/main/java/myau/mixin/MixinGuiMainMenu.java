@@ -12,7 +12,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public abstract class MixinGuiMainMenu extends GuiScreen {
 
     @Inject(method = "initGui", at = @At("HEAD"), cancellable = true)
-    private void darkheartMainMenu(CallbackInfo ci) {
+    private void myauMainMenu(CallbackInfo ci) {
         this.mc.displayGuiScreen(new MainMenuScreen());
         ci.cancel();
     }

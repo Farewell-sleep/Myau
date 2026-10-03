@@ -16,7 +16,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import java.awt.Color;
 
 /**
- * Darkheart in-game pause menu overlay: keeps the original vanilla buttons
+ * Myau in-game pause menu overlay: keeps the original vanilla buttons
  * (200x20 layout) but draws a minimal dark backdrop and title on top.
  * Draws directly on top of GuiIngameMenu without replacing the screen
  * (replacing with a subclass caused infinite displayGuiScreen recursion).
@@ -27,7 +27,7 @@ public abstract class MixinGuiIngameMenu extends GuiScreen {
     private static final Color ACCENT = new Color(120, 170, 255);
 
     @Inject(method = "drawScreen", at = @At("HEAD"))
-    private void darkheartDrawScreen(int mouseX, int mouseY, float partialTicks, CallbackInfo ci) {
+    private void myauDrawScreen(int mouseX, int mouseY, float partialTicks, CallbackInfo ci) {
         drawVGradient(0, 0, this.width, this.height, 0xC80B0D13, 0xD004050A);
 
         float size = 30.0F;

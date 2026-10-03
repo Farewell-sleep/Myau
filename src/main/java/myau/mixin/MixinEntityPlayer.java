@@ -53,7 +53,7 @@ public abstract class MixinEntityPlayer extends MixinEntityLivingBase {
     }
 
     @Inject(method = "getLocationCape", at = @At("HEAD"), cancellable = true)
-    private void darkheartCape(CallbackInfoReturnable<ResourceLocation> cir) {
+    private void myauCape(CallbackInfoReturnable<ResourceLocation> cir) {
         if (OpenMyau.moduleManager == null) {
             return;
         }
