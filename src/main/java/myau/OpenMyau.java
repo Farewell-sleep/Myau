@@ -126,6 +126,8 @@ public class OpenMyau {
         moduleManager.modules.put(FastPlace.class, new FastPlace());
         moduleManager.modules.put(Freeze.class, new Freeze());
         moduleManager.modules.put(Freelook.class, new Freelook());
+        moduleManager.modules.put(Fruitberries.class, new Fruitberries());
+        moduleManager.modules.put(GreatWall.class, new GreatWall());
         moduleManager.modules.put(Fly.class, new Fly());
         moduleManager.modules.put(FogRemove.class, new FogRemove());
         moduleManager.modules.put(FullBright.class, new FullBright());
@@ -174,6 +176,7 @@ public class OpenMyau {
         moduleManager.modules.put(AutoBlockIn.class, new AutoBlockIn());
         moduleManager.modules.put(Telly.class, new Telly());
         moduleManager.modules.put(Spammer.class, new Spammer());
+        moduleManager.modules.put(SyBridge.class, new SyBridge());
         moduleManager.modules.put(SnowFog.class, new SnowFog());
         moduleManager.modules.put(Speed.class, new Speed());
         moduleManager.modules.put(SpeedMine.class, new SpeedMine());

@@ -68,7 +68,7 @@ public class ModernClickGui extends GuiScreen {
     private static final Set<String> MOVEMENT = set("AntiAFK", "Fly", "Speed", "LongJump", "Sprint", "InvWalk", "Jesus", "NoSlow", "Scaffold", "SafeWalk", "Eagle", "Freeze", "FastPlace", "SpeedMine", "NoJumpDelay");
     private static final Set<String> RENDER = set("Capes", "ESP", "Chams", "FullBright", "Tracers", "NameTags", "Radar", "Trajectories", "ItemESP", "ChestESP", "BedESP", "Xray", "SnowFog", "CuteVisuals", "BreakProgress", "ViewClip", "NoHurtCam", "NickHider", "ItemPhysics", "Zoom", "Crosshair", "SeeInvisibles", "Ambience", "Hurtcam", "FogRemove");
     private static final Set<String> HUD = set("HUD", "TargetHUD", "Indicators", "PotionHUD", "Watermark", "Keybinds");
-    private static final Set<String> PLAYER = set("Clutch", "AutoHeal", "AutoTool", "ChestStealer", "InvManager", "Refill", "InventoryClicker", "NoFall", "GhostHand", "AntiVoid", "AutoThrow", "InventoryMove", "Freecam", "NewScaffold");
+    private static final Set<String> PLAYER = set("Clutch", "AutoHeal", "AutoTool", "ChestStealer", "InvManager", "Refill", "InventoryClicker", "NoFall", "GhostHand", "AntiVoid", "AutoThrow", "InventoryMove", "Freecam", "NewScaffold", "Fruitberries", "GreatWall", "SyBridge");
 
     private static ModernClickGui instance;
 

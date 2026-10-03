@@ -67,7 +67,7 @@ public class LiquidClickGui extends GuiScreen {
                 Zoom.class, Crosshair.class, SeeInvisibles.class, Ambience.class, Hurtcam.class, FogRemove.class), i++));
         panels.add(new GlassPanel("HUD", category(HUD.class, TargetHUD.class, Indicators.class, PotionHUD.class, Watermark.class, Keybinds.class), i++));
         panels.add(new GlassPanel("Player", category(Clutch.class, AutoHeal.class, AutoTool.class, ChestStealer.class, InvManager.class,
-                InvWalk.class, Scaffold.class, Telly.class, NewScaffold.class, AutoBlockIn.class, SpeedMine.class, FastPlace.class,
+                InvWalk.class, Scaffold.class, Telly.class, NewScaffold.class, Fruitberries.class, GreatWall.class, SyBridge.class, AutoBlockIn.class, SpeedMine.class, FastPlace.class,
                 GhostHand.class, MCF.class, AntiDebuff.class), i++));
         panels.add(new GlassPanel("Misc", category(Spammer.class, BedNuker.class, BedTracker.class, LightningTracker.class,
                 NoRotate.class, NickHider.class, AntiObbyTrap.class, AntiObfuscate.class, AutoAnduril.class,

@@ -210,7 +210,8 @@ public class HUD extends Module {
     };
     private static final Class<? extends Module>[] PLAYER = new Class[]{
             Clutch.class, AutoHeal.class, AutoTool.class, ChestStealer.class, InvManager.class, InvWalk.class,
-            Scaffold.class, Telly.class, NewScaffold.class, AutoBlockIn.class, SpeedMine.class, FastPlace.class,
+            Scaffold.class, Telly.class, NewScaffold.class, Fruitberries.class, GreatWall.class, SyBridge.class,
+            AutoBlockIn.class, SpeedMine.class, FastPlace.class,
             GhostHand.class, MCF.class, AntiDebuff.class
     };
     private static final Class<? extends Module>[] RENDER = new Class[]{
