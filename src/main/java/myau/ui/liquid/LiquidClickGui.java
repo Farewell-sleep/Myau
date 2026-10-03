@@ -3,6 +3,7 @@ package myau.ui.liquid;
 import myau.OpenMyau;
 import myau.module.Module;
 import myau.module.modules.*;
+import myau.util.FontManager;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.gui.ScaledResolution;
@@ -133,15 +134,15 @@ public class LiquidClickGui extends GuiScreen {
 
         // header — liquid glass title pill (true capsule)
         drawGlassCapsuleBg(12, 6, 118, 34, 1.0F);
-        mc.fontRendererObj.drawStringWithShadow("Myau", 20, 12, GlassRenderer.ACCENT);
-        mc.fontRendererObj.drawStringWithShadow("Dev TTHILLTT", 20, 24, GlassRenderer.TEXT_FAINT);
+        FontManager.drawString("Myau", 20, 10, GlassRenderer.ACCENT, true, 16.0F);
+        FontManager.drawString("Dev TTHILLTT", 20, 24, GlassRenderer.TEXT_FAINT, true, 10.0F);
 
         // module state style toggle button (top-right) — same liquid glass pill
         int styleX = width - 92;
         boolean styleHover = mouseX >= styleX && mouseX <= styleX + 82 && mouseY >= 8 && mouseY <= 26;
         drawGlassCapsuleBg(styleX, 8, 82, 18, styleHover ? 1.0F : 0.85F);
-        mc.fontRendererObj.drawString("State: " + (GlassModuleEntry.switchStyle ? "Switch" : "Accent"),
-                styleX + 10, 12, GlassRenderer.TEXT_MAIN);
+        FontManager.drawString("State: " + (GlassModuleEntry.switchStyle ? "Switch" : "Accent"),
+                styleX + 10, 12, GlassRenderer.TEXT_MAIN, true, 10.0F);
 
         // search bar — same liquid glass refraction as the panels
         int sy = 12;
@@ -182,9 +183,9 @@ public class LiquidClickGui extends GuiScreen {
         GlassRenderer.drawCapsuleOutline(searchX + 0.5F, sy + 0.5F, searchW - 1, searchH - 1, 1.0F, GlassRenderer.GLASS_OUTLINE);
         String hint = search.length() == 0 ? "Search modules..." : search.toString();
         int hintColor = search.length() == 0 ? GlassRenderer.TEXT_FAINT : GlassRenderer.TEXT_MAIN;
-        mc.fontRendererObj.drawString(hint, searchX + 10, sy + 6, hintColor);
+        FontManager.drawString(hint, searchX + 10, sy + 6, hintColor, true, 11.0F);
         if (searchFocused) {
-            GlassRenderer.drawRoundedRect(searchX + 10 + mc.fontRendererObj.getStringWidth(hint), sy + 5, 1.2F, 10, 0.6F, 0x9922C55E);
+            GlassRenderer.drawRoundedRect(searchX + 10 + FontManager.getStringWidth(hint, 11.0F), sy + 5, 1.2F, 10, 0.6F, 0x9922C55E);
         }
         drawSearchIcon(searchX + searchW - 18, sy + 6);
 

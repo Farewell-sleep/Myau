@@ -8,6 +8,7 @@ import myau.property.properties.BooleanProperty;
 import myau.property.properties.FloatProperty;
 import myau.property.properties.PercentProperty;
 import myau.util.RenderUtil;
+import myau.util.FontManager;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.ScaledResolution;
 import net.minecraft.client.multiplayer.ServerData;
@@ -69,17 +70,17 @@ public class Watermark extends Module {
         GlStateManager.scale(scale, scale, 1.0F);
         float sx = x / scale;
         float sy = y / scale;
-        int w1 = mc.fontRendererObj.getStringWidth(title);
-        int w2 = line2.length() > 0 ? mc.fontRendererObj.getStringWidth(line2.toString()) : 0;
+        int w1 = FontManager.getStringWidth(title, 14.0F);
+        int w2 = line2.length() > 0 ? FontManager.getStringWidth(line2.toString(), 12.0F) : 0;
         float boxW = Math.max(w1, w2) + 10.0F;
-        float boxH = 20.0F;
+        float boxH = 22.0F;
         if (this.background.getValue()) {
             RenderUtil.drawRect(sx, sy, sx + boxW, sy + boxH, new Color(0, 0, 0, 90).getRGB());
             RenderUtil.drawRect(sx, sy, sx + 2.0F, sy + boxH, new Color(255, 85, 255, 220).getRGB());
         }
-        mc.fontRendererObj.drawStringWithShadow(title, sx + 5.0F, sy + 2.0F, new Color(255, 85, 255).getRGB());
+        FontManager.drawString(title, sx + 5.0F, sy + 2.0F, new Color(255, 85, 255).getRGB(), true, 14.0F);
         if (line2.length() > 0) {
-            mc.fontRendererObj.drawStringWithShadow(line2.toString(), sx + 5.0F, sy + 12.0F, 0xFFFFFFFF);
+            FontManager.drawString(line2.toString(), sx + 5.0F, sy + 14.0F, 0xFFFFFFFF, true, 12.0F);
         }
         GlStateManager.popMatrix();
     }

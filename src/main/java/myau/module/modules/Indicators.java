@@ -4,6 +4,7 @@ import myau.enums.ChatColors;
 import myau.event.EventTarget;
 import myau.events.Render2DEvent;
 import myau.module.Module;
+import myau.util.FontManager;
 import myau.util.RenderUtil;
 import myau.util.RotationUtil;
 import myau.util.TeamUtil;
@@ -113,8 +114,8 @@ public class Indicators extends Module {
             GlStateManager.popMatrix();
             String string = String.format("%dm", (int) Indicators.mc.thePlayer.getDistanceToEntity(entity));
             GlStateManager.pushMatrix();
-            GlStateManager.translate((offset + 0.0f) * x - (float) Indicators.mc.fontRendererObj.getStringWidth(string) / 2.0f + 1.0f, (offset + 0.0f) * z + 1.0f, -100.0f);
-            Indicators.mc.fontRendererObj.drawStringWithShadow(string, 0.0f, 0.0f, ChatColors.GRAY.toAwtColor() & 0xFFFFFF | 0xBF000000);
+            GlStateManager.translate((offset + 0.0f) * x - (float) FontManager.getStringWidth(string, 9.0F) / 2.0f + 1.0f, (offset + 0.0f) * z + 1.0f, -100.0f);
+            FontManager.drawString(string, 0.0f, 0.0f, ChatColors.GRAY.toAwtColor() & 0xFFFFFF | 0xBF000000, true, 9.0F);
             GlStateManager.popMatrix();
             GlStateManager.pushMatrix();
             GlStateManager.translate((offset + 15.0f) * x + 1.0f, (offset + 15.0f) * z + 1.0f, -100.0f);

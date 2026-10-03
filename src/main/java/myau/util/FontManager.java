@@ -65,6 +65,11 @@ public class FontManager {
         return renderer(14.0F).getHeight();
     }
 
+    public static int getFontHeight(float size) {
+        if (!enabled) return mc.fontRendererObj.FONT_HEIGHT;
+        return renderer(size).getHeight();
+    }
+
     public static float getCapHeight(float size) {
         if (!enabled) return (float) mc.fontRendererObj.FONT_HEIGHT;
         return size * 0.72F;
@@ -114,6 +119,7 @@ public class FontManager {
 
     private static final class FontRenderer {
         private final Font awtFont;
+        private final Font fallbackFont;
         private final float scale;
         private final int fontSize;
         private final Map<Character, Glyph> glyphs = new HashMap<>();
@@ -127,15 +133,36 @@ public class FontManager {
 
         private FontRenderer(int size) {
             this.fontSize = size;
-            Font base;
-            try {
-                base = Font.createFont(Font.TRUETYPE_FONT,
-                        new java.io.ByteArrayInputStream(FontData.harmonyosSansRegular()));
-            } catch (Exception e) {
-                base = new Font("Dialog", Font.PLAIN, size);
+            Font base = loadFont("/assets/myau/fonts/ShuYaoHengShui.ttf");
+            if (base == null) {
+                try {
+                    base = Font.createFont(Font.TRUETYPE_FONT,
+                            new java.io.ByteArrayInputStream(FontData.harmonyosSansRegular()));
+                } catch (Exception e) {
+                    base = new Font("Dialog", Font.PLAIN, size);
+                }
             }
             this.awtFont = base.deriveFont(Font.PLAIN, size * 2.0F);
+            Font fallback = null;
+            try {
+                fallback = Font.createFont(Font.TRUETYPE_FONT,
+                        new java.io.ByteArrayInputStream(FontData.harmonyosSansRegular()));
+            } catch (Exception e) {
+                fallback = null;
+            }
+            this.fallbackFont = fallback == null ? null : fallback.deriveFont(Font.PLAIN, size * 2.0F);
             this.scale = 0.5F;
+        }
+
+        private static Font loadFont(String resource) {
+            try (java.io.InputStream in = FontManager.class.getResourceAsStream(resource)) {
+                if (in == null) {
+                    return null;
+                }
+                return Font.createFont(Font.TRUETYPE_FONT, in);
+            } catch (Exception e) {
+                return null;
+            }
         }
 
         private static final class Glyph {
@@ -227,8 +254,12 @@ public class FontManager {
         }
 
         private Glyph renderGlyph(char c) {
+            Font font = this.awtFont;
+            if (this.fallbackFont != null && !this.awtFont.canDisplay(c)) {
+                font = this.fallbackFont;
+            }
             Graphics2D probe = new BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB).createGraphics();
-            probe.setFont(this.awtFont);
+            probe.setFont(font);
             FontMetrics metrics = probe.getFontMetrics();
             int width = Math.max(1, metrics.charWidth(c));
             int height = Math.max(1, metrics.getHeight());
@@ -253,7 +284,7 @@ public class FontManager {
 
             BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
             Graphics2D g = image.createGraphics();
-            g.setFont(this.awtFont);
+            g.setFont(font);
             g.setColor(Color.WHITE);
             g.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
             g.setRenderingHint(RenderingHints.KEY_FRACTIONALMETRICS, RenderingHints.VALUE_FRACTIONALMETRICS_OFF);

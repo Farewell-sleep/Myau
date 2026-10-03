@@ -10,6 +10,7 @@ import myau.property.properties.ModeProperty;
 import myau.property.properties.PercentProperty;
 import myau.property.properties.TextProperty;
 import myau.util.KeyBindUtil;
+import myau.util.FontManager;
 import net.minecraft.client.Minecraft;
 import org.lwjgl.input.Keyboard;
 
@@ -29,11 +30,11 @@ public final class GlassControls {
 
 
     private static void drawText(String text, int x, int y, int color) {
-        mc.fontRendererObj.drawStringWithShadow(text, x, y, color);
+        FontManager.drawString(text, x, y, color, true, 10.0F);
     }
 
     private static int textWidth(String text) {
-        return mc.fontRendererObj.getStringWidth(text);
+        return FontManager.getStringWidth(text, 10.0F);
     }
 
     public static List<GlassComponent> buildFor(Module module, int width) {

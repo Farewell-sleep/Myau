@@ -9,6 +9,7 @@ import myau.property.properties.FloatProperty;
 import myau.property.properties.ModeProperty;
 import myau.property.properties.PercentProperty;
 import myau.util.RenderUtil;
+import myau.util.FontManager;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.ScaledResolution;
 import net.minecraft.client.renderer.GlStateManager;
@@ -78,9 +79,9 @@ public class PotionHUD extends Module {
 
         int maxW = 0;
         for (PotionEffect e : effects) {
-            int w = mc.fontRendererObj.getStringWidth(this.getNameLine(e) + (this.amplifier.getValue() ? " " + getRoman(e) : ""));
+            int w = FontManager.getStringWidth(this.getNameLine(e) + (this.amplifier.getValue() ? " " + getRoman(e) : ""), 12.0F);
             if (this.duration.getValue()) {
-                w = Math.max(w, mc.fontRendererObj.getStringWidth(Potion.getDurationString(e)));
+                w = Math.max(w, FontManager.getStringWidth(Potion.getDurationString(e), 12.0F));
             }
             maxW = Math.max(maxW, w);
         }
@@ -125,17 +126,19 @@ public class PotionHUD extends Module {
             if (this.amplifier.getValue()) {
                 nameLine += " " + getRoman(effect);
             }
-            mc.fontRendererObj.drawStringWithShadow(nameLine, textX, textY, color);
+            FontManager.drawString(nameLine, textX, textY, color, true, 12.0F);
             if (this.duration.getValue()) {
                 boolean low = this.lowTimeWarn.getValue()
                         && !effect.getIsPotionDurationMax()
                         && effect.getDuration() < 200;
                 String time = effect.getIsPotionDurationMax() ? "**:**" : Potion.getDurationString(effect);
-                mc.fontRendererObj.drawStringWithShadow(
+                FontManager.drawString(
                         time,
-                        textX + (float) mc.fontRendererObj.getStringWidth(nameLine) + 6.0F * scale,
+                        textX + (float) FontManager.getStringWidth(nameLine, 12.0F) + 6.0F * scale,
                         textY,
-                        low ? 0xFFFF5555 : 0xFFAAAAAA
+                        low ? 0xFFFF5555 : 0xFFAAAAAA,
+                        true,
+                        12.0F
                 );
             }
             rowY += sRowH;

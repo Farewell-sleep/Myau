@@ -1,6 +1,7 @@
 package myau.ui.liquid;
 
 import myau.module.Module;
+import myau.util.FontManager;
 import net.minecraft.client.Minecraft;
 import org.lwjgl.opengl.GL11;
 
@@ -109,7 +110,7 @@ public class GlassModuleEntry {
         // name
         int baseColor = module.isEnabled() ? GlassRenderer.TEXT_MAIN : GlassRenderer.TEXT_DIM;
         int textColor = (baseColor & 0xFFFFFF) | (alpha << 24);
-        mc.fontRendererObj.drawString(module.getName(), panel.getX() + 10, rowY + 5, textColor);
+        FontManager.drawString(module.getName(), panel.getX() + 10, rowY + 4, textColor, false, 11.0F);
         // state indicator: toggle switch OR accent fill + bar + dot (switchable)
         if (switchStyle) {
             GlassRenderer.drawCapsule(panel.getX() + w - 30, rowY + 2, 24, 12,
