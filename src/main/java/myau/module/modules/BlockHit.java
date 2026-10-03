@@ -1,9 +1,9 @@
 package myau.module.modules;
 
 import myau.event.EventTarget;
-import myau.event.types.EventType;
 import myau.events.AttackEvent;
 import myau.events.TickEvent;
+import myau.event.types.EventType;
 import myau.module.Module;
 import myau.property.properties.IntProperty;
 import myau.util.ItemUtil;
@@ -12,20 +12,20 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.entity.EntityLivingBase;
 
 /**
- * BlockHit — block right after every hit and keep the block up long enough
- * that the player is never left open to a combo.
+ * BlockHit — block right after every KillAura hit.
  *
  * The attack itself is handled by KillAura (which releases a manual block for
- * the attack frame). This module re-presses use immediately after the hit and
- * holds it for {@code HoldTicks}; if the player is not physically holding
- * right-click it then restores the physical key state until the next hit.
+ * the attack frame). This module re-presses use for a short window right after
+ * the hit so incoming knockback / damage is reduced, then releases again.
  */
 public class BlockHit extends Module {
 
     private static final Minecraft mc = Minecraft.getMinecraft();
 
-    /** How many ticks the block stays up after a hit. */
-    public final IntProperty holdTicks = new IntProperty("HoldTicks", 4, 1, 40);
+    /** How many ticks the block window stays up after a hit. */
+    public final IntProperty blockTime = new IntProperty("BlockTicks", 3, 1, 10);
+    /** Ticks to wait after the hit before pressing use again. */
+    public final IntProperty delay = new IntProperty("Delay", 1, 0, 5);
 
     private boolean shouldBlock;
     private int tick;
@@ -64,21 +64,20 @@ public class BlockHit extends Module {
             return;
         }
         tick++;
-        // re-press use immediately so the block covers the post-attack window
-        KeyBindUtil.setKeyBindState(mc.gameSettings.keyBindUseItem.getKeyCode(), true);
-        if (tick > this.holdTicks.getValue()) {
-            // held long enough; restore physical state unless the player is
-            // manually holding right-click (then keep it)
-            if (!mc.gameSettings.keyBindUseItem.isKeyDown() || !mc.thePlayer.isUsingItem()) {
-                KeyBindUtil.updateKeyState(mc.gameSettings.keyBindUseItem.getKeyCode());
-                shouldBlock = false;
-                tick = 0;
-            }
+        if (tick > this.delay.getValue()) {
+            // block window: hold use
+            KeyBindUtil.setKeyBindState(mc.gameSettings.keyBindUseItem.getKeyCode(), true);
+        }
+        if (tick > this.delay.getValue() + this.blockTime.getValue()) {
+            // window over: restore physical key state
+            KeyBindUtil.updateKeyState(mc.gameSettings.keyBindUseItem.getKeyCode());
+            shouldBlock = false;
+            tick = 0;
         }
     }
 
     @Override
     public String[] getSuffix() {
-        return new String[]{this.holdTicks.getValue() + "t"};
+        return new String[]{this.blockTime.getValue() + "t"};
     }
 }
