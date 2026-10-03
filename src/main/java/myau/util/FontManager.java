@@ -57,17 +57,29 @@ public class FontManager {
     public static int getStringWidth(String text, float size) {
         if (text == null || text.isEmpty()) return 0;
         if (!enabled) return mc.fontRendererObj.getStringWidth(text);
-        return renderer(size).getStringWidth(text);
+        try {
+            return renderer(size).getStringWidth(text);
+        } catch (Throwable t) {
+            return mc.fontRendererObj.getStringWidth(text);
+        }
     }
 
     public static int getFontHeight() {
         if (!enabled) return mc.fontRendererObj.FONT_HEIGHT;
-        return renderer(14.0F).getHeight();
+        try {
+            return renderer(14.0F).getHeight();
+        } catch (Throwable t) {
+            return mc.fontRendererObj.FONT_HEIGHT;
+        }
     }
 
     public static int getFontHeight(float size) {
         if (!enabled) return mc.fontRendererObj.FONT_HEIGHT;
-        return renderer(size).getHeight();
+        try {
+            return renderer(size).getHeight();
+        } catch (Throwable t) {
+            return mc.fontRendererObj.FONT_HEIGHT;
+        }
     }
 
     public static float getCapHeight(float size) {
@@ -98,7 +110,15 @@ public class FontManager {
             }
             return;
         }
-        renderer(size).drawString(text, x, y, color, shadow);
+        try {
+            renderer(size).drawString(text, x, y, color, shadow);
+        } catch (Throwable t) {
+            if (shadow) {
+                mc.fontRendererObj.drawStringWithShadow(text, x, y, color);
+            } else {
+                mc.fontRendererObj.drawString(text, x, y, color, false);
+            }
+        }
     }
 
     public static void drawStringWithShadow(String text, float x, float y, int color) {
@@ -328,32 +348,54 @@ public class FontManager {
             float green = (float) ((color >> 8) & 0xFF) / 255.0F;
             float blue = (float) (color & 0xFF) / 255.0F;
 
-            this.ensureAtlas();
-            GlStateManager.enableBlend();
-            GlStateManager.blendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
-            GlStateManager.enableTexture2D();
-            GlStateManager.disableAlpha();
-            GlStateManager.bindTexture(this.atlasTexture);
-
+            boolean blendWas = GL11.glIsEnabled(GL11.GL_BLEND);
+            boolean texWas = GL11.glIsEnabled(GL11.GL_TEXTURE_2D);
             Tessellator tessellator = Tessellator.getInstance();
             WorldRenderer wr = tessellator.getWorldRenderer();
-            wr.begin(GL11.GL_QUADS, DefaultVertexFormats.POSITION_TEX_COLOR);
-            float cursor = x;
-            for (char c : text.toCharArray()) {
-                Glyph glyph = this.getGlyph(c);
-                float glyphWidth = glyph.width * this.scale;
-                float glyphHeight = glyph.height * this.scale;
-                wr.pos(cursor, y, 0.0D).tex(glyph.u1, glyph.v1).color(red, green, blue, alpha).endVertex();
-                wr.pos(cursor + glyphWidth, y, 0.0D).tex(glyph.u2, glyph.v1).color(red, green, blue, alpha).endVertex();
-                wr.pos(cursor + glyphWidth, y + glyphHeight, 0.0D).tex(glyph.u2, glyph.v2).color(red, green, blue, alpha).endVertex();
-                wr.pos(cursor, y + glyphHeight, 0.0D).tex(glyph.u1, glyph.v2).color(red, green, blue, alpha).endVertex();
-                cursor += glyphWidth;
-            }
-            tessellator.draw();
+            boolean begun = false;
+            try {
+                this.ensureAtlas();
+                if (!blendWas) {
+                    GlStateManager.enableBlend();
+                }
+                GlStateManager.blendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
+                if (!texWas) {
+                    GlStateManager.enableTexture2D();
+                }
+                GlStateManager.disableAlpha();
+                GlStateManager.bindTexture(this.atlasTexture);
 
-            // Restore only the states we changed; never leave texture/alpha disabled.
-            GlStateManager.enableAlpha();
-            GlStateManager.enableTexture2D();
+                wr.begin(GL11.GL_QUADS, DefaultVertexFormats.POSITION_TEX_COLOR);
+                begun = true;
+                float cursor = x;
+                for (char c : text.toCharArray()) {
+                    Glyph glyph = this.getGlyph(c);
+                    float glyphWidth = glyph.width * this.scale;
+                    float glyphHeight = glyph.height * this.scale;
+                    wr.pos(cursor, y, 0.0D).tex(glyph.u1, glyph.v1).color(red, green, blue, alpha).endVertex();
+                    wr.pos(cursor + glyphWidth, y, 0.0D).tex(glyph.u2, glyph.v1).color(red, green, blue, alpha).endVertex();
+                    wr.pos(cursor + glyphWidth, y + glyphHeight, 0.0D).tex(glyph.u2, glyph.v2).color(red, green, blue, alpha).endVertex();
+                    wr.pos(cursor, y + glyphHeight, 0.0D).tex(glyph.u1, glyph.v2).color(red, green, blue, alpha).endVertex();
+                    cursor += glyphWidth;
+                }
+                tessellator.draw();
+                begun = false;
+            } finally {
+                // Never leave the Tessellator in a begin state or leak GL state.
+                if (begun) {
+                    try {
+                        tessellator.draw();
+                    } catch (Throwable ignored) {
+                    }
+                }
+                GlStateManager.enableAlpha();
+                if (!texWas) {
+                    GlStateManager.disableTexture2D();
+                }
+                if (!blendWas) {
+                    GlStateManager.disableBlend();
+                }
+            }
         }
     }
 }

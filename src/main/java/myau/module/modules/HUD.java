@@ -1,100 +1,90 @@
 package myau.module.modules;
 
 import myau.OpenMyau;
-import myau.enums.BlinkModules;
-import myau.enums.ChatColors;
 import myau.event.EventTarget;
-import myau.event.types.EventType;
 import myau.events.Render2DEvent;
 import myau.events.TickEvent;
-import myau.mixin.IAccessorGuiChat;
+import myau.event.types.EventType;
 import myau.module.Module;
+import myau.property.properties.BooleanProperty;
+import myau.property.properties.ColorProperty;
+import myau.property.properties.FloatProperty;
+import myau.property.properties.ModeProperty;
+import myau.property.properties.PercentProperty;
 import myau.util.ColorUtil;
 import myau.util.FontManager;
 import myau.util.RenderUtil;
-import myau.property.properties.*;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiChat;
 import net.minecraft.client.gui.ScaledResolution;
 import net.minecraft.client.renderer.GlStateManager;
-import org.lwjgl.opengl.GL11;
+import org.lwjgl.input.Mouse;
 
-import java.awt.*;
+import java.awt.Color;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
-import java.util.Locale;
+import java.util.Map;
 import java.util.stream.Collectors;
 
+/**
+ * Onxy-style array list, rewritten with Myau native rendering.
+ * Style: Accent Bar / Pills / Text · Animation: Slide / Fade / Slide+Fade / Scale
+ * Sort: Longest first / Shortest first / A-Z · Colors: Accent / Static / Fade /
+ * Gradient / Rainbow / Category. Draggable while the chat is open.
+ */
 public class HUD extends Module {
     private static final Minecraft mc = Minecraft.getMinecraft();
-    private List<Module> activeModules = new ArrayList<>();
+
+    public final ModeProperty style = new ModeProperty("style", 0, new String[]{"ACCENT BAR", "PILLS", "TEXT"});
+    public final ModeProperty animation = new ModeProperty("animation", 2, new String[]{"SLIDE", "FADE", "SLIDE FADE", "SCALE"});
+    public final ModeProperty sort = new ModeProperty("sort", 0, new String[]{"WIDTH DESC", "WIDTH ASC", "ALPHABETICAL"});
+    public final ModeProperty colors = new ModeProperty("colors", 0, new String[]{"ACCENT", "STATIC", "FADE", "GRADIENT", "RAINBOW", "CATEGORY"});
+    public final ColorProperty color = new ColorProperty("color", 0xFF3B82F6, () -> this.colors.getValue() == 1);
+    public final ColorProperty firstColor = new ColorProperty("first-color", 0xFF3B82F6, () -> this.colors.getValue() == 2 || this.colors.getValue() == 3);
+    public final ColorProperty secondColor = new ColorProperty("second-color", 0xFFEC4899, () -> this.colors.getValue() == 2 || this.colors.getValue() == 3);
+    public final FloatProperty colorSpeed = new FloatProperty("color-speed", 1.0F, 0.1F, 5.0F);
+    public final FloatProperty colorSpread = new FloatProperty("color-spread", 12.0F, 0.0F, 60.0F, () -> this.colors.getValue() == 2 || this.colors.getValue() == 4);
+    public final BooleanProperty suffix = new BooleanProperty("suffix", true);
+    public final BooleanProperty lowerCase = new BooleanProperty("lower-case", false);
+    public final BooleanProperty categoryCombat = new BooleanProperty("category-combat", true);
+    public final BooleanProperty categoryMovement = new BooleanProperty("category-movement", true);
+    public final BooleanProperty categoryPlayer = new BooleanProperty("category-player", true);
+    public final BooleanProperty categoryRender = new BooleanProperty("category-render", true);
+    public final BooleanProperty categoryHud = new BooleanProperty("category-hud", true);
+    public final BooleanProperty categoryMisc = new BooleanProperty("category-misc", true);
+    public final BooleanProperty background = new BooleanProperty("background", true, () -> this.style.getValue() != 2);
+    public final BooleanProperty textShadow = new BooleanProperty("text-shadow", true, () -> this.style.getValue() == 2);
+    public final BooleanProperty outline = new BooleanProperty("outline", false, () -> this.style.getValue() == 1);
+    /** Shared text-shadow flag used by Radar / BedNuker overlays. */
+    public final BooleanProperty shadow = new BooleanProperty("shadow", true);
+    public final FloatProperty scale = new FloatProperty("scale", 1.0F, 0.5F, 2.0F);
+    public final FloatProperty rowSpacing = new FloatProperty("row-spacing", 0.0F, 0.0F, 6.0F);
+    public final FloatProperty animationSpeed = new FloatProperty("animation-speed", 1.0F, 0.25F, 3.0F);
+    public final PercentProperty positionX = new PercentProperty("position-x", 100);
+    public final PercentProperty positionY = new PercentProperty("position-y", 0);
+
+    // Myau theme colours — shared with ESP lines / old ClickGui components.
     public final ModeProperty colorMode = new ModeProperty(
             "color", 3, new String[]{"RAINBOW", "CHROMA", "ASTOLFO", "CUSTOM1", "CUSTOM12", "CUSTOM123"}
     );
-    public final FloatProperty colorSpeed = new FloatProperty("color-speed", 1.0F, 0.5F, 1.5F);
     public final PercentProperty colorSaturation = new PercentProperty("color-saturation", 50);
     public final PercentProperty colorBrightness = new PercentProperty("color-brightness", 100);
     public final ColorProperty custom1 = new ColorProperty("custom-color-1", Color.WHITE.getRGB(), () -> this.colorMode.getValue() == 3 || this.colorMode.getValue() == 4 || this.colorMode.getValue() == 5);
     public final ColorProperty custom2 = new ColorProperty("custom-color-2", Color.WHITE.getRGB(), () -> this.colorMode.getValue() == 4 || this.colorMode.getValue() == 5);
     public final ColorProperty custom3 = new ColorProperty("custom-color-3", Color.WHITE.getRGB(), () -> this.colorMode.getValue() == 5);
-    public final ModeProperty posX = new ModeProperty("position-x", 0, new String[]{"LEFT", "RIGHT"});
-    public final ModeProperty posY = new ModeProperty("position-y", 0, new String[]{"TOP", "BOTTOM"});
-    public final IntProperty offsetX = new IntProperty("offset-x", 2, 0, 255);
-    public final IntProperty offsetY = new IntProperty("offset-y", 2, 0, 255);
-    public final FloatProperty scale = new FloatProperty("scale", 1.0F, 0.5F, 1.5F);
-    public final PercentProperty background = new PercentProperty("background", 25);
-    public final IntProperty rowSpacing = new IntProperty("row-spacing", 0, 0, 10);
-    public final BooleanProperty showBar = new BooleanProperty("bar", true);
-    public final BooleanProperty shadow = new BooleanProperty("shadow", true);
-    public final BooleanProperty suffixes = new BooleanProperty("suffixes", true);
-    public final BooleanProperty lowerCase = new BooleanProperty("lower-case", false);
-    public final BooleanProperty chatOutline = new BooleanProperty("chat-outline", true);
-    public final BooleanProperty blinkTimer = new BooleanProperty("blink-timer", true);
     public final BooleanProperty toggleSound = new BooleanProperty("toggle-sounds", true);
     public final BooleanProperty toggleAlerts = new BooleanProperty("toggle-alerts", false);
-    public final BooleanProperty bgColor = new BooleanProperty("bg-color", false);
-    public final BooleanProperty glow = new BooleanProperty("glow", false);
-    public final IntProperty barless = new IntProperty("barless", 0, 0, 8, () -> this.showBar.getValue());
-    public final ModeProperty barMode = new ModeProperty("bar-mode", 0, new String[]{"RIGHT", "LEFT", "TOP", "BOTTOM"}, () -> this.showBar.getValue());
 
-    private String getModuleName(Module module) {
-        String moduleName = module.getName();
-        if (this.lowerCase.getValue()) {
-            moduleName = moduleName.toLowerCase(Locale.ROOT);
-        }
-        return moduleName;
-    }
+    private final Map<Module, Long> enterTimes = new HashMap<>();
+    private final List<Module> activeModules = new ArrayList<>();
+    private boolean dragging;
+    private float dragOffX;
+    private float dragOffY;
 
-    private String[] getModuleSuffix(Module module) {
-        String[] moduleSuffix = module.getSuffix();
-        if (this.lowerCase.getValue()) {
-            for (int i = 0; i < moduleSuffix.length; i++) {
-                moduleSuffix[i] = moduleSuffix[i].toLowerCase();
-            }
-        }
-        return moduleSuffix;
-    }
-
-    private int getModuleWidth(Module module) {
-        return this.calculateStringWidth(
-                this.getModuleName(module), this.getModuleSuffix(module)
-        );
-    }
-
-    private int calculateStringWidth(String string, String[] arr) {
-        int width = FontManager.getStringWidth(string, 9.0F);
-        if (this.suffixes.getValue()) {
-            for (String str : arr) {
-                width += 3 + FontManager.getStringWidth(str, 9.0F);
-            }
-        }
-        return width;
-    }
-
-    private static int setAlpha(int color, float alpha) {
-        int a = (int) (alpha * 255.0F);
-        return (color & 0xFFFFFF) | (a << 24);
+    public HUD() {
+        super("HUD", true, true);
     }
 
     private float getColorCycle(long long3, long long4) {
@@ -102,10 +92,7 @@ public class HUD extends Module {
         return 1.0F - (float) (Math.abs(long3 - long4 * 300L) % speed) / (float) speed;
     }
 
-    public HUD() {
-        super("HUD", true, true);
-    }
-
+    /** Shared theme colour used by ESP lines / old ClickGui components. */
     public Color getColor(long time) {
         return this.getColor(time, 0L);
     }
@@ -156,231 +143,278 @@ public class HUD extends Module {
 
     @EventTarget
     public void onTick(TickEvent event) {
-        if (this.isEnabled() && event.getType() == EventType.POST) {
-            this.activeModules = OpenMyau.moduleManager.modules.values().stream().filter(module -> module.isEnabled() && !module.isHidden()).sorted(Comparator.comparingInt(this::getModuleWidth).reversed()).collect(Collectors.<Module>toList());
+        if (!this.isEnabled() || event.getType() != EventType.POST) {
+            return;
+        }
+        long now = System.currentTimeMillis();
+        List<Module> fresh = OpenMyau.moduleManager.modules.values().stream()
+                .filter(m -> m.isEnabled() && !m.isHidden() && this.categoryEnabled(m))
+                .collect(Collectors.toList());
+        this.enterTimes.keySet().retainAll(fresh);
+        for (Module m : fresh) {
+            if (!this.enterTimes.containsKey(m)) {
+                this.enterTimes.put(m, now);
+            }
+        }
+        switch (this.sort.getValue()) {
+            case 0:
+                fresh.sort(Comparator.comparingDouble((Module m) -> -this.rowWidth(m)).thenComparing(Module::getName));
+                break;
+            case 1:
+                fresh.sort(Comparator.comparingDouble((Module m) -> (double) this.rowWidth(m)).thenComparing(Module::getName));
+                break;
+            default:
+                fresh.sort(Comparator.comparing(Module::getName));
+        }
+        this.activeModules.clear();
+        this.activeModules.addAll(fresh);
+    }
+
+    private boolean categoryEnabled(Module m) {
+        String cat = categoryOf(m);
+        switch (cat == null ? "Misc" : cat) {
+            case "Combat":
+                return this.categoryCombat.getValue();
+            case "Movement":
+                return this.categoryMovement.getValue();
+            case "Player":
+                return this.categoryPlayer.getValue();
+            case "Render":
+                return this.categoryRender.getValue();
+            case "HUD":
+                return this.categoryHud.getValue();
+            default:
+                return this.categoryMisc.getValue();
         }
     }
 
-    private void drawGlowOutline(float x1, float y1, float x2, float y2, int color, int passes, float step,
-                                 boolean top, boolean bottom, boolean left, boolean right) {
-        for (int i = passes; i >= 1; i--) {
-            float expand = i * step;
-            float intensity = (float) (passes - i + 1) / (float) passes;
-            int glowColor = setAlpha(color, 0.045F * intensity * intensity);
+    private static String categoryOf(Module m) {
+        Class<? extends Module> c = m.getClass();
+        for (Class<? extends Module> k : COMBAT) if (k.isAssignableFrom(c)) return "Combat";
+        for (Class<? extends Module> k : MOVEMENT) if (k.isAssignableFrom(c)) return "Movement";
+        for (Class<? extends Module> k : PLAYER) if (k.isAssignableFrom(c)) return "Player";
+        for (Class<? extends Module> k : RENDER) if (k.isAssignableFrom(c)) return "Render";
+        for (Class<? extends Module> k : HUD_CAT) if (k.isAssignableFrom(c)) return "HUD";
+        return "Misc";
+    }
 
-            if (top) {
-                RenderUtil.drawRect(x1 - expand, y1 - expand, x2 + expand, y1, glowColor);
-            }
-            if (bottom) {
-                RenderUtil.drawRect(x1 - expand, y2, x2 + expand, y2 + expand, glowColor);
-            }
-            if (left) {
-                RenderUtil.drawRect(x1 - expand, y1, x1, y2, glowColor);
-            }
-            if (right) {
-                RenderUtil.drawRect(x2, y1, x2 + expand, y2, glowColor);
-            }
+    private static final Class<? extends Module>[] COMBAT = new Class[]{
+            AimAssist.class, AutoClicker.class, KillAura.class, Wtap.class, Velocity.class, Freeze.class,
+            Reach.class, TargetStrafe.class, NoHitDelay.class, AntiFireball.class, LagRange.class, BackTrack.class,
+            BlockHit.class, Autoblock.class, HitBox.class, MoreKB.class, Refill.class, HitSelect.class,
+            AutoThrow.class, NewKillAura.class, SmartAttack.class
+    };
+    private static final Class<? extends Module>[] MOVEMENT = new Class[]{
+            AntiAFK.class, Fly.class, Speed.class, LongJump.class, Sprint.class, SafeWalk.class, Jesus.class,
+            Blink.class, NoFall.class, NoSlow.class, KeepSprint.class, Eagle.class, NoJumpDelay.class, AntiVoid.class
+    };
+    private static final Class<? extends Module>[] PLAYER = new Class[]{
+            Clutch.class, AutoHeal.class, AutoTool.class, ChestStealer.class, InvManager.class, InvWalk.class,
+            Scaffold.class, Telly.class, NewScaffold.class, AutoBlockIn.class, SpeedMine.class, FastPlace.class,
+            GhostHand.class, MCF.class, AntiDebuff.class
+    };
+    private static final Class<? extends Module>[] RENDER = new Class[]{
+            ESP.class, Chams.class, FullBright.class, Tracers.class, NameTags.class, Xray.class, BedESP.class,
+            ItemESP.class, ItemPhysics.class, BreakProgress.class, Freelook.class, ViewClip.class, NoHurtCam.class,
+            GuiModule.class, ChestESP.class, Trajectories.class, Radar.class, CuteVisuals.class, SnowFog.class,
+            Zoom.class, Crosshair.class, SeeInvisibles.class, Ambience.class, Hurtcam.class, FogRemove.class
+    };
+    private static final Class<? extends Module>[] HUD_CAT = new Class[]{
+            HUD.class, TargetHUD.class, Indicators.class, PotionHUD.class, Watermark.class, Keybinds.class
+    };
+
+    private String moduleName(Module m) {
+        return this.lowerCase.getValue() ? m.getName().toLowerCase() : m.getName();
+    }
+
+    private String moduleSuffix(Module m) {
+        String[] s = m.getSuffix();
+        if (s == null || s.length == 0 || s[0] == null || s[0].isEmpty()) {
+            return null;
+        }
+        return this.lowerCase.getValue() ? s[0].toLowerCase() : s[0];
+    }
+
+    private int rowWidth(Module m) {
+        int w = FontManager.getStringWidth(this.moduleName(m), 9.0F);
+        String suffix = this.suffix.getValue() ? this.moduleSuffix(m) : null;
+        if (suffix != null) {
+            w += 3 + FontManager.getStringWidth(suffix, 9.0F);
+        }
+        return w;
+    }
+
+    private int rowColor(int index, int total, Module m) {
+        double now = System.nanoTime() / 1.0E9D;
+        int cat = (this.colors.getValue() == 5 && this.categoryOf(m) != null)
+                ? this.categoryColor(this.categoryOf(m)) : 0;
+        switch (this.colors.getValue()) {
+            case 0:
+                return 0xFF3B82F6;
+            case 1:
+                return this.color.getValue();
+            case 2:
+                float t = (float) (Math.sin(now * this.colorSpeed.getValue() * 2.0D
+                        + Math.toRadians(index * this.colorSpread.getValue())) + 1.0F) / 2.0F;
+                return ColorUtil.interpolate(t, new Color(this.firstColor.getValue(), true), new Color(this.secondColor.getValue(), true)).getRGB();
+            case 3:
+                float g = total <= 1 ? 0.0F : (float) index / (float) (total - 1);
+                return ColorUtil.interpolate(g, new Color(this.firstColor.getValue(), true), new Color(this.secondColor.getValue(), true)).getRGB();
+            case 4:
+                float h = (float) ((now * 60.0D * this.colorSpeed.getValue() + index * this.colorSpread.getValue()) % 360.0D);
+                return Color.getHSBColor(h / 360.0F, 0.75F, 1.0F).getRGB();
+            case 5:
+                return cat;
+            default:
+                return 0xFF3B82F6;
         }
     }
 
-    private void drawGlowText(String text, float x, float y, int color, int passes, float spread) {
-        GlStateManager.enableBlend();
-        GlStateManager.blendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
-        GlStateManager.enableTexture2D();
-        for (int i = passes; i >= 1; i--) {
-            float offset = i * spread;
-            float intensity = (float) (passes - i + 1) / (float) passes;
-            int glowColor = setAlpha(color, 0.10F * intensity * intensity);
-            float diagonal = offset * 0.65F;
-            FontManager.drawString(text, x + offset, y, glowColor, false, 9.0F);
-            FontManager.drawString(text, x - offset, y, glowColor, false, 9.0F);
-            FontManager.drawString(text, x, y + offset, glowColor, false, 9.0F);
-            FontManager.drawString(text, x, y - offset, glowColor, false, 9.0F);
-            FontManager.drawString(text, x + diagonal, y + diagonal, glowColor, false, 9.0F);
-            FontManager.drawString(text, x - diagonal, y + diagonal, glowColor, false, 9.0F);
-            FontManager.drawString(text, x + diagonal, y - diagonal, glowColor, false, 9.0F);
-            FontManager.drawString(text, x - diagonal, y - diagonal, glowColor, false, 9.0F);
+    private int categoryColor(String cat) {
+        switch (cat) {
+            case "Combat":
+                return 0xFFFF5555;
+            case "Movement":
+                return 0xFF55FF55;
+            case "Player":
+                return 0xFF55FFFF;
+            case "Render":
+                return 0xFFAA55FF;
+            case "HUD":
+                return 0xFF3B82F6;
+            default:
+                return 0xFFFFAA55;
         }
-        GlStateManager.disableBlend();
     }
 
     @EventTarget
     public void onRender2D(Render2DEvent event) {
-        if (this.chatOutline.getValue() && mc.currentScreen instanceof GuiChat) {
-            String text = ((IAccessorGuiChat) mc.currentScreen).getInputField().getText().trim();
-            if (OpenMyau.commandManager != null && OpenMyau.commandManager.isTypingCommand(text)) {
-                RenderUtil.enableRenderState();
-                RenderUtil.drawOutlineRect(
-                        2.0F,
-                        (float) (mc.currentScreen.height - 14),
-                        (float) (mc.currentScreen.width - 2),
-                        (float) (mc.currentScreen.height - 2),
-                        1.5F,
-                        0,
-                        this.getColor(System.currentTimeMillis()).getRGB()
-                );
-                RenderUtil.disableRenderState();
-            }
+        if (!this.isEnabled() || mc.gameSettings.showDebugInfo || this.activeModules.isEmpty()) {
+            return;
         }
-        if (this.isEnabled() && !mc.gameSettings.showDebugInfo) {
-            float height = (float) FontManager.getFontHeight(9.0F) - 1.0F;
-            float x = (float) this.offsetX.getValue()
-                    + (1.0F + (this.showBar.getValue() ? (this.shadow.getValue() ? 2.0F : 1.0F) : 0.0F)) * this.scale.getValue();
-            float y = (float) this.offsetY.getValue() + 1.0F * this.scale.getValue();
-            if (this.posX.getValue() == 1) {
-                x = (float) new ScaledResolution(mc).getScaledWidth() - x;
+        ScaledResolution sr = new ScaledResolution(mc);
+        float scale = this.scale.getValue();
+        float rowH = (14.0F + this.rowSpacing.getValue()) * scale;
+        boolean right = this.positionX.getValue() > 50;
+        float anchorX = (float) sr.getScaledWidth() * (this.positionX.getValue().floatValue() / 100.0F);
+        float anchorY = (float) sr.getScaledHeight() * (this.positionY.getValue().floatValue() / 100.0F);
+        if (right) {
+            anchorX -= 1.0F * scale;
+        }
+
+        this.handleDrag(sr, anchorX, anchorY, right, scale, rowH);
+
+        long now = System.currentTimeMillis();
+        float duration = 250.0F / this.animationSpeed.getValue();
+        float x = anchorX / scale;
+        float y0 = anchorY / scale;
+
+        GlStateManager.pushMatrix();
+        GlStateManager.scale(scale, scale, 1.0F);
+        int total = this.activeModules.size();
+        for (int i = 0; i < total; i++) {
+            Module m = this.activeModules.get(i);
+            String name = this.moduleName(m);
+            String suffixText = this.suffix.getValue() ? this.moduleSuffix(m) : null;
+            float nameW = FontManager.getStringWidth(name, 9.0F);
+            float suffixW = suffixText != null ? FontManager.getStringWidth(suffixText, 9.0F) + 3.0F : 0.0F;
+            float textW = nameW + suffixW;
+            float padLeft = this.style.getValue() == 0 ? 8.0F : (this.style.getValue() == 1 ? 8.0F : 2.0F);
+            float padRight = this.style.getValue() == 0 ? 6.0F : (this.style.getValue() == 1 ? 8.0F : 2.0F);
+            float rowW = textW + padLeft + padRight;
+
+            float progress = 1.0F;
+            Long enter = this.enterTimes.get(m);
+            if (enter != null && (this.animation.getValue() == 1 || this.animation.getValue() == 2 || this.animation.getValue() == 3)) {
+                progress = Math.min(1.0F, (now - enter) / duration);
             }
-            if (this.posY.getValue() == 1) {
-                y = (float) new ScaledResolution(mc).getScaledHeight() - y - height * this.scale.getValue();
+            float alpha = progress;
+            float slideOff = 0.0F;
+            if (this.animation.getValue() == 0 || this.animation.getValue() == 2) {
+                slideOff = (1.0F - progress) * 14.0F * (right ? -1.0F : 1.0F);
             }
+
+            float rowY = y0 + i * rowH;
+            float rowX = right ? x - rowW : x;
+            float drawX = rowX + slideOff;
+            int color = this.rowColor(i, total, m);
+
             GlStateManager.pushMatrix();
-            GlStateManager.scale(this.scale.getValue(), this.scale.getValue(), 1.0F);
-            long l = System.currentTimeMillis();
-            long offset = 0L;
-            for (Module module : this.activeModules) {
-                String moduleName = this.getModuleName(module);
-                String[] moduleSuffix = this.getModuleSuffix(module);
-                float totalWidth = (float) (this.calculateStringWidth(moduleName, moduleSuffix) - (this.shadow.getValue() ? 0 : 1));
-                Color themeColor = this.getColor(l, offset);
-                int color = themeColor.getRGB();
-                float sx = x / this.scale.getValue();
-                float sy = y / this.scale.getValue();
-                float bgX1 = sx - 1.0F - (this.posX.getValue() == 0 ? 0.0F : totalWidth);
-                float bgY1 = sy - this.rowSpacing.getValue() - (this.posY.getValue() == 0 ? (offset == 0L ? 1.0F : 0.0F) : (this.shadow.getValue() ? 1.0F : 0.0F));
-                float bgX2 = sx + 1.0F + (this.posX.getValue() == 0 ? totalWidth : 0.0F);
-                float bgY2 = sy + height + this.rowSpacing.getValue() + (this.posY.getValue() == 0 ? (this.shadow.getValue() ? 1.0F : 0.0F) : (offset == 0L ? 1.0F : 0.0F));
-                float textX = sx - (this.posX.getValue() == 1 ? totalWidth : 0.0F);
-                float textY = sy;
-                boolean hasBg = this.background.getValue() > 0;
-                boolean useThemeBg = this.bgColor.getValue();
-                int bgAlphaColor;
-                if (useThemeBg) {
-                    bgAlphaColor = new Color(themeColor.getRed(), themeColor.getGreen(), themeColor.getBlue(), (int) (this.background.getValue().floatValue() / 100.0F * 255.0F)).getRGB();
-                } else {
-                    bgAlphaColor = new Color(0.0F, 0.0F, 0.0F, this.background.getValue().floatValue() / 100.0F).getRGB();
-                }
-                int glowColor = useThemeBg ? color : themeColor.getRGB();
-
-                if (hasBg && this.glow.getValue()) {
-                    boolean firstRow = offset == 0L;
-                    boolean lastRow = offset == this.activeModules.size() - 1;
-                    boolean outerLeft = this.posX.getValue() == 1;
-                    RenderUtil.enableRenderState();
-                    drawGlowOutline(
-                            bgX1, bgY1, bgX2, bgY2, glowColor, 6, 0.5F,
-                            firstRow, lastRow, outerLeft, !outerLeft
-                    );
-                    RenderUtil.disableRenderState();
-                }
-
-                RenderUtil.enableRenderState();
-                if (hasBg) {
-                    RenderUtil.drawRoundedRect(bgX1, bgY1, bgX2 - bgX1, bgY2 - bgY1, 3.0F, bgAlphaColor);
-                }
-                if (this.showBar.getValue()) {
-                    int barModeVal = this.barMode.getValue();
-                    int barlessVal = this.barless.getValue();
-                    float barY1 = bgY1 + barlessVal;
-                    float barY2 = bgY2 - barlessVal;
-                    if (barModeVal == 0) {
-                        boolean alignLeft = this.posX.getValue() == 0;
-                        if (alignLeft) {
-                            RenderUtil.drawRect(sx - 2.0F, barY1, sx - 1.0F, barY2, color);
-                        } else {
-                            RenderUtil.drawRect(sx + 1.0F, barY1, sx + 2.0F, barY2, color);
-                        }
-                    } else if (barModeVal == 1) {
-                        boolean alignLeft = this.posX.getValue() == 0;
-                        if (alignLeft) {
-                            RenderUtil.drawRect(bgX2, barY1, bgX2 + 1.0F, barY2, color);
-                        } else {
-                            RenderUtil.drawRect(bgX1 - 1.0F, barY1, bgX1, barY2, color);
-                        }
-                    } else if (barModeVal == 2) {
-                        float bw = 1.0F;
-                        if (offset == 0L) {
-                            RenderUtil.drawRect(bgX1, bgY1 - bw, bgX2, bgY1, color);
-                        }
-                    } else if (barModeVal == 3) {
-                        float bw = 1.0F;
-                        if (offset == this.activeModules.size() - 1) {
-                            RenderUtil.drawRect(bgX1, bgY2, bgX2, bgY2 + bw, color);
-                        }
-                    }
-                }
-                RenderUtil.disableRenderState();
-
-                GlStateManager.disableDepth();
-
-                if (this.glow.getValue()) {
-                    drawGlowText(moduleName, textX, textY, glowColor, 3, 0.55F);
-                }
-                if (this.shadow.getValue()) {
-                    FontManager.drawString(moduleName, textX, textY, color, true, 9.0F);
-                } else {
-                    FontManager.drawString(
-                                    moduleName,
-                                    textX,
-                                    textY + (this.posY.getValue() == 1 ? 1.0F : 0.0F),
-                                    color,
-                                    false,
-                                    9.0F
-                            );
-                }
-                if (this.suffixes.getValue() && moduleSuffix.length > 0) {
-                    float suffixX = (float) FontManager.getStringWidth(moduleName, 9.0F) + 3.0F;
-                    for (String string : moduleSuffix) {
-                        if (this.glow.getValue()) {
-                            drawGlowText(string, textX + suffixX, textY, ChatColors.GRAY.toAwtColor(), 2, 0.35F);
-                        }
-                        if (this.shadow.getValue()) {
-                            FontManager.drawString(
-                                            string,
-                                            textX + suffixX,
-                                            textY,
-                                            ChatColors.GRAY.toAwtColor(),
-                                            true,
-                                            9.0F
-                                    );
-                        } else {
-                            FontManager.drawString(
-                                            string,
-                                            textX + suffixX,
-                                            textY + (this.posY.getValue() == 1 ? 1.0F : 0.0F),
-                                            ChatColors.GRAY.toAwtColor(),
-                                            false,
-                                            9.0F
-                                    );
-                        }
-                        suffixX += (float) FontManager.getStringWidth(string, 9.0F) + (this.shadow.getValue() ? 3.0F : 2.0F);
-                    }
-                }
-                y += (height + 2 * this.rowSpacing.getValue() + (this.shadow.getValue() ? 1.0F : 0.0F)) * this.scale.getValue() * (this.posY.getValue() == 0 ? 1.0F : -1.0F);
-                offset++;
+            if (this.animation.getValue() == 3) {
+                float cx = drawX + rowW / 2.0F;
+                float cy = rowY + 7.0F;
+                GlStateManager.translate(cx, cy, 0);
+                GlStateManager.scale(0.9F + 0.1F * progress, 0.9F + 0.1F * progress, 1.0F);
+                GlStateManager.translate(-cx, -cy, 0);
             }
 
-            if (this.blinkTimer.getValue()) {
-                BlinkModules blinkingModule = OpenMyau.blinkManager.getBlinkingModule();
-                if (blinkingModule != BlinkModules.NONE && blinkingModule != BlinkModules.AUTO_BLOCK) {
-                    long movementPacketSize = OpenMyau.blinkManager.countMovement();
-                    if (movementPacketSize > 0L) {
-                        GlStateManager.enableBlend();
-                        GlStateManager.blendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
-                        FontManager.drawString(
-                                        String.valueOf(movementPacketSize),
-                                        (float) new ScaledResolution(mc).getScaledWidth() / 2.0F / this.scale.getValue()
-                                                - (float) FontManager.getStringWidth(String.valueOf(movementPacketSize), 9.0F) / 2.0F,
-                                        (float) new ScaledResolution(mc).getScaledHeight() / 5.0F * 3.0F / this.scale.getValue(),
-                                        this.getColor(l, offset).getRGB() & 16777215 | -1090519040,
-                                        this.shadow.getValue(),
-                                        9.0F
-                                );
-                        GlStateManager.disableBlend();
-                    }
+            int bgColor = (0x00000000 | ((int) (0.42F * 255.0F * alpha) << 24));
+            int rowColorAlpha = (color & 0xFFFFFF) | ((int) (255.0F * alpha) << 24);
+            RenderUtil.enableRenderState();
+            if (this.style.getValue() == 0) {
+                if (this.background.getValue()) {
+                    RenderUtil.drawRoundedRect(drawX, rowY, rowW, 14.0F, 2.0F, bgColor);
+                    RenderUtil.drawRect(right ? drawX : drawX + rowW - 2.0F, rowY + 1.0F, (right ? drawX + 2.0F : drawX + rowW), rowY + 13.0F, rowColorAlpha);
+                }
+            } else if (this.style.getValue() == 1) {
+                if (this.background.getValue()) {
+                    RenderUtil.drawRoundedRect(drawX, rowY, rowW, 14.0F, 7.0F, bgColor);
+                }
+                if (this.outline.getValue()) {
+                    RenderUtil.drawOutlineRect(drawX, rowY, drawX + rowW, rowY + 14.0F, 1.0F, 0, rowColorAlpha);
                 }
             }
-            GlStateManager.enableDepth();
+            RenderUtil.disableRenderState();
+
+            float textX = drawX + padLeft;
+            float textY = rowY + 1.0F;
+            FontManager.drawString(name, textX, textY, rowColorAlpha, this.textShadow.getValue() || this.style.getValue() != 2, 9.0F);
+            if (suffixText != null) {
+                int suffixColor = (0xFFAAAAAA & 0xFFFFFF) | ((int) (255.0F * alpha) << 24);
+                FontManager.drawString(suffixText, textX + nameW + 3.0F, textY, suffixColor, this.textShadow.getValue() || this.style.getValue() != 2, 9.0F);
+            }
             GlStateManager.popMatrix();
         }
+        GlStateManager.popMatrix();
+    }
+
+    private void handleDrag(ScaledResolution sr, float anchorX, float anchorY, boolean right, float scale, float rowH) {
+        if (!(mc.currentScreen instanceof GuiChat)) {
+            this.dragging = false;
+            return;
+        }
+        float x = anchorX / scale;
+        float y0 = anchorY / scale;
+        float totalW = 0.0F;
+        for (Module m : this.activeModules) {
+            float w = this.rowWidth(m) + (this.style.getValue() == 0 ? 14.0F : (this.style.getValue() == 1 ? 16.0F : 4.0F));
+            totalW = Math.max(totalW, w);
+        }
+        float boxX = right ? x - totalW : x;
+        float boxY = y0 - 1.0F;
+        float boxH = this.activeModules.size() * rowH + 2.0F;
+        int mx = Mouse.getX() * sr.getScaledWidth() / mc.displayWidth;
+        int my = sr.getScaledHeight() - Mouse.getY() * sr.getScaledHeight() / mc.displayHeight - 1;
+        boolean over = mx >= boxX && mx <= boxX + totalW && my >= boxY && my <= boxY + boxH;
+        if (Mouse.isButtonDown(0)) {
+            if (!this.dragging && over) {
+                this.dragging = true;
+                this.dragOffX = mx - anchorX;
+                this.dragOffY = my - anchorY;
+            }
+            if (this.dragging) {
+                float nx = (mx - this.dragOffX) / (float) sr.getScaledWidth() * 100.0F;
+                float ny = (my - this.dragOffY) / (float) sr.getScaledHeight() * 100.0F;
+                this.positionX.setValue((int) Math.round(Math.max(0.0F, Math.min(100.0F, nx))));
+                this.positionY.setValue((int) Math.round(Math.max(0.0F, Math.min(100.0F, ny))));
+            }
+        } else {
+            this.dragging = false;
+        }
+    }
+
+    @Override
+    public String[] getSuffix() {
+        return new String[]{"Onxy"};
     }
 }
