@@ -68,6 +68,7 @@ public final class GlassControls {
                 }
             }
         }
+        out.add(new HideToggle(module));
         out.add(new BindButton(module));
         return out;
     }
@@ -225,6 +226,30 @@ public final class GlassControls {
             if (isHovered(mouseX, mouseY)) {
                 if (button == 0) prop.nextMode();
                 else if (button == 1) prop.previousMode();
+            }
+        }
+    }
+
+    /** Hide toggle (Module.hidden): when on, the module disappears from the HUD arraylist. */
+    public static class HideToggle extends GlassComponent {
+        private final Module module;
+
+        public HideToggle(Module module) {
+            this.module = module;
+            this.h = 18;
+        }
+
+        @Override
+        public void draw(int mouseX, int mouseY) {
+            boolean on = module.isHidden();
+            drawText("Hide", x + 2, y + 2, on ? GlassRenderer.TEXT_MAIN : GlassRenderer.TEXT_DIM);
+            GlassRenderer.drawCapsule(x + w - 26, y + 1, 24, 12, on, GlassRenderer.ACCENT);
+        }
+
+        @Override
+        public void mouseDown(int mouseX, int mouseY, int button) {
+            if (button == 0 && isHovered(mouseX, mouseY)) {
+                module.setHidden(!module.isHidden());
             }
         }
     }
