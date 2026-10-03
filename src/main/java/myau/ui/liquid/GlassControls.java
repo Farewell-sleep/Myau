@@ -57,7 +57,7 @@ public final class GlassControls {
                             ip.getMinimum().floatValue(), ip.getMaximum().floatValue()));
                 } else if (p instanceof PercentProperty) {
                     PercentProperty pp = (PercentProperty) p;
-                    out.add(new Slider(p.getName(), p::getValue, v -> pp.setValue(v.floatValue()),
+                    out.add(new Slider(p.getName(), p::getValue, v -> pp.setValue(v.intValue()),
                             0.0F, 100.0F));
                 } else if (p instanceof ModeProperty) {
                     out.add(new ModeCycle((ModeProperty) p));
