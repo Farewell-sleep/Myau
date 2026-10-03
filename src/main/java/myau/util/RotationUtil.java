@@ -52,6 +52,22 @@ public class RotationUtil {
         return RotationUtil.getRotations(targetX, targetY, targetZ, currentYaw, currentPitch, 180.0f, 0.0f);
     }
 
+    /** Absolute rotations from the player's eye position to a world point. */
+    public static float[] getRotations(double posX, double posY, double posZ) {
+        return getRotations(posX, posY, posZ, mc.thePlayer.posX, mc.thePlayer.posY + (double) mc.thePlayer.getEyeHeight(), mc.thePlayer.posZ);
+    }
+
+    /** Absolute rotations from an arbitrary start point to a world point. */
+    public static float[] getRotations(double rotX, double rotY, double rotZ, double startX, double startY, double startZ) {
+        double x = rotX - startX;
+        double y = rotY - startY;
+        double z = rotZ - startZ;
+        double dist = MathHelper.sqrt_double(x * x + z * z);
+        float yaw = (float) (Math.atan2(z, x) * 180.0 / Math.PI) - 90.0F;
+        float pitch = (float) (-(Math.atan2(y, dist) * 180.0 / Math.PI));
+        return new float[]{yaw, pitch};
+    }
+
     public static float[] getRotations(double targetX, double targetY, double targetZ, float currentYaw, float currentPitch, float maxAngle, float smoothFactor) {
         double horizontalDistance = Math.sqrt(targetX * targetX + targetZ * targetZ);
         float yawDelta = MathHelper.wrapAngleTo180_float((float) (Math.atan2(targetZ, targetX) * 180.0 / Math.PI) - 90.0f - currentYaw);

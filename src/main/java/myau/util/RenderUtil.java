@@ -222,6 +222,40 @@ public class RenderUtil {
         }
     }
 
+    /** Vertical gradient rounded rect (top color -> bottom color). */
+    public static void drawRoundedRectGradient(float x1, float y1, float x2, float y2, float r, int topColor, int bottomColor) {
+        if (x2 - x1 <= 0 || y2 - y1 <= 0) return;
+        r = Math.min(r, Math.min((x2 - x1) / 2.0F, (y2 - y1) / 2.0F));
+        GlStateManager.enableBlend();
+        GlStateManager.disableTexture2D();
+        GlStateManager.disableCull();
+        GlStateManager.blendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
+        GlStateManager.shadeModel(GL11.GL_SMOOTH);
+        GL11.glBegin(GL11.GL_POLYGON);
+        gradientVertexV(x1 + r, y1 + r, r, 180, 270, topColor, bottomColor);
+        gradientVertexV(x2 - r, y1 + r, r, 270, 360, topColor, bottomColor);
+        gradientVertexV(x2 - r, y2 - r, r, 0, 90, topColor, bottomColor);
+        gradientVertexV(x1 + r, y2 - r, r, 90, 180, topColor, bottomColor);
+        GL11.glEnd();
+        GlStateManager.shadeModel(GL11.GL_FLAT);
+        GlStateManager.enableTexture2D();
+        GlStateManager.disableBlend();
+        GlStateManager.color(1, 1, 1, 1);
+    }
+
+    private static void gradientVertexV(float cx, float cy, float r, int startDeg, int endDeg, int c1, int c2) {
+        float minY = cy - r;
+        float maxY = cy + r;
+        for (int i = startDeg; i <= endDeg; i += 6) {
+            double ang = Math.toRadians(i);
+            float px = cx + (float) (Math.cos(ang) * r);
+            float py = cy + (float) (Math.sin(ang) * r);
+            float t = maxY - minY <= 0.0F ? 0.0F : (py - minY) / (maxY - minY);
+            gradientColor(c1, c2, t);
+            GL11.glVertex2f(px, py);
+        }
+    }
+
     private static void gradientColor(int c1, int c2, float t) {
         int a1 = (c1 >> 24) & 255, r1 = (c1 >> 16) & 255, g1 = (c1 >> 8) & 255, b1 = c1 & 255;
         int a2 = (c2 >> 24) & 255, r2 = (c2 >> 16) & 255, g2 = (c2 >> 8) & 255, b2 = c2 & 255;

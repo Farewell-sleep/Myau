@@ -5,6 +5,14 @@ import org.lwjgl.input.Keyboard;
 import org.lwjgl.input.Mouse;
 
 public class KeyBindUtil {
+    public static final int NONE = 0;
+    public static final int CHAR_OFFSET = 256;
+
+    public static int fromTyped(char typedChar, int keyCode) {
+        if (keyCode != Keyboard.KEY_NONE) return keyCode;
+        return typedChar == 0 ? NONE : typedChar + CHAR_OFFSET;
+    }
+
     public static String getKeyName(int keyCode) {
         if (keyCode < 0) {
             int mouseButton = keyCode + 100;

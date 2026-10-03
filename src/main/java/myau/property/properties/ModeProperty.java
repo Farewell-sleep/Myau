@@ -22,6 +22,10 @@ public class ModeProperty extends Property<Integer> {
         return String.join(", ", this.modes);
     }
 
+    public String[] getModes() {
+        return this.modes;
+    }
+
     public void setModes(String[] modes) {
         this.modes = modes;
         if (this.getValue() >= modes.length) {
