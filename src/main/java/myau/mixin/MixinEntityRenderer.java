@@ -372,7 +372,7 @@ public abstract class MixinEntityRenderer {
     private void fogRemoveSetupFog(int startCoords, float partialTicks, CallbackInfo callbackInfo) {
         if (OpenMyau.moduleManager != null) {
             FogRemove fogRemove = (FogRemove) OpenMyau.moduleManager.modules.get(FogRemove.class);
-            if (fogRemove.isEnabled()) {
+            if (fogRemove != null && fogRemove.isEnabled()) {
                 GlStateManager.setFog(9729);
                 GlStateManager.setFogDensity(0.0F);
                 GlStateManager.setFogStart(8.5070587E37F);

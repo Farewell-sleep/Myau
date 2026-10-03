@@ -97,6 +97,7 @@ public class OpenMyau {
         EventManager.register(commandManager);
         EventManager.register(new myau.util.BlockHighlightSharedHandler());
         moduleManager.modules.put(AimAssist.class, new AimAssist());
+        moduleManager.modules.put(Ambience.class, new Ambience());
         moduleManager.modules.put(AntiAFK.class, new AntiAFK());
         moduleManager.modules.put(AntiDebuff.class, new AntiDebuff());
         moduleManager.modules.put(AntiFireball.class, new AntiFireball());
@@ -118,6 +119,7 @@ public class OpenMyau {
         moduleManager.modules.put(ChestESP.class, new ChestESP());
         moduleManager.modules.put(ChestStealer.class, new ChestStealer());
         moduleManager.modules.put(Clutch.class, new Clutch());
+        moduleManager.modules.put(Crosshair.class, new Crosshair());
         moduleManager.modules.put(CuteVisuals.class, new CuteVisuals());
         moduleManager.modules.put(Eagle.class, new Eagle());
         moduleManager.modules.put(ESP.class, new ESP());
@@ -125,11 +127,13 @@ public class OpenMyau {
         moduleManager.modules.put(Freeze.class, new Freeze());
         moduleManager.modules.put(Freelook.class, new Freelook());
         moduleManager.modules.put(Fly.class, new Fly());
+        moduleManager.modules.put(FogRemove.class, new FogRemove());
         moduleManager.modules.put(FullBright.class, new FullBright());
         moduleManager.modules.put(GhostHand.class, new GhostHand());
         moduleManager.modules.put(GuiModule.class, new GuiModule());
         moduleManager.modules.put(HitSelect.class, new HitSelect());
         moduleManager.modules.put(HUD.class, new HUD());
+        moduleManager.modules.put(Hurtcam.class, new Hurtcam());
         moduleManager.modules.put(MoreKB.class, new MoreKB());
         moduleManager.modules.put(Indicators.class, new Indicators());
         moduleManager.modules.put(InventoryClicker.class, new InventoryClicker());
@@ -171,6 +175,7 @@ public class OpenMyau {
         moduleManager.modules.put(Speed.class, new Speed());
         moduleManager.modules.put(SpeedMine.class, new SpeedMine());
         moduleManager.modules.put(Sprint.class, new Sprint());
+        moduleManager.modules.put(SeeInvisibles.class, new SeeInvisibles());
         moduleManager.modules.put(TargetHUD.class, new TargetHUD());
         moduleManager.modules.put(TargetStrafe.class, new TargetStrafe());
         moduleManager.modules.put(Tracers.class, new Tracers());
@@ -179,6 +184,7 @@ public class OpenMyau {
         moduleManager.modules.put(ViewClip.class, new ViewClip());
         moduleManager.modules.put(Wtap.class, new Wtap());
         moduleManager.modules.put(Xray.class, new Xray());
+        moduleManager.modules.put(Zoom.class, new Zoom());
         commandManager.commands.add(new BindCommand());
         commandManager.commands.add(new ConfigCommand());
         commandManager.commands.add(new DenickCommand());

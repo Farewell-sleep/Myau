@@ -81,7 +81,7 @@ public abstract class MixinRendererLivingEntity<T extends EntityLivingBase> exte
     private boolean seeInvisiblesRenderBody(T entityLivingBase) {
         if (OpenMyau.moduleManager != null) {
             SeeInvisibles seeInvisibles = (SeeInvisibles) OpenMyau.moduleManager.modules.get(SeeInvisibles.class);
-            if (seeInvisibles.isEnabled() && seeInvisibles.shouldShow(entityLivingBase)) {
+            if (seeInvisibles != null && seeInvisibles.isEnabled() && seeInvisibles.shouldShow(entityLivingBase)) {
                 return false;
             }
         }
@@ -103,7 +103,7 @@ public abstract class MixinRendererLivingEntity<T extends EntityLivingBase> exte
             return;
         }
         Chams chams = (Chams) OpenMyau.moduleManager.modules.get(Chams.class);
-        if (chams.isEnabled() && chams.mode.getValue() == 1 && chams.shouldRenderChams(entityLivingBase)) {
+        if (chams != null && chams.isEnabled() && chams.mode.getValue() == 1 && chams.shouldRenderChams(entityLivingBase)) {
             Color c = new Color(chams.onyxColor.getValue());
             float strength = chams.onyxStrength.getValue() / 100.0F;
             float alpha = chams.onyxOpacity.getValue() / 100.0F;
@@ -126,7 +126,7 @@ public abstract class MixinRendererLivingEntity<T extends EntityLivingBase> exte
             return;
         }
         Chams chams = (Chams) OpenMyau.moduleManager.modules.get(Chams.class);
-        if (chams.isEnabled() && chams.mode.getValue() == 1 && chams.shouldRenderChams(entityLivingBase)) {
+        if (chams != null && chams.isEnabled() && chams.mode.getValue() == 1 && chams.shouldRenderChams(entityLivingBase)) {
             GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
             GlStateManager.disableBlend();
         }
