@@ -1,6 +1,8 @@
 package myau.module.modules;
 
 import java.awt.Desktop;
+import java.awt.Graphics2D;
+import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
@@ -29,6 +31,22 @@ public class Capes extends Module {
     public static String[] CAPES_NAME = getBuiltinCapes().toArray(new String[0]);
 
     public final ModeProperty capeMode = new ModeProperty("Cape", 0, CAPES_NAME);
+
+    /**
+     * Vanilla cape rendering samples a fixed 22x17 region out of a 64x32 canvas.
+     * Any other texture size makes the cape appear shifted / stretched, so every
+     * loaded cape image is normalized to the standard 64x32 canvas (bilinear).
+     */
+    private static BufferedImage normalizeCape(BufferedImage src) {
+        if (src == null) return null;
+        if (src.getWidth() == 64 && src.getHeight() == 32) return src;
+        BufferedImage out = new BufferedImage(64, 32, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D g = out.createGraphics();
+        g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+        g.drawImage(src, 0, 0, 64, 32, null);
+        g.dispose();
+        return out;
+    }
 
     private static List<String> getBuiltinCapes() {
         List<String> capes = new ArrayList<>();
@@ -134,6 +152,8 @@ public class Capes extends Module {
                     continue;
                 }
                 BufferedImage bufferedImage = ImageIO.read(stream);
+                bufferedImage = normalizeCape(bufferedImage);
+                if (bufferedImage == null) continue;
                 LOADED_CAPES.add(
                         Minecraft.getMinecraft()
                                 .renderEngine
@@ -154,6 +174,8 @@ public class Capes extends Module {
 
             try {
                 BufferedImage bufferedImage = ImageIO.read(file);
+                bufferedImage = normalizeCape(bufferedImage);
+                if (bufferedImage == null) continue;
                 LOADED_CAPES.add(
                         Minecraft.getMinecraft()
                                 .renderEngine

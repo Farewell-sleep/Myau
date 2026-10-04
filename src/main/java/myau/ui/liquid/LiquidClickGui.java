@@ -153,6 +153,7 @@ public class LiquidClickGui extends GuiScreen {
         if (blurTex > 0) {
             ScaledResolution sr = new ScaledResolution(mc);
             int sw = sr.getScaledWidth(), sh = sr.getScaledHeight();
+            int prevTexture = GL11.glGetInteger(GL11.GL_TEXTURE_BINDING_2D);
             GlStateManager.bindTexture(blurTex);
             GlStateManager.enableTexture2D();
             GlStateManager.disableCull();
@@ -177,6 +178,7 @@ public class LiquidClickGui extends GuiScreen {
             GL11.glEnd();
             GlassRenderer.LiquidGlassShader.INSTANCE.stop();
             GlStateManager.color(1, 1, 1, 1);
+            GlStateManager.bindTexture(prevTexture);
         }
         // soft shadow + hairline (true capsule)
         GlassRenderer.drawCapsuleRect(searchX, sy + 2, searchW, searchH, 0x15000000);
@@ -331,6 +333,7 @@ public class LiquidClickGui extends GuiScreen {
         }
         ScaledResolution sr = new ScaledResolution(mc);
         int sw = sr.getScaledWidth(), sh = sr.getScaledHeight();
+        int prevTexture = GL11.glGetInteger(GL11.GL_TEXTURE_BINDING_2D);
         GlStateManager.bindTexture(blurTex);
         GlStateManager.enableTexture2D();
         GlStateManager.disableCull();
@@ -355,6 +358,7 @@ public class LiquidClickGui extends GuiScreen {
         GL11.glEnd();
         GlassRenderer.LiquidGlassShader.INSTANCE.stop();
         GlStateManager.color(1, 1, 1, 1);
+        GlStateManager.bindTexture(prevTexture);
         // soft shadow + hairline — true capsule
         GlassRenderer.drawCapsuleRect(bx, by + 2, bw, bh, 0x15000000);
         GlassRenderer.drawCapsuleRect(bx, by + 4, bw, bh, 0x0C000000);

@@ -24,11 +24,9 @@ import java.util.Map;
 /**
  * Modern font renderer used by the HUD, ClickGUI and other UI.
  *
- * 字体回退链（码点级）：主字体 = 仓库内置系统标准字体 Segoe UI（覆盖 ASCII / Latin-1），
- * 其次 = 内置 SimHei 黑体（中文标准字体），再次 = 内嵌 HarmonyOS Sans，
- * 最后落到系统 CJK / 通用字体（Microsoft YaHei 等）。
- * 绘制时逐码点选择第一个 canDisplay 该码点的字体，因此中文等缺失字形会自动
- * 落到中文字体，而 ASCII / 拉丁字符由 Segoe UI 渲染。
+ * 主字体 = 仓库内置的微软雅黑（Microsoft YaHei，Windows 系统标准中文字体），
+ * 英文与中文均由它直接渲染；仅当个别码点缺失时逐码点回退到 Segoe UI / SimHei /
+ * HarmonyOS / 系统字体链。
  *
  * Every size class owns one glyph-atlas texture (power-of-two). Glyphs are
  * rasterized per codepoint from whichever font in the chain covers it and
@@ -146,18 +144,21 @@ public class FontManager {
 
         private FontRenderer(int size) {
             this.fontSize = size;
+            Font systemStandard = loadTrueType(loadResource("/assets/myau/fonts/MicrosoftYaHei.ttc"));
             Font systemSans = loadTrueType(loadResource("/assets/myau/fonts/SystemSans.ttf"));
             Font systemCjk = loadTrueType(loadResource("/assets/myau/fonts/SystemCJK.ttf"));
             Font harmony = loadTrueType(FontData.harmonyosSansRegular());
-            this.awtFont = systemSans.deriveFont(Font.PLAIN, size * 2.0F);
+            this.awtFont = systemStandard.deriveFont(Font.PLAIN, size * 2.0F);
+            Font sansScaled = systemSans.deriveFont(Font.PLAIN, size * 2.0F);
             Font cjkScaled = systemCjk.deriveFont(Font.PLAIN, size * 2.0F);
             Font harmonyScaled = harmony.deriveFont(Font.PLAIN, size * 2.0F);
             List<Font> list = new ArrayList<>();
-            list.add(this.awtFont);              // 1) Segoe UI（系统标准，主）
-            list.add(cjkScaled);                 // 2) SimHei 黑体（系统标准，中文）
-            list.add(harmonyScaled);             // 3) HarmonyOS（内嵌回退）
+            list.add(this.awtFont);              // 1) 微软雅黑（系统标准，主）
+            list.add(sansScaled);                // 2) Segoe UI（英文回退）
+            list.add(cjkScaled);                 // 3) SimHei 黑体（中文回退）
+            list.add(harmonyScaled);             // 4) HarmonyOS（内嵌回退）
             for (String name : FALLBACK_FONT_NAMES) {
-                list.add(new Font(name, Font.PLAIN, size * 2)); // 4) 系统 CJK / 通用
+                list.add(new Font(name, Font.PLAIN, size * 2)); // 5) 系统 CJK / 通用
             }
             this.chain = list.toArray(new Font[0]);
             this.scale = 0.5F;

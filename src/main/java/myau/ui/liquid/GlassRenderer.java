@@ -246,6 +246,7 @@ public final class GlassRenderer {
     private static void drawGlassKnob(float cx, float cy, float r, int screenW, int screenH) {
         int blurTex = LiquidClickGui.getBlurTexture();
         if (blurTex > 0) {
+            int prevTexture = GL11.glGetInteger(GL11.GL_TEXTURE_BINDING_2D);
             GlStateManager.bindTexture(blurTex);
             GlStateManager.enableTexture2D();
             GlStateManager.disableCull();
@@ -268,6 +269,7 @@ public final class GlassRenderer {
             GL11.glEnd();
             KnobShader.INSTANCE.stop();
             GlStateManager.color(1, 1, 1, 1);
+            GlStateManager.bindTexture(prevTexture);
         } else {
             // fallback solid knob
             drawCircle(cx, cy, r, 0xE6FFFFFF);

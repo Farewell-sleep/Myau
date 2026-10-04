@@ -615,6 +615,7 @@ public class RenderUtil {
 
     public static void drawFramebuffer(Framebuffer framebuffer) {
         ScaledResolution scaledResolution = new ScaledResolution(mc);
+        int prevTexture = GL11.glGetInteger(GL11.GL_TEXTURE_BINDING_2D);
         GlStateManager.bindTexture(framebuffer.framebufferTexture);
         GL11.glBegin(GL11.GL_QUADS);
         GL11.glTexCoord2d(0.0, 1.0);
@@ -626,6 +627,8 @@ public class RenderUtil {
         GL11.glTexCoord2d(1.0, 1.0);
         GL11.glVertex2d(scaledResolution.getScaledWidth(), 0.0);
         GL11.glEnd();
+        // 恢复之前的纹理绑定，避免污染后续世界 / 玩家（皮肤、披风）渲染
+        GlStateManager.bindTexture(prevTexture);
     }
 
     public static Framebuffer createFrameBuffer(Framebuffer framebuffer) {

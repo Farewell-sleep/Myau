@@ -173,6 +173,7 @@ public class GlassPanel {
             ScaledResolution sr = new ScaledResolution(mc);
             int scaledW = sr.getScaledWidth();
             int scaledH = sr.getScaledHeight();
+            int prevTexture = GL11.glGetInteger(GL11.GL_TEXTURE_BINDING_2D);
             GlStateManager.bindTexture(blurTex);
             GlStateManager.enableTexture2D();
             GlStateManager.disableCull();
@@ -202,6 +203,7 @@ public class GlassPanel {
             GL11.glEnd();
             GlassRenderer.LiquidGlassShader.INSTANCE.stop();
             GlStateManager.color(1, 1, 1, 1);
+            GlStateManager.bindTexture(prevTexture);
         }
 
         // soft shadow for depth (no grey body — shadow keeps the panel read)
