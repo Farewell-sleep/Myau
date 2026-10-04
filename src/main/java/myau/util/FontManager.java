@@ -144,21 +144,28 @@ public class FontManager {
 
         private FontRenderer(int size) {
             this.fontSize = size;
-            Font systemStandard = loadTrueType(loadResource("/assets/myau/fonts/DengXian.ttf"));
+            // Rise 字体链：Product Sans（英文主）+ HarmonyOS Sans SC（中文主）
+            Font productSans = loadTrueType(loadResource("/assets/myau/fonts/ProductSans.ttf"));
+            Font harmonySC = loadTrueType(loadResource("/assets/myau/fonts/HarmonyOS_Sans_SC_Regular.ttf"));
+            Font deng = loadTrueType(loadResource("/assets/myau/fonts/DengXian.ttf"));
             Font systemSans = loadTrueType(loadResource("/assets/myau/fonts/SystemSans.ttf"));
             Font systemCjk = loadTrueType(loadResource("/assets/myau/fonts/SystemCJK.ttf"));
             Font harmony = loadTrueType(FontData.harmonyosSansRegular());
-            this.awtFont = systemStandard.deriveFont(Font.PLAIN, size * 2.0F);
+            this.awtFont = productSans.deriveFont(Font.PLAIN, size * 2.0F);
+            Font harmonySCScaled = harmonySC.deriveFont(Font.PLAIN, size * 2.0F);
+            Font dengScaled = deng.deriveFont(Font.PLAIN, size * 2.0F);
             Font sansScaled = systemSans.deriveFont(Font.PLAIN, size * 2.0F);
             Font cjkScaled = systemCjk.deriveFont(Font.PLAIN, size * 2.0F);
             Font harmonyScaled = harmony.deriveFont(Font.PLAIN, size * 2.0F);
             List<Font> list = new ArrayList<>();
-            list.add(this.awtFont);              // 1) 等线 DengXian（系统标准，主）
-            list.add(sansScaled);                // 2) Segoe UI（英文回退）
-            list.add(cjkScaled);                 // 3) SimHei 黑体（中文回退）
-            list.add(harmonyScaled);             // 4) HarmonyOS（内嵌回退）
+            list.add(this.awtFont);              // 1) Product Sans（Rise 英文主）
+            list.add(harmonySCScaled);           // 2) HarmonyOS Sans SC（Rise 中文主）
+            list.add(dengScaled);                // 3) 等线（中文兜底）
+            list.add(sansScaled);                // 4) Segoe UI（英文回退）
+            list.add(cjkScaled);                 // 5) SimHei 黑体（中文回退）
+            list.add(harmonyScaled);             // 6) HarmonyOS（内嵌回退）
             for (String name : FALLBACK_FONT_NAMES) {
-                list.add(new Font(name, Font.PLAIN, size * 2)); // 5) 系统 CJK / 通用
+                list.add(new Font(name, Font.PLAIN, size * 2)); // 7) 系统 CJK / 通用
             }
             this.chain = list.toArray(new Font[0]);
             this.scale = 0.5F;
