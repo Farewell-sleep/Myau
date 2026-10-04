@@ -24,7 +24,7 @@ import java.util.Map;
 /**
  * Modern font renderer used by the HUD, ClickGUI and other UI.
  *
- * 主字体 = 仓库内置的微软雅黑（Microsoft YaHei，Windows 系统标准中文字体），
+ * 主字体 = 仓库内置的等线（DengXian，Windows 系统标准现代 UI 中文字体），
  * 英文与中文均由它直接渲染；仅当个别码点缺失时逐码点回退到 Segoe UI / SimHei /
  * HarmonyOS / 系统字体链。
  *
@@ -144,7 +144,7 @@ public class FontManager {
 
         private FontRenderer(int size) {
             this.fontSize = size;
-            Font systemStandard = loadTrueType(loadResource("/assets/myau/fonts/MicrosoftYaHei.ttc"));
+            Font systemStandard = loadTrueType(loadResource("/assets/myau/fonts/DengXian.ttf"));
             Font systemSans = loadTrueType(loadResource("/assets/myau/fonts/SystemSans.ttf"));
             Font systemCjk = loadTrueType(loadResource("/assets/myau/fonts/SystemCJK.ttf"));
             Font harmony = loadTrueType(FontData.harmonyosSansRegular());
@@ -153,7 +153,7 @@ public class FontManager {
             Font cjkScaled = systemCjk.deriveFont(Font.PLAIN, size * 2.0F);
             Font harmonyScaled = harmony.deriveFont(Font.PLAIN, size * 2.0F);
             List<Font> list = new ArrayList<>();
-            list.add(this.awtFont);              // 1) 微软雅黑（系统标准，主）
+            list.add(this.awtFont);              // 1) 等线 DengXian（系统标准，主）
             list.add(sansScaled);                // 2) Segoe UI（英文回退）
             list.add(cjkScaled);                 // 3) SimHei 黑体（中文回退）
             list.add(harmonyScaled);             // 4) HarmonyOS（内嵌回退）

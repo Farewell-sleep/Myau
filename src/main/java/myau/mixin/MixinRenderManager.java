@@ -44,6 +44,12 @@ public abstract class MixinRenderManager {
     private void renderEntityStatic(Entity entity, float float2, boolean boolean3, CallbackInfoReturnable<Boolean> callbackInfoReturnable) {
         if (entity instanceof EntityPlayerSP && RotationState.isRotated(1)) {
             EntityPlayerSP entityPlayerSP = (EntityPlayerSP) entity;
+            float yawOffset = RotationState.getRenderYawOffset();
+            float yawHead = RotationState.getRotationYawHead();
+            float pitch = RotationState.getRotationPitch();
+            if (!Float.isFinite(yawOffset) || !Float.isFinite(yawHead) || !Float.isFinite(pitch)) {
+                return;
+            }
             this._prevRenderYawOffset = entityPlayerSP.prevRenderYawOffset;
             this._renderYawOffset = entityPlayerSP.renderYawOffset;
             this._prevRotationYawHead = entityPlayerSP.prevRotationYawHead;
@@ -51,11 +57,11 @@ public abstract class MixinRenderManager {
             this._prevRotationPitch = entityPlayerSP.prevRotationPitch;
             this._rotationPitch = entityPlayerSP.rotationPitch;
             entityPlayerSP.prevRenderYawOffset = RotationState.getPrevRenderYawOffset();
-            entityPlayerSP.renderYawOffset = RotationState.getRenderYawOffset();
+            entityPlayerSP.renderYawOffset = yawOffset;
             entityPlayerSP.prevRotationYawHead = RotationState.getPrevRotationYawHead();
-            entityPlayerSP.rotationYawHead = RotationState.getRotationYawHead();
+            entityPlayerSP.rotationYawHead = yawHead;
             entityPlayerSP.prevRotationPitch = RotationState.getPrevRotationPitch();
-            entityPlayerSP.rotationPitch = RotationState.getRotationPitch();
+            entityPlayerSP.rotationPitch = pitch;
         }
     }
 

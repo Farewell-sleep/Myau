@@ -74,6 +74,11 @@ public final class Callbacks {
             } finally {
                 net.minecraft.client.renderer.GlStateManager.popAttrib();
                 net.minecraft.client.renderer.GlStateManager.popMatrix();
+                // GL_PROGRAM / framebuffer bindings are NOT covered by the attrib
+                // stack — force-clear them so a module leaving a shader or FBO
+                // active can never corrupt the next frame's rain/entity render.
+                org.lwjgl.opengl.GL20.glUseProgram(0);
+                Minecraft.getMinecraft().getFramebuffer().bindFramebuffer(true);
             }
         } catch (Throwable swallowed) {
             Log.swallowed(swallowed);
@@ -91,6 +96,8 @@ public final class Callbacks {
             } finally {
                 net.minecraft.client.renderer.GlStateManager.popAttrib();
                 net.minecraft.client.renderer.GlStateManager.popMatrix();
+                org.lwjgl.opengl.GL20.glUseProgram(0);
+                Minecraft.getMinecraft().getFramebuffer().bindFramebuffer(true);
             }
         } catch (Throwable swallowed) {
             Log.swallowed(swallowed);
@@ -243,6 +250,8 @@ public final class Callbacks {
             } finally {
                 net.minecraft.client.renderer.GlStateManager.popAttrib();
                 net.minecraft.client.renderer.GlStateManager.popMatrix();
+                org.lwjgl.opengl.GL20.glUseProgram(0);
+                Minecraft.getMinecraft().getFramebuffer().bindFramebuffer(true);
             }
         } catch (Throwable swallowed) {
             Log.swallowed(swallowed);

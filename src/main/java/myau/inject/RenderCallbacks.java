@@ -75,6 +75,15 @@ public final class RenderCallbacks {
             if (!(entity instanceof EntityPlayerSP) || !RotationState.isRotated(1)) {
                 return;
             }
+            float yawOffset = RotationState.getRenderYawOffset();
+            float yawHead = RotationState.getRotationYawHead();
+            float pitch = RotationState.getRotationPitch();
+            // NaN / infinite rotation values would put the player model (and its
+            // cape) into an undefined pose and can trip the GL stack — skip the
+            // render swap when the state is invalid.
+            if (!Float.isFinite(yawOffset) || !Float.isFinite(yawHead) || !Float.isFinite(pitch)) {
+                return;
+            }
             EntityPlayerSP player = (EntityPlayerSP) entity;
             prevRenderYawOffset = player.prevRenderYawOffset;
             renderYawOffset = player.renderYawOffset;
@@ -83,11 +92,11 @@ public final class RenderCallbacks {
             prevRotationPitch = player.prevRotationPitch;
             rotationPitch = player.rotationPitch;
             player.prevRenderYawOffset = RotationState.getPrevRenderYawOffset();
-            player.renderYawOffset = RotationState.getRenderYawOffset();
+            player.renderYawOffset = yawOffset;
             player.prevRotationYawHead = RotationState.getPrevRotationYawHead();
-            player.rotationYawHead = RotationState.getRotationYawHead();
+            player.rotationYawHead = yawHead;
             player.prevRotationPitch = RotationState.getPrevRotationPitch();
-            player.rotationPitch = RotationState.getRotationPitch();
+            player.rotationPitch = pitch;
             swapped = player;
         } catch (Throwable swallowed) {
             Log.swallowed(swallowed);

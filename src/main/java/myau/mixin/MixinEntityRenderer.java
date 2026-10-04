@@ -142,6 +142,8 @@ public abstract class MixinEntityRenderer {
         } finally {
             GlStateManager.popAttrib();
             GlStateManager.popMatrix();
+            org.lwjgl.opengl.GL20.glUseProgram(0);
+            this.mc.getFramebuffer().bindFramebuffer(true);
         }
     }
 

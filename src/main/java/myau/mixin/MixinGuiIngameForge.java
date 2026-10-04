@@ -35,6 +35,8 @@ public abstract class MixinGuiIngameForge {
         } finally {
             GlStateManager.popAttrib();
             GlStateManager.popMatrix();
+            org.lwjgl.opengl.GL20.glUseProgram(0);
+            net.minecraft.client.Minecraft.getMinecraft().getFramebuffer().bindFramebuffer(true);
         }
     }
 
