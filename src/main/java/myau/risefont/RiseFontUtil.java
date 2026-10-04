@@ -17,10 +17,18 @@ public class RiseFontUtil {
 
     public static Font loadFromResource(String resourcePath, int size) {
         try {
+            // Accept both "domain:path" and legacy "domain/path..." forms.
+            String domain = "myau";
+            String path = resourcePath;
+            int colon = resourcePath.indexOf(':');
+            if (colon > 0) {
+                domain = resourcePath.substring(0, colon);
+                path = resourcePath.substring(colon + 1);
+            }
             return Font.createFont(0, Minecraft.getMinecraft().getResourceManager()
-                            .getResource(new ResourceLocation(resourcePath)).getInputStream())
+                            .getResource(new ResourceLocation(domain, path)).getInputStream())
                     .deriveFont((float) size);
-        } catch (FontFormatException | IOException e) {
+        } catch (FontFormatException | IOException | RuntimeException e) {
             return null;
         }
     }

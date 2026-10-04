@@ -10,11 +10,11 @@ import net.minecraft.client.Minecraft;
  * Font resources live in assets/myau/fonts/.
  */
 public enum RiseFontManager {
-    MAIN("myau/fonts/product_sans_%s.ttf", "HarmonyOS_Sans_SC_");
+    MAIN("myau:fonts/product_sans_%s.ttf", "HarmonyOS_Sans_SC_");
 
     private final String nameTemplate;
     private final String cjkPrefix;
-    private final HashMap<Integer, RiseFontRenderer> fonts = new HashMap<>();
+    private final HashMap<Integer, RiseFont> fonts = new HashMap<>();
 
     RiseFontManager(String nameTemplate, String cjkPrefix) {
         this.nameTemplate = nameTemplate;
@@ -23,7 +23,7 @@ public enum RiseFontManager {
 
     public RiseFont get(int size, RiseFontWeight weight) {
         int key = Integer.parseInt("" + size + weight.getWeight());
-        RiseFontRenderer renderer = this.fonts.get(key);
+        RiseFont renderer = this.fonts.get(key);
         if (renderer == null) {
             java.awt.Font font = null;
             for (String alias : weight.getAliases()) {
@@ -33,20 +33,34 @@ public enum RiseFontManager {
                 }
             }
             if (font == null) {
-                font = RiseFontUtil.loadFromResource(String.format(this.nameTemplate, "Regular"), size);
+                font = RiseFontUtil.loadFromResource(String.format(this.nameTemplate, "regular"), size);
             }
             if (font == null) {
-                throw new RuntimeException("Unknown font for " + this.nameTemplate + " at size " + size);
+                // Never crash the game on a missing font: fall back to AWT system font,
+                // and as a last resort to the vanilla font renderer.
+                try {
+                    font = new java.awt.Font("SansSerif", java.awt.Font.PLAIN, size);
+                } catch (Throwable ignored) {
+                }
             }
-            renderer = new RiseFontRenderer(font, true, true, false);
-            // CJK fallback chain: HarmonyOS Sans SC -> DengXian -> system
-            java.awt.Font cjk = RiseFontUtil.loadFromResource("myau/fonts/" + this.cjkPrefix + "Regular.ttf", size);
-            if (cjk != null) {
-                renderer.setCjkCache(new RiseGlyphCache(cjk, true, true));
+            if (font != null) {
+                try {
+                    RiseFontRenderer riseRenderer = new RiseFontRenderer(font, true, true, false);
+                    java.awt.Font cjk = RiseFontUtil.loadFromResource("myau:fonts/" + this.cjkPrefix + "Regular.ttf", size);
+                    if (cjk != null) {
+                        riseRenderer.setCjkCache(new RiseGlyphCache(cjk, true, true));
+                    }
+                    java.awt.Font deng = RiseFontUtil.loadFromResource("myau:fonts/DengXian.ttf", size);
+                    if (deng != null) {
+                        riseRenderer.setFallbackCache(new RiseGlyphCache(deng, true, true));
+                    }
+                    renderer = riseRenderer;
+                } catch (Throwable ignored) {
+                    renderer = null;
+                }
             }
-            java.awt.Font deng = RiseFontUtil.loadFromResource("myau/fonts/DengXian.ttf", size);
-            if (deng != null) {
-                renderer.setFallbackCache(new RiseGlyphCache(deng, true, true));
+            if (renderer == null) {
+                renderer = minecraft();
             }
             this.fonts.put(key, renderer);
         }
