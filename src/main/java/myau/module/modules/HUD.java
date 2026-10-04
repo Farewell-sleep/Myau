@@ -9,10 +9,10 @@ import myau.events.Render2DEvent;
 import myau.events.TickEvent;
 import myau.mixin.IAccessorGuiChat;
 import myau.module.Module;
-import myau.util.ColorUtil;
-import myau.util.FontManager;
-import myau.util.RenderUtil;
 import myau.property.properties.*;
+import myau.risefont.RiseFont;
+import myau.risefont.RiseFontManager;
+import myau.util.ColorUtil;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiChat;
 import net.minecraft.client.gui.ScaledResolution;
@@ -31,24 +31,19 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
- * Modern arraylist HUD: every active module is an independent rounded card
- * (semi-transparent dark body or theme-color gradient, 1px hairline outline),
- * text rendered with the bundled font (ShuYaoHengShui fallback chain).
+ * Modern arraylist HUD — skidded rendering style from Rise (ModernInterface /
+ * ArrayListEntry) and Onyx (module toggles). Text is rendered with the skidded
+ * Rise font chain (RiseFontManager: Product Sans + HarmonyOS Sans SC), and all
+ * card geometry is drawn with raw GL primitives (no Myau RenderUtil /
+ * FontManager), so this HUD never pollutes world / entity rendering.
  *
- * Style tokens follow the frozen render spec v1.0 (rounded 6px cards, hairline
- * outline, accent bar 2px wide, ease-out cubic entrance with 30ms stagger).
- *
- * Hard contract kept: class name/package, getColor(long)/getColor(long,long)
- * returning java.awt.Color, and every public property (config compatibility).
+ * Public API (class name, getColor, properties) stays config-compatible.
  */
 public class HUD extends Module {
     private static final Minecraft mc = Minecraft.getMinecraft();
 
-    /** Font size (spec section 5) and card metrics (spec section 2: card radius 6px). */
-    private static final float FONT = 14.0F;
     private static final float PAD_X = 5.0F;
     private static final float PAD_Y = 3.0F;
-    private static final float CARD_H = FONT + PAD_Y * 2.0F;
     private static final float CARD_R = 6.0F;
 
     private List<Module> activeModules = new ArrayList<>();
@@ -81,12 +76,16 @@ public class HUD extends Module {
     public final IntProperty barless = new IntProperty("barless", 0, 0, 8, () -> this.showBar.getValue());
     public final ModeProperty barMode = new ModeProperty("bar-mode", 0, new String[]{"RIGHT", "LEFT", "TOP", "BOTTOM"}, () -> this.showBar.getValue());
 
-    // ---- animation state (entrance stagger / hover / exit fade) ----
+    // ---- Rise-style entry animation state ----
     private long lastFrame = System.currentTimeMillis();
     private final Map<Module, Long> rowBorn = new HashMap<>();
-    private final Map<Module, Float> hoverAnim = new HashMap<>();
     private final Map<Module, float[]> lastRect = new HashMap<>();
     private final Map<Module, float[]> dying = new HashMap<>();
+
+    /** Rise-style font instance (Product Sans + HarmonyOS SC fallback). */
+    private RiseFont font() {
+        return RiseFontManager.MAIN.hudFont();
+    }
 
     private String getModuleName(Module module) {
         String moduleName = module.getName();
@@ -107,16 +106,15 @@ public class HUD extends Module {
     }
 
     private int getModuleWidth(Module module) {
-        return this.calculateStringWidth(
-                this.getModuleName(module), this.getModuleSuffix(module)
-        );
+        return this.calculateStringWidth(this.getModuleName(module), this.getModuleSuffix(module));
     }
 
     private int calculateStringWidth(String string, String[] arr) {
-        int width = FontManager.getStringWidth(string, FONT);
+        RiseFont f = this.font();
+        int width = f.getStringWidth(string);
         if (this.suffixes.getValue()) {
             for (String str : arr) {
-                width += 3 + FontManager.getStringWidth(str, FONT);
+                width += 3 + f.getStringWidth(str);
             }
         }
         return width;
@@ -193,51 +191,81 @@ public class HUD extends Module {
     @EventTarget
     public void onTick(TickEvent event) {
         if (this.isEnabled() && event.getType() == EventType.POST) {
-            this.activeModules = OpenMyau.moduleManager.modules.values().stream().filter(module -> module.isEnabled() && !module.isHidden()).sorted(Comparator.comparingInt(this::getModuleWidth).reversed()).collect(Collectors.<Module>toList());
+            this.activeModules = OpenMyau.moduleManager.modules.values().stream()
+                    .filter(module -> module.isEnabled() && !module.isHidden())
+                    .sorted(Comparator.comparingInt(this::getModuleWidth).reversed())
+                    .collect(Collectors.toList());
         }
     }
 
-    /** Soft glow around a card: layered expanding rects on the outer edges. */
-    private void drawGlowOutline(float x1, float y1, float x2, float y2, int color, int passes, float step,
-                                 boolean top, boolean bottom, boolean left, boolean right, float alphaMul) {
-        for (int i = passes; i >= 1; i--) {
-            float expand = i * step;
-            float intensity = (float) (passes - i + 1) / (float) passes;
-            int glowColor = setAlpha(color, 0.045F * intensity * intensity * alphaMul);
-
-            RenderUtil.enableRenderState();
-            if (top) {
-                RenderUtil.drawRect(x1 - expand, y1 - expand, x2 + expand, y1, glowColor);
-            }
-            if (bottom) {
-                RenderUtil.drawRect(x1 - expand, y2, x2 + expand, y2 + expand, glowColor);
-            }
-            if (left) {
-                RenderUtil.drawRect(x1 - expand, y1, x1, y2, glowColor);
-            }
-            if (right) {
-                RenderUtil.drawRect(x2, y1, x2 + expand, y2, glowColor);
-            }
-            RenderUtil.disableRenderState();
+    // ---- raw GL rounded-rect primitives (no Myau RenderUtil) ----
+    private static void roundedArc(float cx, float cy, float r, int startDeg, int endDeg) {
+        GL11.glBegin(GL11.GL_POLYGON);
+        for (int i = startDeg; i <= endDeg; i += 6) {
+            double ang = Math.toRadians(i);
+            GL11.glVertex2f(cx + (float) (Math.cos(ang) * r), cy + (float) (Math.sin(ang) * r));
         }
+        GL11.glEnd();
     }
 
-    /** Text glow: the main font stamped at 8 surrounding offsets with fading alpha. */
-    private void drawGlowText(String text, float x, float y, int color, int passes, float spread, float alphaMul) {
-        for (int i = passes; i >= 1; i--) {
-            float offset = i * spread;
-            float intensity = (float) (passes - i + 1) / (float) passes;
-            int glowColor = setAlpha(color, 0.10F * intensity * intensity * alphaMul);
-            float diagonal = offset * 0.65F;
-            FontManager.drawString(text, x + offset, y, glowColor, false, FONT);
-            FontManager.drawString(text, x - offset, y, glowColor, false, FONT);
-            FontManager.drawString(text, x, y + offset, glowColor, false, FONT);
-            FontManager.drawString(text, x, y - offset, glowColor, false, FONT);
-            FontManager.drawString(text, x + diagonal, y + diagonal, glowColor, false, FONT);
-            FontManager.drawString(text, x - diagonal, y + diagonal, glowColor, false, FONT);
-            FontManager.drawString(text, x + diagonal, y - diagonal, glowColor, false, FONT);
-            FontManager.drawString(text, x - diagonal, y - diagonal, glowColor, false, FONT);
-        }
+    private static void drawRoundedRect(float x, float y, float w, float h, float r, int color) {
+        if (w <= 0.0F || h <= 0.0F) return;
+        r = Math.min(r, Math.min(w / 2.0F, h / 2.0F));
+        float a = (color >> 24 & 0xFF) / 255.0F;
+        float red = (color >> 16 & 0xFF) / 255.0F;
+        float green = (color >> 8 & 0xFF) / 255.0F;
+        float blue = (color & 0xFF) / 255.0F;
+        GlStateManager.enableBlend();
+        GlStateManager.disableTexture2D();
+        GlStateManager.disableCull();
+        GlStateManager.blendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
+        GL11.glColor4f(red, green, blue, a);
+        roundedArc(x + r, y + r, r, 180, 270);
+        roundedArc(x + w - r, y + r, r, 270, 360);
+        roundedArc(x + w - r, y + h - r, r, 0, 90);
+        roundedArc(x + r, y + h - r, r, 90, 180);
+        GL11.glBegin(GL11.GL_POLYGON);
+        GL11.glVertex2f(x + r, y);
+        GL11.glVertex2f(x + w - r, y);
+        GL11.glVertex2f(x + w - r, y + h);
+        GL11.glVertex2f(x + r, y + h);
+        GL11.glEnd();
+        GL11.glBegin(GL11.GL_POLYGON);
+        GL11.glVertex2f(x, y + r);
+        GL11.glVertex2f(x + w, y + r);
+        GL11.glVertex2f(x + w, y + h - r);
+        GL11.glVertex2f(x, y + h - r);
+        GL11.glEnd();
+        GlStateManager.enableTexture2D();
+        GlStateManager.disableBlend();
+        GlStateManager.resetColor();
+    }
+
+    private static void drawRect(float x, float y, float w, float h, int color) {
+        if (w <= 0.0F || h <= 0.0F) return;
+        float a = (color >> 24 & 0xFF) / 255.0F;
+        float red = (color >> 16 & 0xFF) / 255.0F;
+        float green = (color >> 8 & 0xFF) / 255.0F;
+        float blue = (color & 0xFF) / 255.0F;
+        GlStateManager.enableBlend();
+        GlStateManager.disableTexture2D();
+        GlStateManager.blendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
+        GL11.glColor4f(red, green, blue, a);
+        GL11.glBegin(GL11.GL_QUADS);
+        GL11.glVertex2f(x, y);
+        GL11.glVertex2f(x + w, y);
+        GL11.glVertex2f(x + w, y + h);
+        GL11.glVertex2f(x, y + h);
+        GL11.glEnd();
+        GlStateManager.enableTexture2D();
+        GlStateManager.disableBlend();
+        GlStateManager.resetColor();
+    }
+
+    /** 1px hairline rounded outline (outer rounded rect minus inner fill). */
+    private static void drawRoundedOutline(float x, float y, float w, float h, float r, int color) {
+        drawRoundedRect(x, y, w, h, r, color);
+        drawRoundedRect(x + 0.75F, y + 0.75F, Math.max(0.0F, w - 1.5F), Math.max(0.0F, h - 1.5F), Math.max(0.5F, r - 0.75F), 0x00000000);
     }
 
     @EventTarget
@@ -245,17 +273,14 @@ public class HUD extends Module {
         if (this.chatOutline.getValue() && mc.currentScreen instanceof GuiChat) {
             String text = ((IAccessorGuiChat) mc.currentScreen).getInputField().getText().trim();
             if (OpenMyau.commandManager != null && OpenMyau.commandManager.isTypingCommand(text)) {
-                RenderUtil.enableRenderState();
-                RenderUtil.drawOutlineRect(
+                drawRoundedOutline(
                         2.0F,
                         (float) (mc.currentScreen.height - 14),
-                        (float) (mc.currentScreen.width - 2),
-                        (float) (mc.currentScreen.height - 2),
+                        (float) (mc.currentScreen.width - 4),
+                        (float) (mc.currentScreen.height - 2) - (float) (mc.currentScreen.height - 14),
                         1.5F,
-                        0,
                         this.getColor(System.currentTimeMillis()).getRGB()
                 );
-                RenderUtil.disableRenderState();
             }
         }
         if (this.isEnabled() && !mc.gameSettings.showDebugInfo) {
@@ -266,7 +291,6 @@ public class HUD extends Module {
             float scale = this.scale.getValue();
             ScaledResolution sr = new ScaledResolution(mc);
 
-            // mouse position in unscaled (pre-matrix) gui coords, for hover highlight
             float mouseX = Mouse.getX() * sr.getScaledWidth() / (float) mc.displayWidth / scale;
             float mouseY = (sr.getScaledHeight() - Mouse.getY() * sr.getScaledHeight() / (float) mc.displayHeight) / scale;
 
@@ -274,10 +298,12 @@ public class HUD extends Module {
             boolean top = this.posY.getValue() == 0;
             float anchorX = this.offsetX.getValue() / scale;
             float rightEdge = sr.getScaledWidth() / scale - this.offsetX.getValue() / scale;
-            float rowStep = CARD_H + this.rowSpacing.getValue() + 1.0F;
+            RiseFont f = this.font();
+            float rowH = f.height() + PAD_Y * 2.0F;
+            float rowStep = rowH + this.rowSpacing.getValue() + 1.0F;
             float curY = top
                     ? this.offsetY.getValue() / scale + 1.0F
-                    : sr.getScaledHeight() / scale - this.offsetY.getValue() / scale - CARD_H;
+                    : sr.getScaledHeight() / scale - this.offsetY.getValue() / scale - rowH;
 
             GlStateManager.pushMatrix();
             GlStateManager.scale(scale, scale, 1.0F);
@@ -294,7 +320,6 @@ public class HUD extends Module {
                 float textW = (float) this.calculateStringWidth(moduleName, moduleSuffix);
                 float cardW = textW + PAD_X * 2.0F;
 
-                // entrance progress: ease-out cubic with 30ms per-row stagger
                 Long born = this.rowBorn.get(module);
                 if (born == null) {
                     born = now;
@@ -307,77 +332,53 @@ public class HUD extends Module {
                 float cardX1 = left ? anchorX : rightEdge - cardW;
                 float cardX2 = cardX1 + cardW;
                 float cardY1 = curY + slideY;
-                float cardY2 = cardY1 + CARD_H;
-
-                // hover highlight (only while the cursor rests on this row)
-                boolean hovered = mouseX >= cardX1 && mouseX <= cardX2
-                        && mouseY >= cardY1 && mouseY <= cardY2;
-                float ha = this.hoverAnim.getOrDefault(module, 0.0F);
-                ha += ((hovered ? 1.0F : 0.0F) - ha) * Math.min(1.0F, dt / 150.0F);
-                this.hoverAnim.put(module, ha);
+                float cardY2 = cardY1 + rowH;
 
                 Color themeColor = this.getColor(now, idx);
                 int rgb = themeColor.getRGB();
 
                 if (hasBg) {
-                    if (this.glow.getValue()) {
-                        boolean firstRow = idx == 0L;
-                        boolean lastRow = idx == this.activeModules.size() - 1;
-                        drawGlowOutline(cardX1, cardY1, cardX2, cardY2, rgb, 5, 0.6F,
-                                firstRow, lastRow, !left, left, p);
-                    }
-
-                    // 1px hairline outline (border trick: outer rounded rect, inner fill)
                     int outline = useThemeBg
                             ? setAlpha(rgb, 0.55F * p)
                             : setAlpha(0xFFFFFF, 0.16F * p);
-                    RenderUtil.drawRoundedRect(cardX1 - 0.5F, cardY1 - 0.5F, cardW + 1.0F, CARD_H + 1.0F, CARD_R + 0.5F, outline);
+                    drawRoundedOutline(cardX1 - 0.5F, cardY1 - 0.5F, cardW + 1.0F, rowH + 1.0F, CARD_R + 0.5F, outline);
 
-                    // card body: semi-transparent dark glass, or theme-color gradient
                     if (useThemeBg) {
-                        int topC = new Color(themeColor.getRed(), themeColor.getGreen(), themeColor.getBlue(),
-                                (int) (bgPct * 200.0F * p)).getRGB();
-                        int botC = new Color(themeColor.getRed() / 2, themeColor.getGreen() / 2, themeColor.getBlue() / 2,
-                                (int) (bgPct * 200.0F * p)).getRGB();
-                        RenderUtil.drawRoundedRectGradient(cardX1, cardY1, cardX2, cardY2, CARD_R, topC, botC);
+                        drawRoundedRect(cardX1, cardY1, cardW, rowH, CARD_R,
+                                new Color(themeColor.getRed(), themeColor.getGreen(), themeColor.getBlue(),
+                                        (int) (bgPct * 200.0F * p)).getRGB());
                     } else {
-                        int fill = new Color(0.06F, 0.08F, 0.11F, bgPct * p).getRGB();
-                        RenderUtil.drawRoundedRect(cardX1, cardY1, cardW, CARD_H, CARD_R, fill);
-                    }
-
-                    // hover wash
-                    if (ha > 0.01F) {
-                        RenderUtil.drawRoundedRect(cardX1, cardY1, cardW, CARD_H, CARD_R,
-                                setAlpha(0xFFFFFF, 0.10F * ha * p));
+                        drawRoundedRect(cardX1, cardY1, cardW, rowH, CARD_R,
+                                new Color(0.06F, 0.08F, 0.11F, bgPct * p).getRGB());
                     }
                 }
 
-                // theme accent bar (2px wide, 1px corner radius), barless insets vertical bar
+                // Rise-style accent bar at the leading edge
                 if (this.showBar.getValue()) {
                     int barModeVal = this.barMode.getValue();
                     float by1 = cardY1 + this.barless.getValue();
                     float by2 = cardY2 - this.barless.getValue();
                     float bh = by2 - by1;
                     int barColor = setAlpha(rgb, p);
-                    if (barModeVal == 0) { // anchor edge
+                    if (barModeVal == 0) {
                         if (left) {
-                            RenderUtil.drawRoundedRect(cardX1 - 3.0F, by1, 2.0F, bh, 1.0F, barColor);
+                            drawRoundedRect(cardX1 - 3.0F, by1, 2.0F, bh, 1.0F, barColor);
                         } else {
-                            RenderUtil.drawRoundedRect(cardX2 + 1.0F, by1, 2.0F, bh, 1.0F, barColor);
+                            drawRoundedRect(cardX2 + 1.0F, by1, 2.0F, bh, 1.0F, barColor);
                         }
-                    } else if (barModeVal == 1) { // far edge
+                    } else if (barModeVal == 1) {
                         if (left) {
-                            RenderUtil.drawRoundedRect(cardX2 + 1.0F, by1, 2.0F, bh, 1.0F, barColor);
+                            drawRoundedRect(cardX2 + 1.0F, by1, 2.0F, bh, 1.0F, barColor);
                         } else {
-                            RenderUtil.drawRoundedRect(cardX1 - 3.0F, by1, 2.0F, bh, 1.0F, barColor);
+                            drawRoundedRect(cardX1 - 3.0F, by1, 2.0F, bh, 1.0F, barColor);
                         }
-                    } else if (barModeVal == 2) { // top edge of the column
+                    } else if (barModeVal == 2) {
                         if (idx == 0L) {
-                            RenderUtil.drawRoundedRect(cardX1, cardY1 - 3.0F, cardW, 2.0F, 1.0F, barColor);
+                            drawRoundedRect(cardX1, cardY1 - 3.0F, cardW, 2.0F, 1.0F, barColor);
                         }
-                    } else if (barModeVal == 3) { // bottom edge of the column
+                    } else if (barModeVal == 3) {
                         if (idx == this.activeModules.size() - 1) {
-                            RenderUtil.drawRoundedRect(cardX1, cardY2 + 1.0F, cardW, 2.0F, 1.0F, barColor);
+                            drawRoundedRect(cardX1, cardY2 + 1.0F, cardW, 2.0F, 1.0F, barColor);
                         }
                     }
                 }
@@ -388,27 +389,12 @@ public class HUD extends Module {
                 int textColor = setAlpha(rgb, p);
                 int suffixColor = setAlpha(gray, p);
 
-                if (this.glow.getValue()) {
-                    drawGlowText(moduleName, textX, textY, textColor, 3, 0.55F, p);
-                }
-                if (this.shadow.getValue()) {
-                    FontManager.drawStringWithShadow(moduleName, textX, textY, textColor, FONT);
-                } else {
-                    FontManager.drawString(moduleName, textX, textY, textColor, false, FONT);
-                }
-
+                f.a(moduleName, textX, textY, textColor);
                 if (this.suffixes.getValue() && moduleSuffix.length > 0) {
-                    float suffixX = textX + FontManager.getStringWidth(moduleName, FONT) + 3.0F;
+                    float suffixX = textX + f.getStringWidth(moduleName) + 3.0F;
                     for (String string : moduleSuffix) {
-                        if (this.glow.getValue()) {
-                            drawGlowText(string, suffixX, textY, suffixColor, 2, 0.35F, p);
-                        }
-                        if (this.shadow.getValue()) {
-                            FontManager.drawStringWithShadow(string, suffixX, textY, suffixColor, FONT);
-                        } else {
-                            FontManager.drawString(string, suffixX, textY, suffixColor, false, FONT);
-                        }
-                        suffixX += FontManager.getStringWidth(string, FONT) + 3.0F;
+                        f.a(string, suffixX, textY, suffixColor);
+                        suffixX += f.getStringWidth(string) + 3.0F;
                     }
                 }
                 GlStateManager.enableDepth();
@@ -418,7 +404,6 @@ public class HUD extends Module {
                 idx++;
             }
 
-            // exit fade: rows of modules that just got toggled off fade out in place
             Iterator<Map.Entry<Module, float[]>> it = this.dying.entrySet().iterator();
             while (it.hasNext()) {
                 Map.Entry<Module, float[]> e = it.next();
@@ -428,12 +413,11 @@ public class HUD extends Module {
                     it.remove();
                     continue;
                 }
-                RenderUtil.drawRoundedRect(r[0] - 0.5F, r[1] - 0.5F, (r[2] - r[0]) + 1.0F, (r[3] - r[1]) + 1.0F, CARD_R + 0.5F,
+                drawRoundedOutline(r[0] - 0.5F, r[1] - 0.5F, (r[2] - r[0]) + 1.0F, (r[3] - r[1]) + 1.0F, CARD_R + 0.5F,
                         setAlpha(0xFFFFFF, 0.16F * r[4]));
-                RenderUtil.drawRoundedRect(r[0], r[1], r[2] - r[0], r[3] - r[1], CARD_R,
+                drawRoundedRect(r[0], r[1], r[2] - r[0], r[3] - r[1], CARD_R,
                         new Color(0.06F, 0.08F, 0.11F, 0.25F * r[4]).getRGB());
             }
-            // collect modules that left the active list into the dying map
             for (Module m : new ArrayList<>(this.rowBorn.keySet())) {
                 if (!this.activeModules.contains(m)) {
                     float[] rect = this.lastRect.get(m);
@@ -441,7 +425,6 @@ public class HUD extends Module {
                         this.dying.put(m, new float[]{rect[0], rect[1], rect[2], rect[3], 1.0F});
                     }
                     this.rowBorn.remove(m);
-                    this.hoverAnim.remove(m);
                 }
             }
 
@@ -453,11 +436,10 @@ public class HUD extends Module {
                         String count = String.valueOf(movementPacketSize);
                         GlStateManager.enableBlend();
                         GlStateManager.blendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
-                        FontManager.drawString(count,
-                                sr.getScaledWidth() / 2.0F / scale - FontManager.getStringWidth(count, FONT) / 2.0F,
+                        f.a(count,
+                                sr.getScaledWidth() / 2.0F / scale - f.getStringWidth(count) / 2.0F,
                                 sr.getScaledHeight() / 5.0F * 3.0F / scale,
-                                setAlpha(this.getColor(now, idx).getRGB(), 0.75F),
-                                this.shadow.getValue(), FONT);
+                                setAlpha(this.getColor(now, idx).getRGB(), 0.75F));
                         GlStateManager.disableBlend();
                     }
                 }

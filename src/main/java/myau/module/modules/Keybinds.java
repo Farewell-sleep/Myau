@@ -7,7 +7,7 @@ import myau.module.Module;
 import myau.property.properties.BooleanProperty;
 import myau.property.properties.FloatProperty;
 import myau.property.properties.PercentProperty;
-import myau.util.FontManager;
+import myau.risefont.RiseFontManager;
 import myau.util.KeyBindUtil;
 import myau.util.RenderUtil;
 import net.minecraft.client.Minecraft;
@@ -75,8 +75,8 @@ public class Keybinds extends Module {
         for (Module m : bound) {
             String keyName = KeyBindUtil.getKeyName(m.getKey());
             String modName = m.getName();
-            float keyW = (float) FontManager.getStringWidth(keyName, FS) + 6.0F;
-            float nameW = (float) FontManager.getStringWidth(modName, FS);
+            float keyW = (float) RiseFontManager.getStringWidth(keyName, FS) + 6.0F;
+            float nameW = (float) RiseFontManager.getStringWidth(modName, FS);
             float boxW = 4.0F + keyW + 4.0F + nameW + 4.0F;
             if (this.background.getValue()) {
                 RenderUtil.drawRoundedRect(x, rowY, boxW, rowH, 4.0F, GLASS_BODY);
@@ -84,9 +84,9 @@ public class Keybinds extends Module {
             }
             // 键位芯片
             RenderUtil.drawRoundedRect(x + 3.0F, rowY + 2.0F, keyW, rowH - 4.0F, 2.0F, CHIP_BODY);
-            FontManager.drawString(keyName, x + 3.0F + 3.0F, rowY + 2.0F, TEXT_DIM, false, FS);
+            RiseFontManager.drawString(keyName, x + 3.0F + 3.0F, rowY + 2.0F, TEXT_DIM, false, FS);
             int nameColor = this.colored.getValue() && m.isEnabled() ? ENABLED : TEXT_MAIN;
-            FontManager.drawString(modName, x + 3.0F + keyW + 4.0F, rowY + 2.0F, nameColor, false, FS);
+            RiseFontManager.drawString(modName, x + 3.0F + keyW + 4.0F, rowY + 2.0F, nameColor, false, FS);
             rowY += rowH + gap;
         }
         RenderUtil.disableRenderState();

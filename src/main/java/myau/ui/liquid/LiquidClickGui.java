@@ -3,7 +3,7 @@ package myau.ui.liquid;
 import myau.OpenMyau;
 import myau.module.Module;
 import myau.module.modules.*;
-import myau.util.FontManager;
+import myau.risefont.RiseFontManager;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.gui.ScaledResolution;
@@ -134,16 +134,16 @@ public class LiquidClickGui extends GuiScreen {
 
         // header — liquid glass title pill (true capsule)
         drawGlassCapsuleBg(12, 6, 118, 34, 1.0F);
-        FontManager.drawString("Myau", 20, 23 - FontManager.getBaseline(15.0F)
-                + FontManager.getCapHeight(15.0F) / 2.0F, GlassRenderer.ACCENT, true, 15.0F);
-        FontManager.drawString("Dev TTHILLTT", 20, 26.5F, GlassRenderer.TEXT_FAINT, false, 9.0F);
+        RiseFontManager.drawString("Myau", 20, 23 - RiseFontManager.getBaseline(15.0F)
+                + RiseFontManager.getCapHeight(15.0F) / 2.0F, GlassRenderer.ACCENT, true, 15.0F);
+        RiseFontManager.drawString("Dev TTHILLTT", 20, 26.5F, GlassRenderer.TEXT_FAINT, false, 9.0F);
 
         // module state style toggle button (top-right) — same liquid glass pill
         int styleX = width - 92;
         boolean styleHover = mouseX >= styleX && mouseX <= styleX + 82 && mouseY >= 8 && mouseY <= 26;
         drawGlassCapsuleBg(styleX, 8, 82, 18, styleHover ? 1.0F : 0.85F);
-        FontManager.drawString("State: " + (GlassModuleEntry.switchStyle ? "Switch" : "Accent"),
-                styleX + 10, 17 - FontManager.getBaseline(11.0F) + FontManager.getCapHeight(11.0F) / 2.0F,
+        RiseFontManager.drawString("State: " + (GlassModuleEntry.switchStyle ? "Switch" : "Accent"),
+                styleX + 10, 17 - RiseFontManager.getBaseline(11.0F) + RiseFontManager.getCapHeight(11.0F) / 2.0F,
                 GlassRenderer.TEXT_MAIN, false, 11.0F);
 
         // search bar — same liquid glass refraction as the panels
@@ -188,12 +188,12 @@ public class LiquidClickGui extends GuiScreen {
         String hint = search.length() == 0 ? "Search modules..." : search.toString();
         int hintColor = search.length() == 0 ? GlassRenderer.TEXT_FAINT : GlassRenderer.TEXT_MAIN;
         float searchSize = 11.0F;
-        float hintY = sy + searchH / 2.0F - FontManager.getBaseline(searchSize)
-                + FontManager.getCapHeight(searchSize) / 2.0F;
-        FontManager.drawString(hint, searchX + 10, hintY, hintColor, false, searchSize);
+        float hintY = sy + searchH / 2.0F - RiseFontManager.getBaseline(searchSize)
+                + RiseFontManager.getCapHeight(searchSize) / 2.0F;
+        RiseFontManager.drawString(hint, searchX + 10, hintY, hintColor, false, searchSize);
         // 输入光标：主题蓝、500ms 闪烁
         if (searchFocused && (System.currentTimeMillis() / 500L) % 2L == 0L) {
-            float caretX = searchX + 10 + FontManager.getStringWidth(hint, searchSize);
+            float caretX = searchX + 10 + RiseFontManager.getStringWidth(hint, searchSize);
             GlassRenderer.drawRoundedRect(caretX, sy + 5, 1.2F, 10, 0.6F, GlassRenderer.ACCENT);
         }
         drawSearchIcon(searchX + searchW - 18, sy + 6);

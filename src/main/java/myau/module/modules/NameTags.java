@@ -7,7 +7,6 @@ import myau.events.Render3DEvent;
 import myau.mixin.IAccessorRenderManager;
 import myau.module.Module;
 import myau.util.ColorUtil;
-import myau.util.FontManager;
 import myau.util.RenderUtil;
 import myau.util.TeamUtil;
 import myau.property.properties.*;
@@ -15,6 +14,7 @@ import myau.property.properties.BooleanProperty;
 import myau.property.properties.ModeProperty;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.GlStateManager;
+import org.lwjgl.opengl.GL11;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.boss.EntityDragon;
@@ -185,27 +185,47 @@ public class NameTags extends Module {
 
                         float totalW = 0.0F;
                         for (String s : segText) {
-                            totalW += FontManager.getStringWidth(s, FONT);
+                            totalW += mc.fontRendererObj.getStringWidth(s);
                         }
 
-                        // 玻璃卡片
+                        // 玻璃卡片（GL 原语内联，不经过 myau RenderUtil，避免污染实体渲染）
                         float pad = 2.0F;
                         float cardL = -totalW / 2.0F - pad;
-                        float cardT = -FONT - pad;
+                        float cardT = -9.0F - pad;
                         float cardR = totalW / 2.0F + pad;
                         float cardB = pad;
                         if (this.backgroundOpacity.getValue() > 0) {
                             int bgA = (int) (this.backgroundOpacity.getValue() / 100.0 * 0xB9);
-                            RenderUtil.drawRoundedRectWithGl(cardL, cardT, cardR, cardB, 3.0F, (bgA << 24) | 0x14202B);
-                            RenderUtil.drawRoundedOutline(cardL, cardT, cardR, cardB, 3.0F, 1.0F, HAIRLINE);
+                            GlStateManager.enableBlend();
+                            GlStateManager.disableTexture2D();
+                            GlStateManager.blendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
+                            GL11.glColor4f(
+                                    (0x14 & 0xFF) / 255.0F, (0x20 & 0xFF) / 255.0F, (0x2B & 0xFF) / 255.0F,
+                                    (bgA & 0xFF) / 255.0F);
+                            GL11.glBegin(GL11.GL_QUADS);
+                            GL11.glVertex2f(cardL, cardT);
+                            GL11.glVertex2f(cardR, cardT);
+                            GL11.glVertex2f(cardR, cardB);
+                            GL11.glVertex2f(cardL, cardB);
+                            GL11.glEnd();
+                            GL11.glColor4f(1.0F, 1.0F, 1.0F, 1.0F);
+                            GL11.glLineWidth(1.0F);
+                            GL11.glBegin(GL11.GL_LINE_LOOP);
+                            GL11.glVertex2f(cardL, cardT);
+                            GL11.glVertex2f(cardR, cardT);
+                            GL11.glVertex2f(cardR, cardB);
+                            GL11.glVertex2f(cardL, cardB);
+                            GL11.glEnd();
+                            GlStateManager.enableTexture2D();
+                            GlStateManager.disableBlend();
                         }
 
                         GlStateManager.disableDepth();
                         float cursorX = -totalW / 2.0F;
                         for (int i = 0; i < segText.size(); i++) {
                             String s = segText.get(i);
-                            FontManager.drawString(s, cursorX, -FONT, segColor.get(i), this.shadow.getValue(), FONT);
-                            cursorX += FontManager.getStringWidth(s, FONT);
+                            mc.fontRendererObj.drawString(s, (int) cursorX, -9, segColor.get(i), this.shadow.getValue());
+                            cursorX += mc.fontRendererObj.getStringWidth(s);
                         }
                         GlStateManager.enableDepth();
 

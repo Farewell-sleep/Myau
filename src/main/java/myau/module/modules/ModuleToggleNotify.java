@@ -4,7 +4,7 @@ import myau.event.EventTarget;
 import myau.events.Render2DEvent;
 import myau.module.Module;
 import myau.util.ChatUtil;
-import myau.util.FontManager;
+import myau.risefont.RiseFontManager;
 import myau.util.RenderUtil;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.ScaledResolution;
@@ -114,8 +114,8 @@ public final class ModuleToggleNotify extends Module {
             }
             String state = n.enabled ? "ON" : "OFF";
             int statusColor = n.enabled ? ON_COLOR : OFF_COLOR;
-            float nameW = (float) FontManager.getStringWidth(n.name, FS);
-            float stateW = (float) FontManager.getStringWidth(state, FS);
+            float nameW = (float) RiseFontManager.getStringWidth(n.name, FS);
+            float stateW = (float) RiseFontManager.getStringWidth(state, FS);
             float cardW = nameW + stateW + 16.0F;
 
             float x = sr.getScaledWidth() - cardW - 4.0F;
@@ -128,8 +128,8 @@ public final class ModuleToggleNotify extends Module {
             RenderUtil.drawRoundedRect(x, y, 2.0F, cardH, 1.0F, accent);
             int nameColor = TEXT_MAIN & 0x00FFFFFF | ((int) (0xF2 * alpha) << 24);
             int stColor = (statusColor & 0x00FFFFFF) | ((int) (255 * alpha) << 24);
-            FontManager.drawString(n.name, x + 6.0F, y + 3.0F, nameColor, false, FS);
-            FontManager.drawString(state, x + cardW - stateW - 5.0F, y + 3.0F, stColor, false, FS);
+            RiseFontManager.drawString(n.name, x + 6.0F, y + 3.0F, nameColor, false, FS);
+            RiseFontManager.drawString(state, x + cardW - stateW - 5.0F, y + 3.0F, stColor, false, FS);
             y += cardH + gap;
         }
         RenderUtil.disableRenderState();

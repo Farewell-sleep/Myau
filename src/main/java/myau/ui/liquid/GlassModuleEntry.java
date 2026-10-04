@@ -1,7 +1,7 @@
 package myau.ui.liquid;
 
 import myau.module.Module;
-import myau.util.FontManager;
+import myau.risefont.RiseFontManager;
 import net.minecraft.client.Minecraft;
 
 import java.util.ArrayList;
@@ -110,9 +110,9 @@ public class GlassModuleEntry {
         // 模块名（FontManager，10px；按行带垂直居中）
         int baseColor = module.isEnabled() ? GlassRenderer.TEXT_MAIN : GlassRenderer.TEXT_DIM;
         int textColor = (baseColor & 0xFFFFFF) | (alpha << 24);
-        float nameY = rowY + 8.0F - FontManager.getBaseline(GlassControls.SIZE_LABEL)
-                + FontManager.getCapHeight(GlassControls.SIZE_LABEL) / 2.0F;
-        FontManager.drawString(module.getName(), panel.getX() + 10, nameY, textColor, false, GlassControls.SIZE_LABEL);
+        float nameY = rowY + 8.0F - RiseFontManager.getBaseline(GlassControls.SIZE_LABEL)
+                + RiseFontManager.getCapHeight(GlassControls.SIZE_LABEL) / 2.0F;
+        RiseFontManager.drawString(module.getName(), panel.getX() + 10, nameY, textColor, false, GlassControls.SIZE_LABEL);
         // 状态指示：开关 OR accent 填充条 + 圆点（可切换）
         if (switchStyle) {
             GlassRenderer.drawCapsule(panel.getX() + w - 30, rowY + 2, 24, 12,

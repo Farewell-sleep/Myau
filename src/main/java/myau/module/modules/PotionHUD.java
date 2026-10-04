@@ -8,7 +8,7 @@ import myau.property.properties.BooleanProperty;
 import myau.property.properties.FloatProperty;
 import myau.property.properties.ModeProperty;
 import myau.property.properties.PercentProperty;
-import myau.util.FontManager;
+import myau.risefont.RiseFontManager;
 import myau.util.RenderUtil;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.ScaledResolution;
@@ -87,9 +87,9 @@ public class PotionHUD extends Module {
         int maxW = 0;
         for (PotionEffect e : effects) {
             String nameLine = this.getNameLine(e) + (this.amplifier.getValue() ? " " + getRoman(e) : "");
-            int w = FontManager.getStringWidth(nameLine, FS);
+            int w = RiseFontManager.getStringWidth(nameLine, FS);
             if (this.duration.getValue()) {
-                w = Math.max(w, FontManager.getStringWidth(Potion.getDurationString(e), FS));
+                w = Math.max(w, RiseFontManager.getStringWidth(Potion.getDurationString(e), FS));
             }
             maxW = Math.max(maxW, w);
         }
@@ -139,13 +139,13 @@ public class PotionHUD extends Module {
             if (this.amplifier.getValue()) {
                 nameLine += " " + getRoman(effect);
             }
-            FontManager.drawString(nameLine, textX, textY, color, false, FS);
+            RiseFontManager.drawString(nameLine, textX, textY, color, false, FS);
             if (this.duration.getValue()) {
                 boolean low = this.lowTimeWarn.getValue()
                         && !effect.getIsPotionDurationMax()
                         && effect.getDuration() < 200;
                 String time = effect.getIsPotionDurationMax() ? "**:**" : Potion.getDurationString(effect);
-                FontManager.drawString(time, sx + width - 6.0F - (float) FontManager.getStringWidth(time, FS), textY,
+                RiseFontManager.drawString(time, sx + width - 6.0F - (float) RiseFontManager.getStringWidth(time, FS), textY,
                         low ? 0xFFFF5555 : TEXT_DIM, false, FS);
             }
             rowY += rowH;

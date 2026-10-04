@@ -7,7 +7,7 @@ import myau.module.Module;
 import myau.property.properties.BooleanProperty;
 import myau.property.properties.FloatProperty;
 import myau.property.properties.PercentProperty;
-import myau.util.FontManager;
+import myau.risefont.RiseFontManager;
 import myau.util.RenderUtil;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.ScaledResolution;
@@ -81,8 +81,8 @@ public class Watermark extends Module {
         HUD hud = (HUD) OpenMyau.moduleManager.modules.get(HUD.class);
         int accent = hud.getColor(System.currentTimeMillis()).getRGB();
 
-        float w1 = (float) FontManager.getStringWidth(title, FS);
-        float w2 = stats.length() > 0 ? (float) FontManager.getStringWidth(stats.toString(), FS) : 0.0F;
+        float w1 = (float) RiseFontManager.getStringWidth(title, FS);
+        float w2 = stats.length() > 0 ? (float) RiseFontManager.getStringWidth(stats.toString(), FS) : 0.0F;
         float boxW = Math.max(w1, w2) + 12.0F;
         float boxH = 18.0F;
         float radius = boxH / 2.0F;
@@ -96,9 +96,9 @@ public class Watermark extends Module {
         }
         RenderUtil.disableRenderState();
 
-        FontManager.drawString(title, sx + 9.0F, sy + 2.0F, accent, false, FS);
+        RiseFontManager.drawString(title, sx + 9.0F, sy + 2.0F, accent, false, FS);
         if (stats.length() > 0) {
-            FontManager.drawString(stats.toString(), sx + 9.0F, sy + 10.0F, TEXT_DIM, false, FS);
+            RiseFontManager.drawString(stats.toString(), sx + 9.0F, sy + 10.0F, TEXT_DIM, false, FS);
         }
         GlStateManager.popMatrix();
     }

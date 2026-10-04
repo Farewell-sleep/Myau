@@ -9,7 +9,7 @@ import myau.property.properties.IntProperty;
 import myau.property.properties.ModeProperty;
 import myau.property.properties.PercentProperty;
 import myau.property.properties.TextProperty;
-import myau.util.FontManager;
+import myau.risefont.RiseFontManager;
 import myau.util.KeyBindUtil;
 import net.minecraft.client.Minecraft;
 import org.lwjgl.input.Keyboard;
@@ -57,19 +57,19 @@ public final class GlassControls {
     }
 
     private static void drawText(String text, float x, float y, int color) {
-        FontManager.drawString(text, x, y, fade(color), true, SIZE_LABEL);
+        RiseFontManager.drawString(text, x, y, fade(color), true, SIZE_LABEL);
     }
 
     private static void drawText(String text, float x, float y, int color, float size) {
-        FontManager.drawString(text, x, y, fade(color), true, size);
+        RiseFontManager.drawString(text, x, y, fade(color), true, size);
     }
 
     private static int textWidth(String text) {
-        return FontManager.getStringWidth(text, SIZE_LABEL);
+        return RiseFontManager.getStringWidth(text, SIZE_LABEL);
     }
 
     private static int textWidth(String text, float size) {
-        return FontManager.getStringWidth(text, size);
+        return RiseFontManager.getStringWidth(text, size);
     }
 
     public static List<GlassComponent> buildFor(Module module, int width) {

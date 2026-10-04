@@ -3,7 +3,7 @@ package myau.module.modules;
 import myau.event.EventTarget;
 import myau.events.Render2DEvent;
 import myau.module.Module;
-import myau.util.FontManager;
+import myau.risefont.RiseFontManager;
 import myau.util.RenderUtil;
 import myau.util.RotationUtil;
 import myau.util.TeamUtil;
@@ -122,7 +122,7 @@ public class Indicators extends Module {
             GlStateManager.popMatrix();
 
             String string = String.format("%dm", (int) Indicators.mc.thePlayer.getDistanceToEntity(entity));
-            float textW = (float) FontManager.getStringWidth(string, FS);
+            float textW = (float) RiseFontManager.getStringWidth(string, FS);
             float chipW = textW + 6.0F;
             float chipH = 10.0F;
             GlStateManager.pushMatrix();
@@ -131,7 +131,7 @@ public class Indicators extends Module {
             RenderUtil.drawRoundedRect(0.0F, 0.0F, chipW, chipH, 3.0F, GLASS_BODY);
             RenderUtil.drawRoundedOutline(0.0F, 0.0F, chipW, chipH, 3.0F, 1.0F, GLASS_OUTLINE);
             RenderUtil.disableRenderState();
-            FontManager.drawString(string, 3.0F, 1.0F, TEXT_MAIN, false, FS);
+            RiseFontManager.drawString(string, 3.0F, 1.0F, TEXT_MAIN, false, FS);
             GlStateManager.popMatrix();
 
             GlStateManager.pushMatrix();

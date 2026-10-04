@@ -1,6 +1,6 @@
 package myau.mixin;
 
-import myau.util.FontManager;
+import myau.risefont.RiseFontManager;
 import myau.util.RenderUtil;
 import net.minecraft.client.gui.GuiIngameMenu;
 import net.minecraft.client.gui.GuiScreen;
@@ -33,10 +33,10 @@ public abstract class MixinGuiIngameMenu extends GuiScreen {
 
         float size = 30.0F;
         String title = "Paused";
-        float tw = FontManager.getStringWidth(title, size);
+        float tw = RiseFontManager.getStringWidth(title, size);
         float x0 = this.width / 2.0F - tw / 2.0F;
         float y = this.height / 4.0F - 34.0F;
-        FontManager.drawString(title, x0, y - FontManager.getBaseline(size) + FontManager.getCapHeight(size) / 2.0F,
+        RiseFontManager.drawString(title, x0, y - RiseFontManager.getBaseline(size) + RiseFontManager.getCapHeight(size) / 2.0F,
                 rgba(242, 244, 248, 255), false, size); // TEXT_MAIN
 
         // rounded accent underline under the title
