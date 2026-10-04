@@ -108,14 +108,21 @@ public class KawaseBlur {
         kawaseUp.setUniformf("halfpixel", 1.0f / lastBuffer.framebufferWidth, 1.0f / lastBuffer.framebufferHeight);
         kawaseUp.setUniformf("iResolution", lastBuffer.framebufferWidth, lastBuffer.framebufferHeight);
         GL13.glActiveTexture(GL13.GL_TEXTURE16);
-        RenderUtil.bindTexture(stencilFrameBufferTexture);
+        GlStateManager.bindTexture(stencilFrameBufferTexture);
         GL13.glActiveTexture(GL13.GL_TEXTURE0);
-        RenderUtil.bindTexture(framebufferList.get(1).framebufferTexture);
+        GlStateManager.bindTexture(framebufferList.get(1).framebufferTexture);
         ShaderUtils.drawQuads();
         kawaseUp.unload();
 
+        // Restore every texture unit we touched so world / entity rendering
+        // (skins, capes, sky) never sees a stale FBO texture bound here.
+        GL13.glActiveTexture(GL13.GL_TEXTURE16);
+        GlStateManager.bindTexture(0);
+        GL13.glActiveTexture(GL13.GL_TEXTURE0);
+        GlStateManager.bindTexture(0);
+
         mc.getFramebuffer().bindFramebuffer(true);
-        RenderUtil.bindTexture(framebufferList.get(0).framebufferTexture);
+        GlStateManager.bindTexture(framebufferList.get(0).framebufferTexture);
         RenderUtil.setAlphaLimit(0);
         GlStateManager.enableBlend();
         GlStateManager.blendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -132,7 +139,7 @@ public class KawaseBlur {
         framebuffer.framebufferClear();
         framebuffer.bindFramebuffer(false);
         shader.init();
-        RenderUtil.bindTexture(framebufferTexture);
+        GlStateManager.bindTexture(framebufferTexture);
         shader.setUniformf("offset", offset, offset);
         shader.setUniformi("inTexture", 0);
         shader.setUniformi("check", 0);
@@ -140,5 +147,6 @@ public class KawaseBlur {
         shader.setUniformf("iResolution", framebuffer.framebufferWidth, framebuffer.framebufferHeight);
         ShaderUtils.drawQuads();
         shader.unload();
+        GlStateManager.bindTexture(0);
     }
 }

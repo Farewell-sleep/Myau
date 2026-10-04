@@ -2,7 +2,6 @@ package myau.module.modules;
 
 import myau.OpenMyau;
 import myau.enums.BlinkModules;
-import myau.enums.ChatColors;
 import myau.event.EventTarget;
 import myau.event.types.EventType;
 import myau.events.Render2DEvent;
@@ -12,7 +11,6 @@ import myau.module.Module;
 import myau.property.properties.*;
 import myau.risefont.RiseFont;
 import myau.risefont.RiseFontManager;
-import myau.util.ColorUtil;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiChat;
 import net.minecraft.client.gui.ScaledResolution;
@@ -131,6 +129,21 @@ public class HUD extends Module {
         return v < 0.0F ? 0.0F : (v > 1.0F ? 1.0F : v);
     }
 
+    // ---- color helpers (inline, no Myau ColorUtil) ----
+    private static Color fromHSB(float hue, float sat, float bright) {
+        return Color.getHSBColor(hue % 1.0F, clamp01(sat), clamp01(bright));
+    }
+
+    private static Color interpolate(float t, Color a, Color b) {
+        t = clamp01(t);
+        return new Color(
+                Math.round(a.getRed() + (b.getRed() - a.getRed()) * t),
+                Math.round(a.getGreen() + (b.getGreen() - a.getGreen()) * t),
+                Math.round(a.getBlue() + (b.getBlue() - a.getBlue()) * t),
+                Math.round(a.getAlpha() + (b.getAlpha() - a.getAlpha()) * t)
+        );
+    }
+
     private float getColorCycle(long long3, long long4) {
         long speed = (long) (3000.0 / Math.pow(Math.min(Math.max(0.5F, this.colorSpeed.getValue()), 1.5F), 3.0));
         return 1.0F - (float) (Math.abs(long3 - long4 * 300L) % speed) / (float) speed;
@@ -148,24 +161,24 @@ public class HUD extends Module {
         Color color = Color.white;
         switch (this.colorMode.getValue()) {
             case 0:
-                color = ColorUtil.fromHSB(this.getColorCycle(time, offset), 1.0F, 1.0F);
+                color = fromHSB(this.getColorCycle(time, offset), 1.0F, 1.0F);
                 break;
             case 1:
-                color = ColorUtil.fromHSB(this.getColorCycle(time / 3L, 0L), 1.0F, 1.0F);
+                color = fromHSB(this.getColorCycle(time / 3L, 0L), 1.0F, 1.0F);
                 break;
             case 2:
                 float cycle = this.getColorCycle(time, offset);
                 if (cycle % 1.0F < 0.5F) {
                     cycle = 1.0F - cycle % 1.0F;
                 }
-                color = ColorUtil.fromHSB(cycle, 1.0F, 1.0F);
+                color = fromHSB(cycle, 1.0F, 1.0F);
                 break;
             case 3:
                 color = new Color(this.custom1.getValue(), true);
                 break;
             case 4:
                 double cycle1 = this.getColorCycle(time, offset);
-                color = ColorUtil.interpolate(
+                color = interpolate(
                         (float) (2.0 * Math.abs(cycle1 - Math.floor(cycle1 + 0.5))),
                         new Color(this.custom1.getValue(), true),
                         new Color(this.custom2.getValue(), true)
@@ -175,9 +188,9 @@ public class HUD extends Module {
                 double cycle2 = this.getColorCycle(time, offset);
                 float floor = (float) (2.0 * Math.abs(cycle2 - Math.floor(cycle2 + 0.5)));
                 if (floor <= 0.5F) {
-                    color = ColorUtil.interpolate(floor * 2.0F, new Color(this.custom1.getValue(), true), new Color(this.custom2.getValue(), true));
+                    color = interpolate(floor * 2.0F, new Color(this.custom1.getValue(), true), new Color(this.custom2.getValue(), true));
                 } else {
-                    color = ColorUtil.interpolate((floor - 0.5F) * 2.0F, new Color(this.custom2.getValue(), true), new Color(this.custom3.getValue(), true));
+                    color = interpolate((floor - 0.5F) * 2.0F, new Color(this.custom2.getValue(), true), new Color(this.custom3.getValue(), true));
                 }
         }
         float[] hsb = Color.RGBtoHSB(color.getRed(), color.getGreen(), color.getBlue(), null);
@@ -312,7 +325,7 @@ public class HUD extends Module {
             float bgPct = this.background.getValue().floatValue() / 100.0F;
             boolean useThemeBg = this.bgColor.getValue();
             boolean hasBg = bgPct > 0.001F;
-            int gray = ChatColors.GRAY.toAwtColor();
+            int gray = new Color(0x99, 0x99, 0x99).getRGB();
 
             for (Module module : this.activeModules) {
                 String moduleName = this.getModuleName(module);
