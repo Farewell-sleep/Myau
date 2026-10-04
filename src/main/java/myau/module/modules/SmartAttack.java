@@ -38,7 +38,7 @@ public class SmartAttack extends Module {
     @EventTarget
     public void onUpdate(UpdateEvent event) {
         if (isEnabled()){
-            NewKillAura killAura = (NewKillAura) OpenMyau.moduleManager.getModule(NewKillAura.class);
+            KillAura killAura = (KillAura) OpenMyau.moduleManager.getModule(KillAura.class);
             EntityLivingBase current = killAura != null && killAura.isEnabled() ? killAura.getTarget() : null;
             if (current != null) {
                 target = current;

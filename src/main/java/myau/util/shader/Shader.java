@@ -59,4 +59,8 @@ public abstract class Shader {
     public void stop() {
         GL20.glUseProgram(0);
     }
+
+    public boolean isShaderInUse() {
+        return this.programId >= 0 && org.lwjgl.opengl.GL11.glGetInteger(GL20.GL_CURRENT_PROGRAM) == this.programId;
+    }
 }

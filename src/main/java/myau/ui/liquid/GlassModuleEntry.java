@@ -101,17 +101,17 @@ public class GlassModuleEntry {
         net.minecraft.client.renderer.GlStateManager.translate(midX, midY, 0);
         net.minecraft.client.renderer.GlStateManager.scale(scale, scale, 1);
         net.minecraft.client.renderer.GlStateManager.translate(-midX, -midY, 0);
-
+        try {
         // 行背景：悬停胶囊填充
         if (hoverEase > 0.02F) {
             GlassRenderer.drawCapsuleRect(panel.getX() + 4, rowY, w - 8, 16,
                     GlassRenderer.lerpColor(0x00000000, GlassRenderer.HOVER_FILL, hoverEase));
         }
-        // 模块名（FontManager，10px；按行带垂直居中）
+        // 模块名（Rise 字体 10px，顶部语义；行高 22、显示高约 12 → 顶部
+        // 落在 rowY+5 即垂直居中，与衡水体时期 rowY+5 一致）
         int baseColor = module.isEnabled() ? GlassRenderer.TEXT_MAIN : GlassRenderer.TEXT_DIM;
         int textColor = (baseColor & 0xFFFFFF) | (alpha << 24);
-        float nameY = rowY + 8.0F - RiseFontManager.getBaseline(GlassControls.SIZE_LABEL)
-                + RiseFontManager.getCapHeight(GlassControls.SIZE_LABEL) / 2.0F;
+        float nameY = rowY + 5.0F;
         RiseFontManager.drawString(module.getName(), panel.getX() + 10, nameY, textColor, false, GlassControls.SIZE_LABEL);
         // 状态指示：开关 OR accent 填充条 + 圆点（可切换）
         if (switchStyle) {
@@ -139,7 +139,9 @@ public class GlassModuleEntry {
                 GlassControls.RENDER_ALPHA = savedAlpha;
             }
         }
-        net.minecraft.client.renderer.GlStateManager.popMatrix();
+        } finally {
+            net.minecraft.client.renderer.GlStateManager.popMatrix();
+        }
     }
 
     public void mouseDown(int mouseX, int mouseY, int button) {

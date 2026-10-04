@@ -259,7 +259,7 @@ namespace MyauInjector
             found.Sort(delegate (Candidate a, Candidate b) { return b.Score.CompareTo(a.Score); });
             foreach (Candidate c in found)
             {
-                if (c.Score <= 0) continue;
+                if (c.Score < 0) continue;
                 string title = ShortLabel(c);
                 cmbProcess.Items.Add(title);
                 candidates.Add(c);
@@ -291,6 +291,50 @@ namespace MyauInjector
         private List<Candidate> FindCandidates()
         {
             List<Candidate> found = new List<Candidate>();
+            // Strategy 1: WMI (Win32_Process). Reads the command line without any
+            // PEB trickery, works across integrity levels and does not require
+            // PROCESS_VM_READ on the target. This is what makes the game show up
+            // even when it runs elevated or the anti-cheat blocks OpenProcess.
+            try
+            {
+                using (System.Management.ManagementObjectSearcher searcher =
+                    new System.Management.ManagementObjectSearcher(
+                        "SELECT ProcessId, Name, CommandLine FROM Win32_Process"))
+                using (System.Management.ManagementObjectCollection results = searcher.Get())
+                {
+                    foreach (System.Management.ManagementObject mo in results)
+                    {
+                        try
+                        {
+                            string name = Convert.ToString(mo["Name"]);
+                            if (name == null) continue;
+                            string image = name.ToLowerInvariant();
+                            if (image != "java.exe" && image != "javaw.exe"
+                                && image != "java" && image != "javaw") continue;
+                            string cmd = Convert.ToString(mo["CommandLine"]) ?? "";
+                            Candidate c = new Candidate
+                            {
+                                Pid = Convert.ToInt32(mo["ProcessId"]),
+                                Image = image.EndsWith(".exe") ? image.Substring(0, image.Length - 4) : image,
+                                CommandLine = cmd
+                            };
+                            c.Score = ScoreCommandLine(cmd);
+                            if (c.Score < 0 && c.Score != -100) c.Score = 0;
+                            found.Add(c);
+                        }
+                        catch { /* one bad row must not kill the scan */ }
+                    }
+                }
+                if (found.Count > 0) return found;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine("WMI scan failed: " + ex.Message);
+            }
+
+            // Strategy 2: classic Process enumeration + PEB command line.
+            // Only used when WMI is unavailable (rare) - keep the old path as a
+            // fallback so the injector still works everywhere.
             foreach (Process p in Process.GetProcesses())
             {
                 string image = p.ProcessName.ToLowerInvariant();
@@ -299,6 +343,7 @@ namespace MyauInjector
                 try { c.CommandLine = CommandLineOf(p.Id); }
                 catch { c.CommandLine = ""; }
                 c.Score = ScoreCommandLine(c.CommandLine);
+                if (c.Score < 0 && c.Score != -100) c.Score = 0;
                 found.Add(c);
             }
             return found;
@@ -307,15 +352,17 @@ namespace MyauInjector
         private static int ScoreCommandLine(string raw)
         {
             string cmd = raw.ToLowerInvariant();
-            if (cmd.Length == 0) return 0;
+            if (cmd.Length == 0) return 10; // java/javaw with an unreadable cmdline is still a candidate
             bool isGame = cmd.Contains("net.minecraft.client.main.main")
-                || cmd.Contains("net.minecraft.launchwrapper.launch");
+                || cmd.Contains("net.minecraft.launchwrapper.launch")
+                || cmd.Contains("net.minecraft.launchwrapper.launchwrapper")
+                || cmd.Contains("net.minecraft.launchwrapper.launchwrapper.launch");
             if (!isGame && (cmd.Contains("hmcl") || cmd.Contains("multimc")
                 || cmd.Contains("prismlauncher") || cmd.Contains("atlauncher")
                 || cmd.Contains("gdlauncher") || cmd.Contains("org.gradle")
                 || cmd.Contains("gradle-launcher") || cmd.Contains("myau")
                 || cmd.Contains("ovson"))) return -100;
-            int score = 0;
+            int score = 10; // it is a java process
             if (isGame) score += 50;
             if (cmd.Contains("--gamedir")) score += 10;
             if (cmd.Contains("--assetindex") || cmd.Contains("--assetsdir")) score += 10;
@@ -325,6 +372,7 @@ namespace MyauInjector
             if (cmd.Contains("java.library.path") && cmd.Contains("natives")) score += 10;
             if (cmd.Contains("lunarclient") || cmd.Contains(".lunarclient")) score += 30;
             if (cmd.Contains("badlion")) score += 30;
+            if (cmd.Contains("--tweakclass") || cmd.Contains("forge")) score += 10;
             return score;
         }
 
@@ -340,31 +388,38 @@ namespace MyauInjector
             {
                 IntPtr ntdll = GetModuleHandle("ntdll.dll");
                 IntPtr fn = GetProcAddress(ntdll, "NtQueryInformationProcess");
+                if (fn == IntPtr.Zero) return "";
                 NtQueryInformationProcessDelegate query = (NtQueryInformationProcessDelegate)
                     Marshal.GetDelegateForFunctionPointer(fn, typeof(NtQueryInformationProcessDelegate));
 
-                PROCESS_BASIC_INFORMATION basic = new PROCESS_BASIC_INFORMATION();
-                int returned;
-                if (query(process, 0, Marshal.AllocHGlobal(Marshal.SizeOf(basic)), Marshal.SizeOf(basic), out returned) != 0)
+                IntPtr infoBuf = IntPtr.Zero;
+                try
                 {
-                    return "";
-                }
-                IntPtr pebPtr = Marshal.AllocHGlobal(Marshal.SizeOf(basic));
-                query(process, 0, pebPtr, Marshal.SizeOf(basic), out returned);
-                basic = (PROCESS_BASIC_INFORMATION)Marshal.PtrToStructure(pebPtr, typeof(PROCESS_BASIC_INFORMATION));
-                Marshal.FreeHGlobal(pebPtr);
+                    infoBuf = Marshal.AllocHGlobal(Marshal.SizeOf(typeof(PROCESS_BASIC_INFORMATION)));
+                    int returned;
+                    if (query(process, 0, infoBuf, Marshal.SizeOf(typeof(PROCESS_BASIC_INFORMATION)), out returned) != 0)
+                    {
+                        return "";
+                    }
+                    PROCESS_BASIC_INFORMATION basic =
+                        (PROCESS_BASIC_INFORMATION)Marshal.PtrToStructure(infoBuf, typeof(PROCESS_BASIC_INFORMATION));
 
-                if (basic.PebBaseAddress == IntPtr.Zero) return "";
-                PEB peb = ReadStruct<PEB>(process, basic.PebBaseAddress);
-                if (peb.ProcessParameters == IntPtr.Zero) return "";
-                RTL_USER_PROCESS_PARAMETERS pars = ReadStruct<RTL_USER_PROCESS_PARAMETERS>(process, peb.ProcessParameters);
-                if (pars.CommandLine.Length == 0 || pars.CommandLine.Buffer == IntPtr.Zero) return "";
-                int bytes = pars.CommandLine.Length;
-                if (bytes > 64 * 1024) bytes = 64 * 1024;
-                byte[] buffer = new byte[bytes];
-                IntPtr read;
-                ReadProcessMemory(process, pars.CommandLine.Buffer, buffer, (uint)bytes, out read);
-                return Encoding.Unicode.GetString(buffer, 0, bytes);
+                    if (basic.PebBaseAddress == IntPtr.Zero) return "";
+                    PEB peb = ReadStruct<PEB>(process, basic.PebBaseAddress);
+                    if (peb.ProcessParameters == IntPtr.Zero) return "";
+                    RTL_USER_PROCESS_PARAMETERS pars = ReadStruct<RTL_USER_PROCESS_PARAMETERS>(process, peb.ProcessParameters);
+                    if (pars.CommandLine.Length == 0 || pars.CommandLine.Buffer == IntPtr.Zero) return "";
+                    int bytes = pars.CommandLine.Length;
+                    if (bytes > 64 * 1024) bytes = 64 * 1024;
+                    byte[] buffer = new byte[bytes];
+                    IntPtr read;
+                    ReadProcessMemory(process, pars.CommandLine.Buffer, buffer, (uint)bytes, out read);
+                    return Encoding.Unicode.GetString(buffer, 0, bytes);
+                }
+                finally
+                {
+                    if (infoBuf != IntPtr.Zero) Marshal.FreeHGlobal(infoBuf);
+                }
             }
             finally
             {

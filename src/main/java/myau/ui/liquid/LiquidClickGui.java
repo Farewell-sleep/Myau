@@ -56,7 +56,7 @@ public class LiquidClickGui extends GuiScreen {
         int i = 0;
         panels.add(new GlassPanel("Combat", category(AimAssist.class, AutoClicker.class, KillAura.class, Wtap.class,
                 Velocity.class, Freeze.class, Reach.class, TargetStrafe.class, NoHitDelay.class, AntiFireball.class,
-                LagRange.class, BackTrack.class, BlockHit.class, Autoblock.class, HitBox.class, MoreKB.class, Refill.class, HitSelect.class, AutoThrow.class, NewKillAura.class, SmartAttack.class), i++));
+                LagRange.class, BackTrack.class, Autoblock.class, HitBox.class, MoreKB.class, Refill.class, HitSelect.class, AutoThrow.class, SmartAttack.class), i++));
         panels.add(new GlassPanel("Movement", category(AntiAFK.class, Fly.class, Speed.class, LongJump.class, Sprint.class,
                 SafeWalk.class, Jesus.class, Blink.class, NoFall.class, NoSlow.class, KeepSprint.class, Eagle.class,
                 NoJumpDelay.class, AntiVoid.class), i++));
@@ -64,8 +64,8 @@ public class LiquidClickGui extends GuiScreen {
                 Xray.class, BedESP.class, ItemESP.class, ItemPhysics.class, BreakProgress.class,
                 Freelook.class, ViewClip.class, NoHurtCam.class,
                 GuiModule.class, ChestESP.class, Trajectories.class, Radar.class, CuteVisuals.class, SnowFog.class,
-                Crosshair.class, SeeInvisibles.class, Ambience.class, Hurtcam.class, FogRemove.class), i++));
-        panels.add(new GlassPanel("HUD", category(HUD.class, TargetHUD.class, Indicators.class, PotionHUD.class, Watermark.class, Keybinds.class, ModuleToggleNotify.class), i++));
+                Crosshair.class, Duck.class, SeeInvisibles.class, Ambience.class, Hurtcam.class, FogRemove.class), i++));
+        panels.add(new GlassPanel("HUD", category(HUD.class, TargetHUD.class, Indicators.class, PotionHUD.class, Watermark.class, Keybinds.class), i++));
         panels.add(new GlassPanel("Player", category(Clutch.class, AutoHeal.class, AutoTool.class, ChestStealer.class, InvManager.class,
                 InvWalk.class, Scaffold.class, Telly.class, NewScaffold.class, AutoBlockIn.class, SpeedMine.class, FastPlace.class,
                 GhostHand.class, MCF.class, AntiDebuff.class), i++));
@@ -134,8 +134,7 @@ public class LiquidClickGui extends GuiScreen {
 
         // header — liquid glass title pill (true capsule)
         drawGlassCapsuleBg(12, 6, 118, 34, 1.0F);
-        RiseFontManager.drawString("Myau", 20, 23 - RiseFontManager.getBaseline(15.0F)
-                + RiseFontManager.getCapHeight(15.0F) / 2.0F, GlassRenderer.ACCENT, true, 15.0F);
+        RiseFontManager.drawString("Myau", 20, 23 - RiseFontManager.getFontHeight(15.0F) / 2.0F, GlassRenderer.ACCENT, true, 15.0F);
         RiseFontManager.drawString("Dev TTHILLTT", 20, 26.5F, GlassRenderer.TEXT_FAINT, false, 9.0F);
 
         // module state style toggle button (top-right) — same liquid glass pill
@@ -143,7 +142,7 @@ public class LiquidClickGui extends GuiScreen {
         boolean styleHover = mouseX >= styleX && mouseX <= styleX + 82 && mouseY >= 8 && mouseY <= 26;
         drawGlassCapsuleBg(styleX, 8, 82, 18, styleHover ? 1.0F : 0.85F);
         RiseFontManager.drawString("State: " + (GlassModuleEntry.switchStyle ? "Switch" : "Accent"),
-                styleX + 10, 17 - RiseFontManager.getBaseline(11.0F) + RiseFontManager.getCapHeight(11.0F) / 2.0F,
+                styleX + 10, 17 - RiseFontManager.getFontHeight(11.0F) / 2.0F,
                 GlassRenderer.TEXT_MAIN, false, 11.0F);
 
         // search bar — same liquid glass refraction as the panels
@@ -188,8 +187,7 @@ public class LiquidClickGui extends GuiScreen {
         String hint = search.length() == 0 ? "Search modules..." : search.toString();
         int hintColor = search.length() == 0 ? GlassRenderer.TEXT_FAINT : GlassRenderer.TEXT_MAIN;
         float searchSize = 11.0F;
-        float hintY = sy + searchH / 2.0F - RiseFontManager.getBaseline(searchSize)
-                + RiseFontManager.getCapHeight(searchSize) / 2.0F;
+        float hintY = sy + searchH / 2.0F - RiseFontManager.getFontHeight(searchSize) / 2.0F;
         RiseFontManager.drawString(hint, searchX + 10, hintY, hintColor, false, searchSize);
         // 输入光标：主题蓝、500ms 闪烁
         if (searchFocused && (System.currentTimeMillis() / 500L) % 2L == 0L) {

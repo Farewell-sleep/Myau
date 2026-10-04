@@ -232,6 +232,7 @@ public class AutoBlockIn extends Module {
         String text = String.format("Blocking: %.0f%%", progress * 100.0F);
         
         GL11.glPushMatrix();
+        try {
         GL11.glScaled((double)scale, (double)scale, 0.0);
         GlStateManager.disableDepth();
         GlStateManager.enableBlend();
@@ -250,9 +251,11 @@ public class AutoBlockIn extends Module {
             true
         );
         
+        } finally {
         GlStateManager.disableBlend();
         GlStateManager.enableDepth();
         GL11.glPopMatrix();
+        }
     }
 
     private int findBestBlockSlot() {

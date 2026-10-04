@@ -32,9 +32,9 @@ public class Keybinds extends Module {
     private static final int TEXT_MAIN = 0xFFF2F4F8;
     private static final int TEXT_DIM = 0xFF8A92A6;
     private static final int ENABLED = 0xFF4ADE80;
-    private static final float FS = 8.0F;
+    private static final float FS = 12.0F;
 
-    public final BooleanProperty background = new BooleanProperty("background", true);
+    public final BooleanProperty background = new BooleanProperty("background", false);
     public final BooleanProperty colored = new BooleanProperty("enabled-color", true);
     public final FloatProperty scale = new FloatProperty("scale", 1.0F, 0.5F, 2.0F);
     public final PercentProperty posX = new PercentProperty("position-x", 2);
@@ -62,35 +62,36 @@ public class Keybinds extends Module {
 
         ScaledResolution sr = new ScaledResolution(mc);
         float scale = this.scale.getValue();
-        float rowH = 12.0F;
+        float rowH = (float) RiseFontManager.getFontHeight() + 4.0F;
         float gap = 2.0F;
 
         GlStateManager.pushMatrix();
-        GlStateManager.scale(scale, scale, 1.0F);
-        float x = (float) sr.getScaledWidth() * (this.posX.getValue().floatValue() / 100.0F) / scale;
-        float y = (float) sr.getScaledHeight() * (this.posY.getValue().floatValue() / 100.0F) / scale;
+        try {
+            GlStateManager.scale(scale, scale, 1.0F);
+            float x = (float) sr.getScaledWidth() * (this.posX.getValue().floatValue() / 100.0F) / scale;
+            float y = (float) sr.getScaledHeight() * (this.posY.getValue().floatValue() / 100.0F) / scale;
 
-        RenderUtil.enableRenderState();
-        float rowY = y;
-        for (Module m : bound) {
-            String keyName = KeyBindUtil.getKeyName(m.getKey());
-            String modName = m.getName();
-            float keyW = (float) RiseFontManager.getStringWidth(keyName, FS) + 6.0F;
-            float nameW = (float) RiseFontManager.getStringWidth(modName, FS);
-            float boxW = 4.0F + keyW + 4.0F + nameW + 4.0F;
-            if (this.background.getValue()) {
-                RenderUtil.drawRoundedRect(x, rowY, boxW, rowH, 4.0F, GLASS_BODY);
-                RenderUtil.drawRoundedOutline(x, rowY, x + boxW, rowY + rowH, 4.0F, 1.0F, GLASS_OUTLINE);
+            RenderUtil.enableRenderState();
+            float rowY = y;
+            for (Module m : bound) {
+                String keyName = KeyBindUtil.getKeyName(m.getKey());
+                String modName = m.getName();
+                float keyW = (float) RiseFontManager.getStringWidth(keyName, FS);
+                float nameW = (float) RiseFontManager.getStringWidth(modName, FS);
+                float boxW = keyW + 6.0F + nameW;
+                if (this.background.getValue()) {
+                    RenderUtil.drawRoundedRect(x, rowY, boxW, rowH, 4.0F, 0xB91A2028);
+                }
+                // 纯文字直接显示：按键 + 模块名，无框无芯片
+                RiseFontManager.drawString(keyName, x, rowY + 2.0F, TEXT_DIM, false, FS);
+                int nameColor = this.colored.getValue() && m.isEnabled() ? ENABLED : TEXT_MAIN;
+                RiseFontManager.drawString(modName, x + keyW + 6.0F, rowY + 2.0F, nameColor, false, FS);
+                rowY += rowH + gap;
             }
-            // 键位芯片
-            RenderUtil.drawRoundedRect(x + 3.0F, rowY + 2.0F, keyW, rowH - 4.0F, 2.0F, CHIP_BODY);
-            RiseFontManager.drawString(keyName, x + 3.0F + 3.0F, rowY + 2.0F, TEXT_DIM, false, FS);
-            int nameColor = this.colored.getValue() && m.isEnabled() ? ENABLED : TEXT_MAIN;
-            RiseFontManager.drawString(modName, x + 3.0F + keyW + 4.0F, rowY + 2.0F, nameColor, false, FS);
-            rowY += rowH + gap;
+            RenderUtil.disableRenderState();
+        } finally {
+            GlStateManager.popMatrix();
         }
-        RenderUtil.disableRenderState();
-        GlStateManager.popMatrix();
     }
 
     @Override

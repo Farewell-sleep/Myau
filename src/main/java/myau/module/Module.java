@@ -2,7 +2,6 @@ package myau.module;
 
 import myau.OpenMyau;
 import myau.module.modules.HUD;
-import myau.module.modules.ModuleToggleNotify;
 import myau.util.KeyBindUtil;
 
 public abstract class Module {
@@ -71,7 +70,6 @@ public abstract class Module {
         boolean enabled = !this.enabled;
         this.setEnabled(enabled);
         if (this.enabled == enabled) {
-            ModuleToggleNotify.notifyToggle(this);
             if (((HUD) OpenMyau.moduleManager.modules.get(HUD.class)).toggleSound.getValue()) {
                 OpenMyau.moduleManager.playSound();
             }

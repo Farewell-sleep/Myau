@@ -125,7 +125,7 @@ public final class RiseGlyphCache {
         buffer.flip();
         GlStateManager.bindTexture(texture);
         GL11.glTexParameteri(3553, 10241, 9728);
-        GL11.glTexParameteri(3553, 10240, 9728);
+        GL11.glTexParameteri(3553, 10240, 9729);
         GL11.glTexImage2D(3553, 0, 6408, width, height, 0, 6408, 5121, buffer);
     }
 }

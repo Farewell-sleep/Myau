@@ -25,34 +25,49 @@ public enum RiseFontManager {
         int key = Integer.parseInt("" + size + weight.getWeight());
         RiseFont renderer = this.fonts.get(key);
         if (renderer == null) {
+            // The Rise renderer draws glyphs at half the loaded pixel size (internal
+            // SCALE = 0.5), so load the font at 2x and the displayed size equals the
+            // requested size (width/height helpers already divide by two).
+            int loadSize = Math.max(1, size * 2);
             java.awt.Font font = null;
             for (String alias : weight.getAliases()) {
-                font = RiseFontUtil.loadFromResource(String.format(this.nameTemplate, alias), size);
+                font = RiseFontUtil.loadFromResource(String.format(this.nameTemplate, alias), loadSize);
                 if (font != null) {
                     break;
                 }
             }
             if (font == null) {
-                font = RiseFontUtil.loadFromResource(String.format(this.nameTemplate, "regular"), size);
+                font = RiseFontUtil.loadFromResource(String.format(this.nameTemplate, "regular"), loadSize);
             }
             if (font == null) {
                 // Never crash the game on a missing font: fall back to AWT system font,
                 // and as a last resort to the vanilla font renderer.
                 try {
-                    font = new java.awt.Font("SansSerif", java.awt.Font.PLAIN, size);
+                    font = new java.awt.Font("SansSerif", java.awt.Font.PLAIN, loadSize);
                 } catch (Throwable ignored) {
                 }
             }
             if (font != null) {
                 try {
                     RiseFontRenderer riseRenderer = new RiseFontRenderer(font, true, true, false);
-                    java.awt.Font cjk = RiseFontUtil.loadFromResource("myau:fonts/" + this.cjkPrefix + "Regular.ttf", size);
+                    // Rise 6.9.5 fallback chain: HarmonyOS Sans SC (CJK) -> LINESeedJP (Japanese)
+                    // -> LINESeedKR (Korean) -> product_sans_medium. Skidded from
+                    // com.alan.clients.util.font.FontManager (Rise).
+                    java.awt.Font cjk = RiseFontUtil.loadFromResource("myau:fonts/" + this.cjkPrefix + "Regular.ttf", loadSize);
                     if (cjk != null) {
                         riseRenderer.setCjkCache(new RiseGlyphCache(cjk, true, true));
                     }
-                    java.awt.Font deng = RiseFontUtil.loadFromResource("myau:fonts/DengXian.ttf", size);
-                    if (deng != null) {
-                        riseRenderer.setFallbackCache(new RiseGlyphCache(deng, true, true));
+                    java.awt.Font jp = RiseFontUtil.loadFromResource("myau:fonts/LINESeedJP_TTF_Rg.ttf", loadSize);
+                    if (jp != null) {
+                        riseRenderer.setJapaneseCache(new RiseGlyphCache(jp, true, true));
+                    }
+                    java.awt.Font kr = RiseFontUtil.loadFromResource("myau:fonts/LINESeedKR-Rg.ttf", loadSize);
+                    if (kr != null) {
+                        riseRenderer.setKoreanCache(new RiseGlyphCache(kr, true, true));
+                    }
+                    java.awt.Font med = RiseFontUtil.loadFromResource("myau:fonts/product_sans_medium.ttf", loadSize);
+                    if (med != null) {
+                        riseRenderer.setFallbackCache(new RiseGlyphCache(med, true, true));
                     }
                     renderer = riseRenderer;
                 } catch (Throwable ignored) {
@@ -92,6 +107,13 @@ public enum RiseFontManager {
 
     public static int getFontHeight() {
         return bySize(14.0F).height() > 0 ? Math.max(9, (int) bySize(14.0F).height()) : 9;
+    }
+
+    /** True rendered line height for a given requested size (top-left semantics:
+     *  pass centerY - getFontHeight(size)/2 to vertically centre a line). */
+    public static float getFontHeight(float size) {
+        float h = bySize(size).height();
+        return h > 0 ? h : Math.max(8.0F, size * 1.2F);
     }
 
     public static float getCapHeight(float size) {

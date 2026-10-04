@@ -63,10 +63,18 @@ public class KillAura extends Module {
     private boolean blinkReset = false;
     private long attackDelayMS = 0L;
     private int blockTick = 0;
+    private int blockHitTick = 0;
+    private boolean onyxBlocking = false;
+    private boolean onyxToggle = false;
+    private final TimerUtil onyxTimer = new TimerUtil();
     private int lastTickProcessed;
     public final ModeProperty mode;
     public final ModeProperty sort;
     public final ModeProperty autoBlock;
+    public final ModeProperty fullTick;
+    public final ModeProperty onyxTrigger;
+    public final IntProperty blockHitTime;
+    public final IntProperty blockHitDelay;
     public final BooleanProperty autoBlockRequirePress;
     public final FloatProperty autoBlockMinCPS;
     public final FloatProperty autoBlockMaxCPS;
@@ -78,6 +86,7 @@ public class KillAura extends Module {
     public final IntProperty maxCPS;
     public final IntProperty switchDelay;
     public final ModeProperty rotations;
+    public final ModeProperty rotationMode;
     public final ModeProperty moveFix;
     public final PercentProperty smoothing;
     public final IntProperty angleStep;
@@ -305,6 +314,19 @@ public class KillAura extends Module {
         return entityLivingBase instanceof EntityPlayer && TeamUtil.isTarget((EntityPlayer) entityLivingBase);
     }
 
+    private boolean isNormalTargetVisible(AxisAlignedBB box) {
+        if (mc.thePlayer == null || mc.theWorld == null) return false;
+        Vec3 eyePos = mc.thePlayer.getPositionEyes(1.0F);
+        double minTargetY = box.minY + 0.05 * (box.maxY - box.minY);
+        double maxTargetY = box.minY + 0.75 * (box.maxY - box.minY);
+        double targetY = MathHelper.clamp_double(eyePos.yCoord, minTargetY, maxTargetY);
+        double targetX = (box.minX + box.maxX) / 2.0;
+        double targetZ = (box.minZ + box.maxZ) / 2.0;
+        Vec3 targetPoint = new Vec3(targetX, targetY, targetZ);
+        MovingObjectPosition mop = mc.theWorld.rayTraceBlocks(eyePos, targetPoint, false, true, false);
+        return mop == null;
+    }
+
     private int findEmptySlot(int currentSlot) {
         for (int i = 0; i < 9; i++) {
             if (i != currentSlot && mc.thePlayer.inventory.getStackInSlot(i) == null) {
@@ -340,7 +362,19 @@ public class KillAura extends Module {
         this.mode = new ModeProperty("mode", 0, new String[]{"SINGLE", "SWITCH"});
         this.sort = new ModeProperty("sort", 0, new String[]{"DISTANCE", "HEALTH", "HURT_TIME", "FOV"});
         this.autoBlock = new ModeProperty(
-                "auto-block", 2, new String[]{"NONE", "VANILLA", "SPOOF", "HYPIXEL", "BLINK", "INTERACT", "SWAP", "LEGIT", "FAKE"}
+                "auto-block", 2, new String[]{"NONE", "VANILLA", "SPOOF", "HYPIXEL", "BLINK", "INTERACT", "SWAP", "LEGIT", "FAKE", "FULL", "ONYX", "BLOCKHIT"}
+        );
+        this.fullTick = new ModeProperty(
+                "full-tick", 0, new String[]{"3TICK", "4TICK"}, () -> this.autoBlock.getValue() == 9
+        );
+        this.onyxTrigger = new ModeProperty(
+                "onyx-trigger", 0, new String[]{"ALWAYS", "HOLD", "TOGGLE"}, () -> this.autoBlock.getValue() == 10
+        );
+        this.blockHitTime = new IntProperty(
+                "block-hit-time", 3, 1, 10, () -> this.autoBlock.getValue() == 11
+        );
+        this.blockHitDelay = new IntProperty(
+                "block-hit-delay", 1, 0, 5, () -> this.autoBlock.getValue() == 11
         );
         this.autoBlockRequirePress = new BooleanProperty("auto-block-require-press", false);
         this.autoBlockMinCPS = new FloatProperty("auto-block-min-aps", 8.0F, 1.0F, 20.0F);
@@ -353,6 +387,7 @@ public class KillAura extends Module {
         this.maxCPS = new IntProperty("max-aps", 14, 1, 20);
         this.switchDelay = new IntProperty("switch-delay", 150, 0, 1000);
         this.rotations = new ModeProperty("rotations", 2, new String[]{"NONE", "LEGIT", "SILENT", "LOCK_VIEW"});
+        this.rotationMode = new ModeProperty("rotation-mode", 0, new String[]{"NORMAL", "NEAREST", "SMART"});
         this.moveFix = new ModeProperty("move-fix", 1, new String[]{"NONE", "SILENT", "STRICT"});
         this.smoothing = new PercentProperty("smoothing", 0);
         this.angleStep = new IntProperty("angle-step", 90, 30, 180);
@@ -397,7 +432,10 @@ public class KillAura extends Module {
                     || this.autoBlock.getValue() == 4 // BLINK
                     || this.autoBlock.getValue() == 5 // INTERACT
                     || this.autoBlock.getValue() == 6 // SWAP
-                    || this.autoBlock.getValue() == 7); // LEGIT
+                    || this.autoBlock.getValue() == 7  // LEGIT
+                    || this.autoBlock.getValue() == 9  // FULL
+                    || this.autoBlock.getValue() == 10 // ONYX
+                    || this.autoBlock.getValue() == 11); // BLOCKHIT
         } else {
             return false;
         }
@@ -679,24 +717,153 @@ public class KillAura extends Module {
                                     && !OpenMyau.playerStateManager.placing) {
                                 swap = true;
                             }
+                        case 9: // FULL — full block (every hit is blocked)
+                            if (this.hasValidTarget()) {
+                                if (!OpenMyau.playerStateManager.digging && !OpenMyau.playerStateManager.placing) {
+                                    switch (this.blockTick) {
+                                        case 0:
+                                            if (!this.isPlayerBlocking()) {
+                                                swap = true;
+                                            }
+                                            this.blockTick = 1;
+                                            break;
+                                        case 1:
+                                            // Attack frame: release the block for one swing.
+                                            if (this.isPlayerBlocking()) {
+                                                this.stopBlock();
+                                            }
+                                            this.blockTick = 2;
+                                            break;
+                                        case 2:
+                                            // Re-block immediately after the swing.
+                                            if (!this.isPlayerBlocking()) {
+                                                swap = true;
+                                            }
+                                            if (this.fullTick.getValue() == 0) {
+                                                this.blockTick = 0;
+                                            } else {
+                                                this.blockTick = 3;
+                                            }
+                                            break;
+                                        case 3:
+                                            if (!this.isPlayerBlocking()) {
+                                                swap = true;
+                                            }
+                                            this.blockTick = 0;
+                                            break;
+                                        default:
+                                            this.blockTick = 0;
+                                    }
+                                }
+                                this.isBlocking = true;
+                                this.fakeBlockState = true;
+                            } else {
+                                OpenMyau.blinkManager.setBlinkState(false, BlinkModules.AUTO_BLOCK);
+                                this.isBlocking = false;
+                                this.fakeBlockState = false;
+                            }
+                            break;
+                        case 10: // ONYX — Onyx autoblock state machine
+                            if (this.hasValidTarget()) {
+                                boolean onyxActive;
+                                switch (this.onyxTrigger.getValue()) {
+                                    case 1: // HOLD
+                                        onyxActive = PlayerUtil.isUsingItem();
+                                        break;
+                                    case 2: // TOGGLE
+                                        onyxActive = this.onyxToggle;
+                                        break;
+                                    default: // ALWAYS
+                                        onyxActive = true;
+                                }
+                                if (onyxActive && !OpenMyau.playerStateManager.digging && !OpenMyau.playerStateManager.placing) {
+                                    if (!this.onyxBlocking) {
+                                        // Enter blocking phase: press the use item.
+                                        if (!this.isPlayerBlocking()) {
+                                            swap = true;
+                                        }
+                                        this.onyxBlocking = true;
+                                        this.onyxTimer.reset();
+                                    } else if (this.onyxTimer.hasTimeElapsed(250L)) {
+                                        // Attack window after ~5 ticks of blocking:
+                                        // release the block so the C02 swing goes through.
+                                        if (this.isPlayerBlocking()) {
+                                            this.stopBlock();
+                                        }
+                                        this.onyxBlocking = false;
+                                    }
+                                } else {
+                                    OpenMyau.blinkManager.setBlinkState(false, BlinkModules.AUTO_BLOCK);
+                                    this.isBlocking = false;
+                                    this.onyxBlocking = false;
+                                    this.fakeBlockState = false;
+                                }
+                                if (this.onyxBlocking) {
+                                    this.isBlocking = true;
+                                    this.fakeBlockState = true;
+                                }
+                            } else {
+                                OpenMyau.blinkManager.setBlinkState(false, BlinkModules.AUTO_BLOCK);
+                                this.isBlocking = false;
+                                this.onyxBlocking = false;
+                                this.fakeBlockState = false;
+                            }
+                            break;
+                        case 11: // BLOCKHIT — block window right after every hit
+                            if (this.hasValidTarget()) {
+                                if (!OpenMyau.playerStateManager.digging && !OpenMyau.playerStateManager.placing) {
+                                    if (this.blockHitTick > 0) {
+                                        if (!this.isPlayerBlocking()) {
+                                            swap = true;
+                                        }
+                                        this.blockHitTick--;
+                                    } else if (this.attackDelayMS <= 50L) {
+                                        this.blockHitTick = this.blockHitDelay.getValue() + this.blockHitTime.getValue();
+                                    }
+                                }
+                                this.isBlocking = true;
+                                this.fakeBlockState = true;
+                            } else {
+                                OpenMyau.blinkManager.setBlinkState(false, BlinkModules.AUTO_BLOCK);
+                                this.isBlocking = false;
+                                this.fakeBlockState = false;
+                            }
+                            break;
                     }
                 }
                 boolean attacked = false;
                 if (this.isBoxInSwingRange(this.target.getBox())) {
                     if (this.rotations.getValue() == 2 || this.rotations.getValue() == 3) {
-                        float[] rotations = RotationUtil.getRotationsToBox(
-                                this.target.getBox(),
-                                event.getYaw(),
-                                event.getPitch(),
-                                (float) this.angleStep.getValue() + RandomUtil.nextFloat(-5.0F, 5.0F),
-                                (float) this.smoothing.getValue() / 100.0F
-                        );
-                        event.setRotation(rotations[0], rotations[1], 1);
-                        if (this.rotations.getValue() == 3) {
+                        float[] rotations;
+                        AxisAlignedBB box = this.target.getBox();
+                        float currentYaw = event.getYaw();
+                        float currentPitch = event.getPitch();
+                        float angleStep = (float) this.angleStep.getValue() + RandomUtil.nextFloat(-5.0F, 5.0F);
+                        float smooth = (float) this.smoothing.getValue() / 100.0F;
+                        switch (this.rotationMode.getValue()) {
+                            case 1: // NEAREST
+                                rotations = RotationUtil.nearestRotation(box, currentYaw, currentPitch, angleStep, smooth);
+                                break;
+                            case 2: // SMART
+                                if (this.isNormalTargetVisible(box)) {
+                                    rotations = RotationUtil.getRotationsToBox(box, currentYaw, currentPitch, angleStep, smooth);
+                                } else {
+                                    rotations = RotationUtil.nearestRotation(box, currentYaw, currentPitch, angleStep, smooth);
+                                }
+                                break;
+                            default: // NORMAL
+                                rotations = RotationUtil.getRotationsToBox(box, currentYaw, currentPitch, angleStep, smooth);
+                        }
+                        if (rotations != null) {
+                            event.setRotation(rotations[0], rotations[1], 1);
+                        }
+                        if (this.rotations.getValue() == 3 && rotations != null) {
                             OpenMyau.rotationManager.setRotation(rotations[0], rotations[1], 1, true);
                         }
                         if (this.moveFix.getValue() != 0 || this.rotations.getValue() == 3) {
-                            event.setPervRotation(rotations[0], 1);
+                            if (rotations != null) {
+                                event.setPervRotation(rotations[0], 1);
+                            }
                         }
                     }
                     if (attack) {
@@ -910,6 +1077,9 @@ public class KillAura extends Module {
                 event.setCancelled(true);
             }
         }
+        if (this.isEnabled() && this.autoBlock.getValue() == 10 && this.onyxTrigger.getValue() == 2) {
+            this.onyxToggle = !this.onyxToggle;
+        }
     }
 
     @EventTarget
@@ -937,6 +1107,10 @@ public class KillAura extends Module {
         this.hitRegistered = false;
         this.attackDelayMS = 0L;
         this.blockTick = 0;
+        this.blockHitTick = 0;
+        this.onyxBlocking = false;
+        this.onyxToggle = false;
+        this.onyxTimer.reset();
     }
 
     @Override
@@ -945,6 +1119,9 @@ public class KillAura extends Module {
         this.blockingState = false;
         this.isBlocking = false;
         this.fakeBlockState = false;
+        this.onyxBlocking = false;
+        this.onyxToggle = false;
+        this.blockHitTick = 0;
     }
 
     @Override

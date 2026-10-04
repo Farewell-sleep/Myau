@@ -194,6 +194,7 @@ val buildMyauInjector by tasks.creating(DefaultTask::class) {
             csc.absolutePath, "/nologo", "/target:winexe", "/platform:x64", "/optimize",
             "/out:${exe.absolutePath}",
             "/r:System.dll", "/r:System.Drawing.dll", "/r:System.Windows.Forms.dll",
+            "/r:System.Management.dll",
             src.absolutePath
         )
         pb.inheritIO()

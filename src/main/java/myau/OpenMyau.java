@@ -22,7 +22,7 @@ import java.util.ArrayList;
 import java.util.Objects;
 
 public class OpenMyau {
-    public static String clientName = "&7[&cD&6a&er&ak&9h&de&ca&ur&bt&7]&r ";
+    public static String clientName = "&7[&cM&6y&ea&bu&7]&r ";
     public static String version;
     public static RotationManager rotationManager;
     public static FloatManager floatManager;
@@ -121,6 +121,7 @@ public class OpenMyau {
         moduleManager.modules.put(Clutch.class, new Clutch());
         moduleManager.modules.put(Crosshair.class, new Crosshair());
         moduleManager.modules.put(CuteVisuals.class, new CuteVisuals());
+        moduleManager.modules.put(Duck.class, new Duck());
         moduleManager.modules.put(Eagle.class, new Eagle());
         moduleManager.modules.put(ESP.class, new ESP());
         moduleManager.modules.put(FastPlace.class, new FastPlace());
@@ -133,9 +134,6 @@ public class OpenMyau {
         moduleManager.modules.put(GuiModule.class, new GuiModule());
         moduleManager.modules.put(HitSelect.class, new HitSelect());
         moduleManager.modules.put(HUD.class, new HUD());
-        // 模块开关通知：单例由 init() 创建并同时入表，随后在下方循环里统一
-        // 注册到事件总线（onRender2D 才能渲染该单例的通知队列）。
-        moduleManager.modules.put(ModuleToggleNotify.class, ModuleToggleNotify.init());
         moduleManager.modules.put(Hurtcam.class, new Hurtcam());
         moduleManager.modules.put(MoreKB.class, new MoreKB());
         moduleManager.modules.put(Indicators.class, new Indicators());
@@ -148,12 +146,10 @@ public class OpenMyau {
         moduleManager.modules.put(KeepSprint.class, new KeepSprint());
         moduleManager.modules.put(HitBox.class, new HitBox());
         moduleManager.modules.put(KillAura.class, new KillAura());
-        moduleManager.modules.put(NewKillAura.class, new NewKillAura());
         moduleManager.modules.put(SmartAttack.class, new SmartAttack());
         moduleManager.modules.put(Disabler.class, new Disabler());
         moduleManager.modules.put(LagRange.class, new LagRange());
         moduleManager.modules.put(BackTrack.class, new BackTrack());
-        moduleManager.modules.put(BlockHit.class, new BlockHit());
         moduleManager.modules.put(Autoblock.class, new Autoblock());
         moduleManager.modules.put(Keybinds.class, new Keybinds());
         moduleManager.modules.put(NewScaffold.class, new NewScaffold());
@@ -224,8 +220,6 @@ public class OpenMyau {
             propertyManager.properties.put(module.getClass(), properties);
             EventManager.register(module);
         }
-        // 模块开关通知单例已在上方随模块表注册（见 ModuleToggleNotify.init()），
-        // 此处不再重复调用，避免产生第二个实例导致通知队列与渲染脱节。
         Config config = new Config("default", true);
         if (config.file.exists()) {
             config.load();

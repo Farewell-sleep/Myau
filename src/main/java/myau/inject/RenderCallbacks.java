@@ -125,7 +125,14 @@ public final class RenderCallbacks {
     public static void renderLivingPre(EntityLivingBase entity) {
         rendering = entity;
         try {
-            EventManager.call(new RenderLivingEvent(EventType.PRE, entity));
+            net.minecraft.client.renderer.GlStateManager.pushAttrib();
+            net.minecraft.client.renderer.GlStateManager.pushMatrix();
+            try {
+                EventManager.call(new RenderLivingEvent(EventType.PRE, entity));
+            } finally {
+                net.minecraft.client.renderer.GlStateManager.popAttrib();
+                net.minecraft.client.renderer.GlStateManager.popMatrix();
+            }
         } catch (Throwable swallowed) {
             Log.swallowed(swallowed);
         }
@@ -134,7 +141,14 @@ public final class RenderCallbacks {
         EntityLivingBase entity = rendering;
         try {
             if (entity != null) {
-                EventManager.call(new RenderLivingEvent(EventType.POST, entity));
+                net.minecraft.client.renderer.GlStateManager.pushAttrib();
+                net.minecraft.client.renderer.GlStateManager.pushMatrix();
+                try {
+                    EventManager.call(new RenderLivingEvent(EventType.POST, entity));
+                } finally {
+                    net.minecraft.client.renderer.GlStateManager.popAttrib();
+                    net.minecraft.client.renderer.GlStateManager.popMatrix();
+                }
             }
         } catch (Throwable swallowed) {
             Log.swallowed(swallowed);

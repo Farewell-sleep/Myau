@@ -184,6 +184,7 @@ public class ItemESP extends Module {
         posX -= mc.getRenderManager().viewerPosY;
         posZ -= mc.getRenderManager().viewerPosZ;
         GL11.glPushMatrix();
+        try {
         GL11.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
         GL11.glEnable(GL11.GL_BLEND);
         GL11.glLineWidth(2.0f);
@@ -199,11 +200,13 @@ public class ItemESP extends Module {
         // 现代化：半透明玻璃填充 + 1px 发丝描边
         RenderUtil.drawFilledBoundingBox(box, r, g, b, 0.15f);
         RenderUtil.drawBoundingBox(box, (int)(r*255f), (int)(g*255f), (int)(b*255f), (int) (0.45f * 255.0f), 1.0f);
+        } finally {
         GL11.glEnable(GL11.GL_TEXTURE_2D);
         GL11.glEnable(GL11.GL_DEPTH_TEST);
         GL11.glDepthMask(true);
         GL11.glDisable(GL11.GL_BLEND);
         GL11.glPopMatrix();
+        }
         GlStateManager.pushMatrix();
         GlStateManager.translate((float) posY, (float) posX + 0.3, (float) posZ);
         GlStateManager.rotate(-mc.getRenderManager().playerViewY, 0.0f, 1.0f, 0.0f);

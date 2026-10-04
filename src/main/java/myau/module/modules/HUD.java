@@ -11,12 +11,16 @@ import myau.module.Module;
 import myau.property.properties.*;
 import myau.risefont.RiseFont;
 import myau.risefont.RiseFontManager;
+import myau.risefont.RiseFontWeight;
+import myau.ui.liquid.GlassRenderer;
+import myau.util.RenderUtil;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiChat;
 import net.minecraft.client.gui.ScaledResolution;
 import net.minecraft.client.renderer.GlStateManager;
-import org.lwjgl.input.Mouse;
+import net.minecraft.client.shader.Framebuffer;
 import org.lwjgl.opengl.GL11;
+import org.lwjgl.opengl.GL30;
 
 import java.awt.*;
 import java.util.ArrayList;
@@ -41,8 +45,13 @@ public class HUD extends Module {
     private static final Minecraft mc = Minecraft.getMinecraft();
 
     private static final float PAD_X = 5.0F;
-    private static final float PAD_Y = 3.0F;
-    private static final float CARD_R = 6.0F;
+    /** Hengshui-era card radius (3px): rows sit flush together and read as
+     *  one continuous frame column instead of separate pills. */
+    private static final float CARD_R = 3.0F;
+    /** Onyx Array List fixed row height (14px text line). */
+    private static final float ONYX_ROW_H = 14.0F;
+    /** Onyx ACCENT_BAR accent width. */
+    private static final float ACCENT_W = 2.0F;
 
     private List<Module> activeModules = new ArrayList<>();
     public final ModeProperty colorMode = new ModeProperty(
@@ -60,7 +69,7 @@ public class HUD extends Module {
     public final IntProperty offsetY = new IntProperty("offset-y", 2, 0, 255);
     public final FloatProperty scale = new FloatProperty("scale", 1.0F, 0.5F, 1.5F);
     public final PercentProperty background = new PercentProperty("background", 25);
-    public final IntProperty rowSpacing = new IntProperty("row-spacing", 6, 0, 10);
+    public final IntProperty rowSpacing = new IntProperty("row-spacing", 0, 0, 10);
     public final BooleanProperty showBar = new BooleanProperty("bar", true);
     public final BooleanProperty shadow = new BooleanProperty("shadow", true);
     public final BooleanProperty suffixes = new BooleanProperty("suffixes", true);
@@ -74,15 +83,20 @@ public class HUD extends Module {
     public final IntProperty barless = new IntProperty("barless", 0, 0, 8, () -> this.showBar.getValue());
     public final ModeProperty barMode = new ModeProperty("bar-mode", 0, new String[]{"RIGHT", "LEFT", "TOP", "BOTTOM"}, () -> this.showBar.getValue());
 
+    // ---- Liquid-glass backdrop (same pipeline as the ClickGUI) ----
+    private Framebuffer hudBlurA;
+    private boolean hudBlurFailed;
+
     // ---- Rise-style entry animation state ----
     private long lastFrame = System.currentTimeMillis();
     private final Map<Module, Long> rowBorn = new HashMap<>();
     private final Map<Module, float[]> lastRect = new HashMap<>();
     private final Map<Module, float[]> dying = new HashMap<>();
 
-    /** Rise-style font instance (Product Sans + HarmonyOS SC fallback). */
+    /** Onyx-style font instance (13px optical weight — the Array List text
+     *  size), rendered through the skidded Rise font chain. */
     private RiseFont font() {
-        return RiseFontManager.MAIN.hudFont();
+        return RiseFontManager.MAIN.get(13, RiseFontWeight.MEDIUM);
     }
 
     private String getModuleName(Module module) {
@@ -232,7 +246,7 @@ public class HUD extends Module {
         GlStateManager.disableTexture2D();
         GlStateManager.disableCull();
         GlStateManager.blendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
-        GL11.glColor4f(red, green, blue, a);
+        GlStateManager.color(red, green, blue, a);
         roundedArc(x + r, y + r, r, 180, 270);
         roundedArc(x + w - r, y + r, r, 270, 360);
         roundedArc(x + w - r, y + h - r, r, 0, 90);
@@ -281,6 +295,114 @@ public class HUD extends Module {
         drawRoundedRect(x + 0.75F, y + 0.75F, Math.max(0.0F, w - 1.5F), Math.max(0.0F, h - 1.5F), Math.max(0.5F, r - 0.75F), 0x00000000);
     }
 
+    // ---- Liquid-glass backdrop (same FBO pipeline as the ClickGUI) ----
+
+    private void ensureBlurFbo() {
+        if (hudBlurFailed) return;
+        if (hudBlurA == null || hudBlurA.framebufferWidth != mc.displayWidth
+                || hudBlurA.framebufferHeight != mc.displayHeight) {
+            try {
+                if (hudBlurA != null) hudBlurA.deleteFramebuffer();
+                hudBlurA = new Framebuffer(mc.displayWidth, mc.displayHeight, true);
+                hudBlurA.setFramebufferColor(0, 0, 0, 0);
+            } catch (Throwable t) {
+                hudBlurFailed = true;
+                hudBlurA = null;
+                System.out.println("[Myau] HUD glass FBO init failed: " + t);
+            }
+        }
+    }
+
+    /** Copy the current main frame into hudBlurA once per frame so the cards
+     *  can sample it as their frosted-glass backdrop. Restores every GL state
+     *  it touches (scissor / depth / blend / alpha / texture / color). */
+    private void renderBlurBackdrop(int scaledW, int scaledH) {
+        if (hudBlurFailed || hudBlurA == null || mc.getFramebuffer() == null
+                || mc.getFramebuffer().framebufferTexture == 0) {
+            return;
+        }
+        int srcTex = mc.getFramebuffer().framebufferTexture;
+        boolean scissorWasEnabled = GL11.glIsEnabled(GL11.GL_SCISSOR_TEST);
+        boolean depthWasEnabled = GL11.glIsEnabled(GL11.GL_DEPTH_TEST);
+        try {
+            GL11.glDisable(GL11.GL_SCISSOR_TEST);
+            GL11.glDisable(GL11.GL_DEPTH_TEST);
+            GlStateManager.disableBlend();
+            GlStateManager.disableAlpha();
+            GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, hudBlurA.framebufferObject);
+            GL11.glViewport(0, 0, hudBlurA.framebufferWidth, hudBlurA.framebufferHeight);
+            GlassRenderer.drawTextureQuad(srcTex, scaledW, scaledH);
+            GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, mc.getFramebuffer().framebufferObject);
+            GL11.glViewport(0, 0, mc.displayWidth, mc.displayHeight);
+        } catch (Throwable t) {
+            hudBlurFailed = true;
+            GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, mc.getFramebuffer().framebufferObject);
+            GL11.glViewport(0, 0, mc.displayWidth, mc.displayHeight);
+        } finally {
+            GlStateManager.enableBlend();
+            GlStateManager.enableAlpha();
+            GlStateManager.enableTexture2D();
+            GlStateManager.color(1, 1, 1, 1);
+            if (scissorWasEnabled) GL11.glEnable(GL11.GL_SCISSOR_TEST);
+            else GL11.glDisable(GL11.GL_SCISSOR_TEST);
+            if (depthWasEnabled) GL11.glEnable(GL11.GL_DEPTH_TEST);
+            else GL11.glDisable(GL11.GL_DEPTH_TEST);
+        }
+    }
+
+    /** Frosted-glass card backdrop: samples the blurred frame copy with the
+     *  LiquidGlass edge-refraction shader (same look as the ClickGUI). Falls
+     *  back to the translucent gradient when the blur pipeline is unavailable.
+     *  @return true if the glass shader path was used. */
+    private boolean drawGlassCardBg(float x1, float y1, float x2, float y2, float r, float alpha,
+                                    int themeRgb, boolean useThemeBg, boolean hasBg, float bgPct, float p) {
+        if (!hasBg) return false;
+        if (hudBlurFailed || hudBlurA == null) {
+            return false;
+        }
+        try {
+            ScaledResolution sr = new ScaledResolution(mc);
+            int sw = sr.getScaledWidth(), sh = sr.getScaledHeight();
+            float w = x2 - x1, h = y2 - y1;
+            if (w <= 0 || h <= 0) return false;
+            float rClamp = Math.min(r, Math.min(w / 2.0F, h / 2.0F));
+            int prevTexture = GL11.glGetInteger(GL11.GL_TEXTURE_BINDING_2D);
+            GlStateManager.bindTexture(hudBlurA.framebufferTexture);
+            GlStateManager.enableTexture2D();
+            GlStateManager.disableCull();
+            GlStateManager.enableBlend();
+            if (useThemeBg) {
+                Color c = new Color(themeRgb);
+                GlStateManager.color(c.getRed() / 255.0F, c.getGreen() / 255.0F, c.getBlue() / 255.0F, alpha);
+            } else {
+                GlStateManager.color(1, 1, 1, alpha);
+            }
+            GlassRenderer.LiquidGlassShader.INSTANCE.use();
+            float halfH = 0.5F * h / w;
+            float rUv = Math.min(rClamp / w, Math.min(0.5F, halfH));
+            GlassRenderer.LiquidGlassShader.INSTANCE.setPanelParams(
+                    0.5F, halfH, rUv, w / sw, h / sh, x1 / sw, 1 - y1 / sh);
+            GL11.glBegin(GL11.GL_QUADS);
+            GL11.glTexCoord2f(0, 0);
+            GL11.glVertex2f(x1, y1);
+            GL11.glTexCoord2f(1, 0);
+            GL11.glVertex2f(x2, y1);
+            GL11.glTexCoord2f(1, 1);
+            GL11.glVertex2f(x2, y2);
+            GL11.glTexCoord2f(0, 1);
+            GL11.glVertex2f(x1, y2);
+            GL11.glEnd();
+            GlassRenderer.LiquidGlassShader.INSTANCE.stop();
+            GlStateManager.color(1, 1, 1, 1);
+            GlStateManager.bindTexture(prevTexture);
+            return true;
+        } catch (Throwable t) {
+            hudBlurFailed = true;
+            GlStateManager.color(1, 1, 1, 1);
+            return false;
+        }
+    }
+
     @EventTarget
     public void onRender2D(Render2DEvent event) {
         if (this.chatOutline.getValue() && mc.currentScreen instanceof GuiChat) {
@@ -304,28 +426,50 @@ public class HUD extends Module {
             float scale = this.scale.getValue();
             ScaledResolution sr = new ScaledResolution(mc);
 
-            float mouseX = Mouse.getX() * sr.getScaledWidth() / (float) mc.displayWidth / scale;
-            float mouseY = (sr.getScaledHeight() - Mouse.getY() * sr.getScaledHeight() / (float) mc.displayHeight) / scale;
-
             boolean left = this.posX.getValue() == 0;
             boolean top = this.posY.getValue() == 0;
             float anchorX = this.offsetX.getValue() / scale;
             float rightEdge = sr.getScaledWidth() / scale - this.offsetX.getValue() / scale;
             RiseFont f = this.font();
-            float rowH = f.height() + PAD_Y * 2.0F;
-            float rowStep = rowH + this.rowSpacing.getValue() + 1.0F;
+            // Onyx Array List: fixed 14px text line, rows are 14px tall plus spacing.
+            float rowH = ONYX_ROW_H;
+            float rowStep = rowH + this.rowSpacing.getValue();
             float curY = top
                     ? this.offsetY.getValue() / scale + 1.0F
                     : sr.getScaledHeight() / scale - this.offsetY.getValue() / scale - rowH;
 
+            // Frosted-glass frame copy runs OUTSIDE the scale transform so the
+            // full-screen quad always covers the whole viewport.
+            float bgPct0 = this.background.getValue().floatValue() / 100.0F;
+            if (bgPct0 > 0.001F) {
+                this.ensureBlurFbo();
+                this.renderBlurBackdrop(sr.getScaledWidth(), sr.getScaledHeight());
+            }
+
             GlStateManager.pushMatrix();
             GlStateManager.scale(scale, scale, 1.0F);
-
+            try {
             long idx = 0L;
-            float bgPct = this.background.getValue().floatValue() / 100.0F;
+            float bgPct = bgPct0;
             boolean useThemeBg = this.bgColor.getValue();
             boolean hasBg = bgPct > 0.001F;
             int gray = new Color(0x99, 0x99, 0x99).getRGB();
+
+            // Side bar: one continuous vertical bar spanning the whole column
+            // (instead of per-row fragments) — Onyx ACCENT_BAR style.
+            float colTop = curY;
+            float colBottom = curY + Math.max(0, this.activeModules.size() - 1) * rowStep + rowH;
+            int firstBarColor = 0xFFFFFFFF;
+            int barModeVal = this.showBar.getValue() ? this.barMode.getValue() : -1;
+            boolean sideBar = barModeVal == 0 || barModeVal == 1;
+            float barX = 0.0F;
+            if (sideBar) {
+                if (barModeVal == 0) {
+                    barX = left ? anchorX - ACCENT_W - 1.0F : rightEdge + 1.0F;
+                } else {
+                    barX = left ? rightEdge + 1.0F : anchorX - ACCENT_W - 1.0F;
+                }
+            }
 
             for (Module module : this.activeModules) {
                 String moduleName = this.getModuleName(module);
@@ -341,64 +485,67 @@ public class HUD extends Module {
                 float p = clamp01((now - born - idx * 30L) / 200.0F);
                 p = 1.0F - (float) Math.pow(1.0F - p, 3.0);
 
-                float slideY = (1.0F - p) * 4.0F;
-                float cardX1 = left ? anchorX : rightEdge - cardW;
+                // Onyx SLIDE_FADE: rows slide in horizontally by 14px and
+                // scale 0.9 -> 1.0 while fading in.
+                float slideX = (1.0F - p) * 14.0F;
+                float rowScale = 0.9F + 0.1F * p;
+                float cardX1 = (left ? anchorX : rightEdge - cardW) + (left ? slideX : -slideX);
                 float cardX2 = cardX1 + cardW;
-                float cardY1 = curY + slideY;
+                float cardY1 = curY;
                 float cardY2 = cardY1 + rowH;
 
                 Color themeColor = this.getColor(now, idx);
                 int rgb = themeColor.getRGB();
 
                 if (hasBg) {
-                    int outline = useThemeBg
-                            ? setAlpha(rgb, 0.55F * p)
-                            : setAlpha(0xFFFFFF, 0.16F * p);
-                    drawRoundedOutline(cardX1 - 0.5F, cardY1 - 0.5F, cardW + 1.0F, rowH + 1.0F, CARD_R + 0.5F, outline);
-
-                    if (useThemeBg) {
-                        drawRoundedRect(cardX1, cardY1, cardW, rowH, CARD_R,
-                                new Color(themeColor.getRed(), themeColor.getGreen(), themeColor.getBlue(),
-                                        (int) (bgPct * 200.0F * p)).getRGB());
-                    } else {
-                        drawRoundedRect(cardX1, cardY1, cardW, rowH, CARD_R,
-                                new Color(0.06F, 0.08F, 0.11F, bgPct * p).getRGB());
+                    // Onyx ACCENT_BAR backdrop: surface 0.55 alpha, frosted
+                    // glass when the blur pipeline is available.
+                    float glassAlpha = (0.30F + 0.55F * bgPct) * p;
+                    boolean glass = this.drawGlassCardBg(cardX1, cardY1, cardX2, cardY2, CARD_R, glassAlpha,
+                            themeColor.getRGB(), useThemeBg, hasBg, bgPct, p);
+                    if (!glass) {
+                        if (useThemeBg) {
+                            RenderUtil.drawRoundedRectGradient(cardX1, cardY1, cardX2, cardY2, CARD_R,
+                                    new Color(themeColor.getRed(), themeColor.getGreen(), themeColor.getBlue(),
+                                            (int) (bgPct * 220.0F * p)).getRGB(),
+                                    new Color(themeColor.getRed(), themeColor.getGreen(), themeColor.getBlue(),
+                                            (int) (bgPct * 110.0F * p)).getRGB());
+                        } else {
+                            RenderUtil.drawRoundedRectGradient(cardX1, cardY1, cardX2, cardY2, CARD_R,
+                                    new Color(1.0F, 1.0F, 1.0F, 0.07F * bgPct * p).getRGB(),
+                                    new Color(1.0F, 1.0F, 1.0F, 0.02F * bgPct * p).getRGB());
+                        }
                     }
+                    // no per-row bottom highlight — rows sit flush so the
+                    // whole column reads as one continuous frame (Hengshui era)
                 }
 
-                // Rise-style accent bar at the leading edge
+                // Onyx ACCENT_BAR: leading accent bar (drawn as one continuous
+                // column line after the loop; per-row bar color comes from the
+                // first row). TOP / BOTTOM bar modes keep their old behaviour.
                 if (this.showBar.getValue()) {
-                    int barModeVal = this.barMode.getValue();
-                    float by1 = cardY1 + this.barless.getValue();
-                    float by2 = cardY2 - this.barless.getValue();
-                    float bh = by2 - by1;
-                    int barColor = setAlpha(rgb, p);
-                    if (barModeVal == 0) {
-                        if (left) {
-                            drawRoundedRect(cardX1 - 3.0F, by1, 2.0F, bh, 1.0F, barColor);
-                        } else {
-                            drawRoundedRect(cardX2 + 1.0F, by1, 2.0F, bh, 1.0F, barColor);
-                        }
-                    } else if (barModeVal == 1) {
-                        if (left) {
-                            drawRoundedRect(cardX2 + 1.0F, by1, 2.0F, bh, 1.0F, barColor);
-                        } else {
-                            drawRoundedRect(cardX1 - 3.0F, by1, 2.0F, bh, 1.0F, barColor);
-                        }
-                    } else if (barModeVal == 2) {
+                    if (idx == 0L) {
+                        firstBarColor = rgb;
+                    }
+                    int barModeVal2 = this.barMode.getValue();
+                    if (barModeVal2 == 2) {
                         if (idx == 0L) {
-                            drawRoundedRect(cardX1, cardY1 - 3.0F, cardW, 2.0F, 1.0F, barColor);
+                            drawRoundedRect(cardX1, cardY1 - 3.0F, cardW, 2.0F, 1.0F, setAlpha(rgb, p));
                         }
-                    } else if (barModeVal == 3) {
+                    } else if (barModeVal2 == 3) {
                         if (idx == this.activeModules.size() - 1) {
-                            drawRoundedRect(cardX1, cardY2 + 1.0F, cardW, 2.0F, 1.0F, barColor);
+                            drawRoundedRect(cardX1, cardY2 + 1.0F, cardW, 2.0F, 1.0F, setAlpha(rgb, p));
                         }
                     }
                 }
 
                 GlStateManager.disableDepth();
+                GlStateManager.pushMatrix();
+                GlStateManager.translate(cardX1 + cardW / 2.0F, cardY1 + rowH / 2.0F, 0.0F);
+                GlStateManager.scale(rowScale, rowScale, 1.0F);
+                GlStateManager.translate(-(cardX1 + cardW / 2.0F), -(cardY1 + rowH / 2.0F), 0.0F);
                 float textX = left ? cardX1 + PAD_X : cardX2 - PAD_X - textW;
-                float textY = cardY1 + PAD_Y;
+                float textY = cardY1 + (rowH - f.height()) / 2.0F;
                 int textColor = setAlpha(rgb, p);
                 int suffixColor = setAlpha(gray, p);
 
@@ -410,11 +557,18 @@ public class HUD extends Module {
                         suffixX += f.getStringWidth(string) + 3.0F;
                     }
                 }
+                GlStateManager.popMatrix();
                 GlStateManager.enableDepth();
 
                 this.lastRect.put(module, new float[]{cardX1, cardY1, cardX2, cardY2});
                 curY += rowStep * (top ? 1.0F : -1.0F);
                 idx++;
+            }
+
+            // One continuous side bar across the whole column.
+            if (sideBar) {
+                drawRoundedRect(barX, colTop, ACCENT_W, Math.max(0.0F, colBottom - colTop), 1.0F,
+                        setAlpha(firstBarColor, 1.0F));
             }
 
             Iterator<Map.Entry<Module, float[]>> it = this.dying.entrySet().iterator();
@@ -426,10 +580,8 @@ public class HUD extends Module {
                     it.remove();
                     continue;
                 }
-                drawRoundedOutline(r[0] - 0.5F, r[1] - 0.5F, (r[2] - r[0]) + 1.0F, (r[3] - r[1]) + 1.0F, CARD_R + 0.5F,
-                        setAlpha(0xFFFFFF, 0.16F * r[4]));
                 drawRoundedRect(r[0], r[1], r[2] - r[0], r[3] - r[1], CARD_R,
-                        new Color(0.06F, 0.08F, 0.11F, 0.25F * r[4]).getRGB());
+                        new Color(1.0F, 1.0F, 1.0F, 0.06F * r[4]).getRGB());
             }
             for (Module m : new ArrayList<>(this.rowBorn.keySet())) {
                 if (!this.activeModules.contains(m)) {
@@ -457,7 +609,9 @@ public class HUD extends Module {
                     }
                 }
             }
-            GlStateManager.popMatrix();
+            } finally {
+                GlStateManager.popMatrix();
+            }
         }
     }
 }

@@ -39,7 +39,17 @@ public abstract class MixinRendererLivingEntity<T extends EntityLivingBase> exte
             at = {@At("HEAD")}
     )
     private void doRender(T entityLivingBase, double double2, double double3, double double4, float float5, float float6, CallbackInfo callbackInfo) {
-        EventManager.call(new RenderLivingEvent(EventType.PRE, entityLivingBase));
+        // Isolate PRE handlers (Chams polygon offset, SeeInvisibles blend/color):
+        // a leaked GL state here would corrupt the player skin/cape model that
+        // renders immediately after.
+        GlStateManager.pushAttrib();
+        GlStateManager.pushMatrix();
+        try {
+            EventManager.call(new RenderLivingEvent(EventType.PRE, entityLivingBase));
+        } finally {
+            GlStateManager.popAttrib();
+            GlStateManager.popMatrix();
+        }
     }
 
     @Inject(
@@ -47,7 +57,14 @@ public abstract class MixinRendererLivingEntity<T extends EntityLivingBase> exte
             at = {@At("RETURN")}
     )
     private void postRender(T entityLivingBase, double double2, double double3, double double4, float float5, float float6, CallbackInfo callbackInfo) {
-        EventManager.call(new RenderLivingEvent(EventType.POST, entityLivingBase));
+        GlStateManager.pushAttrib();
+        GlStateManager.pushMatrix();
+        try {
+            EventManager.call(new RenderLivingEvent(EventType.POST, entityLivingBase));
+        } finally {
+            GlStateManager.popAttrib();
+            GlStateManager.popMatrix();
+        }
     }
 
     @Inject(

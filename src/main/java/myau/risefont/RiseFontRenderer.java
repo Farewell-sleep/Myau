@@ -145,7 +145,7 @@ public class RiseFontRenderer extends RiseFont {
         buffer.flip();
         GlStateManager.bindTexture(texture);
         GL11.glTexParameteri(3553, 10241, 9728);
-        GL11.glTexParameteri(3553, 10240, 9728);
+        GL11.glTexParameteri(3553, 10240, 9729);
         GL11.glTexImage2D(3553, 0, 6408, width, height, 0, 6408, 5121, buffer);
     }
 
@@ -185,55 +185,62 @@ public class RiseFontRenderer extends RiseFont {
         double startX = x;
         GL11.glPushMatrix();
         GL11.glPushAttrib(1048575);
-        GL11.glEnable(3553);
-        GL11.glEnable(3042);
-        GL11.glBlendFunc(770, 771);
-        GL11.glScalef(SCALE, SCALE, SCALE);
-        double d1 = x - 2.0;
-        double d2 = y - 2.0;
-        double d3 = d1 * 2.0;
-        double d4 = d2 * 2.0;
-        double d5 = d4 - this.fontHeight / 5.0F;
-        double d6 = d3;
-        glColor(shadow ? Color.WHITE.getRGB() : color);
-        String s = text.replaceAll("\u00a7l", "");
         try {
-            char[] array = s.toCharArray();
-            int lineHeight = (int) (this.height() * 2.0F);
-            for (int i = 0; i < array.length; i++) {
-                char c = array[i];
-                if (c == '\n') {
-                    d3 = d6;
-                    d5 += lineHeight;
-                } else if (c == COLOR_INVOKER && i + 1 < array.length) {
-                    int code = COLOR_CODE_CHARACTERS.indexOf(array[++i]);
-                    if (code >= 0 && code < COLOR_CODES.length) {
-                        glColor(new Color(COLOR_CODES[code]));
-                    }
-                } else {
-                    if (c >= 0 && c < chars.length) {
-                        RiseFontCharacter character = chars[c];
-                        if (character == null) {
-                            this.renderFallback(c, (float) d3, (float) d5);
-                        } else {
-                            float width = character.getWidth();
-                            character.render((float) d3, (float) d5);
-                            d3 += width - 8.0F;
+            GL11.glEnable(3553);
+            GL11.glEnable(3042);
+            GL11.glBlendFunc(770, 771);
+            GL11.glScalef(SCALE, SCALE, SCALE);
+            double d1 = x - 2.0;
+            double d2 = y - 2.0;
+            double d3 = d1 * 2.0;
+            double d4 = d2 * 2.0;
+            // Top-left semantics (vanilla FontRenderer): glyph top-left lands
+            // on (x, y). Rise's original d5 = d4 - fontHeight/5 shifted every
+            // glyph ~1.2px above the requested y, which mis-aligned ClickGUI
+            // labels against their capsules/sliders.
+            double d5 = d4;
+            double d6 = d3;
+            glColor(shadow ? Color.WHITE.getRGB() : color);
+            String s = text.replaceAll("\u00a7l", "");
+            try {
+                char[] array = s.toCharArray();
+                int lineHeight = (int) (this.height() * 2.0F);
+                for (int i = 0; i < array.length; i++) {
+                    char c = array[i];
+                    if (c == '\n') {
+                        d3 = d6;
+                        d5 += lineHeight;
+                    } else if (c == COLOR_INVOKER && i + 1 < array.length) {
+                        int code = COLOR_CODE_CHARACTERS.indexOf(array[++i]);
+                        if (code >= 0 && code < COLOR_CODES.length) {
+                            glColor(new Color(COLOR_CODES[code]));
                         }
                     } else {
-                        this.renderFallback(c, (float) d3, (float) d5);
+                        if (c >= 0 && c < chars.length) {
+                            RiseFontCharacter character = chars[c];
+                            if (character == null) {
+                                this.renderFallback(c, (float) d3, (float) d5);
+                            } else {
+                                float width = character.getWidth();
+                                character.render((float) d3, (float) d5);
+                                d3 += width - 8.0F;
+                            }
+                        } else {
+                            this.renderFallback(c, (float) d3, (float) d5);
+                        }
                     }
                 }
+            } catch (Exception e) {
+                e.printStackTrace();
             }
-        } catch (Exception e) {
-            e.printStackTrace();
+            return (int) (d3 - startX);
+        } finally {
+            GL11.glDisable(3042);
+            GL11.glDisable(3553);
+            GlStateManager.bindTexture(0);
+            GL11.glPopAttrib();
+            GL11.glPopMatrix();
         }
-        GL11.glDisable(3042);
-        GL11.glDisable(3553);
-        GlStateManager.bindTexture(0);
-        GL11.glPopAttrib();
-        GL11.glPopMatrix();
-        return (int) (d3 - startX);
     }
 
     private void renderFallback(char c, float x, float y) {

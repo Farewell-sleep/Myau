@@ -609,12 +609,16 @@ public class RenderUtil {
             framebuffer = new Framebuffer(mc.displayWidth, mc.displayHeight, depth);
             framebuffer.setFramebufferFilter(GL11.GL_LINEAR);
         }
-        GL11.glBindTexture(GL11.GL_TEXTURE_2D, framebuffer.framebufferTexture);
+        // Keep GlStateManager's texture cache in sync (raw glBindTexture here used to
+        // desync it, so the next skin/cape bind was skipped and the flipped FBO texture
+        // stayed bound -> upside-down / wrong-texture player rendering).
+        int prevTexture = GL11.glGetInteger(GL11.GL_TEXTURE_BINDING_2D);
+        GlStateManager.bindTexture(framebuffer.framebufferTexture);
         GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MIN_FILTER, GL11.GL_LINEAR);
         GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MAG_FILTER, GL11.GL_LINEAR);
         GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_S, 0x812F);
         GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_T, 0x812F);
-        GL11.glBindTexture(GL11.GL_TEXTURE_2D, 0);
+        GlStateManager.bindTexture(prevTexture);
         return framebuffer;
     }
 
@@ -623,7 +627,7 @@ public class RenderUtil {
     }
 
     public static void bindTexture(int texture) {
-        GL11.glBindTexture(GL11.GL_TEXTURE_2D, texture);
+        GlStateManager.bindTexture(texture);
     }
 
     public static void setAlphaLimit(float limit) {
@@ -915,30 +919,36 @@ public class RenderUtil {
         double xPos = x - mc.getRenderManager().viewerPosX;
         double yPos = y - mc.getRenderManager().viewerPosY;
         double zPos = z - mc.getRenderManager().viewerPosZ;
-        GL11.glPushMatrix();
-        GL11.glBlendFunc(770, 771);
-        GL11.glEnable(3042);
-        GL11.glLineWidth(2.0f);
-        GL11.glDisable(3553);
-        GL11.glDisable(2929);
-        GL11.glDepthMask(false);
-        float a = (color >> 24 & 0xFF) / 255.0f;
-        float r = (color >> 16 & 0xFF) / 255.0f;
-        float g = (color >> 8 & 0xFF) / 255.0f;
-        float b = (color & 0xFF) / 255.0f;
-        GL11.glColor4f(r, g, b, a);
-        AxisAlignedBB axisAlignedBB = new AxisAlignedBB(xPos, yPos, zPos, xPos + x2, yPos + y2, zPos + z2);
-        if (outline) {
-            RenderGlobal.drawSelectionBoundingBox(axisAlignedBB);
+        // Use GlStateManager for every state change so its cache stays in sync with
+        // the real GL state (raw GL11 calls used to desync it, which corrupted the
+        // player skin/cape pass that follows).
+        GlStateManager.pushMatrix();
+        try {
+            GlStateManager.blendFunc(770, 771);
+            GlStateManager.enableBlend();
+            GL11.glLineWidth(2.0f);
+            GlStateManager.disableTexture2D();
+            GlStateManager.disableDepth();
+            GlStateManager.depthMask(false);
+            float a = (color >> 24 & 0xFF) / 255.0f;
+            float r = (color >> 16 & 0xFF) / 255.0f;
+            float g = (color >> 8 & 0xFF) / 255.0f;
+            float b = (color & 0xFF) / 255.0f;
+            GlStateManager.color(r, g, b, a);
+            AxisAlignedBB axisAlignedBB = new AxisAlignedBB(xPos, yPos, zPos, xPos + x2, yPos + y2, zPos + z2);
+            if (outline) {
+                RenderGlobal.drawSelectionBoundingBox(axisAlignedBB);
+            }
+            if (shade) {
+                drawFilledBoundingBox(axisAlignedBB, r, g, b, 0.25f);
+            }
+        } finally {
+            GlStateManager.depthMask(true);
+            GlStateManager.enableTexture2D();
+            GlStateManager.enableDepth();
+            GlStateManager.resetColor();
+            GlStateManager.popMatrix();
         }
-        if (shade) {
-            drawFilledBoundingBox(axisAlignedBB, r, g, b, 0.25f);
-        }
-        GL11.glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
-        GL11.glEnable(3553);
-        GL11.glEnable(2929);
-        GL11.glDepthMask(true);
-        GL11.glPopMatrix();
     }
 
     public static void drawFilledBoundingBox(AxisAlignedBB abb, float r, float g, float b, float a) {

@@ -159,6 +159,7 @@ public class GlassPanel {
         net.minecraft.client.renderer.GlStateManager.translate(midX, midY, 0);
         net.minecraft.client.renderer.GlStateManager.scale(scale, scale, 1);
         net.minecraft.client.renderer.GlStateManager.translate(-midX, -midY, 0);
+        try {
 
         int bodyAlpha = (int) (enter * 255);
         // 搜索过滤切换时：整列条目淡入（与滚动复位同步）
@@ -218,11 +219,10 @@ public class GlassPanel {
             GlassRenderer.drawRoundedRect(x, drawY, w, panelHF, RADIUS, wash);
         }
 
-        // header —— 面板标题 12px，按 FontManager 度量垂直居中
+        // header —— 面板标题 12px，按真实字高垂直居中
         float titleCenter = 17.0F + (20.0F - 17.0F) * (1.0F - cp);
         float titleSize = 12.0F;
-        float titleY = drawY + titleCenter - RiseFontManager.getBaseline(titleSize)
-                + RiseFontManager.getCapHeight(titleSize) / 2.0F;
+        float titleY = drawY + titleCenter - RiseFontManager.getFontHeight(titleSize) / 2.0F;
         int headerText = (GlassRenderer.TEXT_MAIN & 0xFFFFFF) | (bodyAlpha << 24);
         RiseFontManager.drawString(name, x + 14, titleY, headerText, false, titleSize);
         drawChevron(x + w - 17, drawY + titleCenter - 2.75F, cp > 0.5F, bodyAlpha);
@@ -265,8 +265,10 @@ public class GlassPanel {
                 // 细圆角滚动条：2.5px 宽、主题蓝
                 GlassRenderer.drawRoundedRect(x + w - 4.5F, thumbY, 2.5F, thumbH, 1.25F, 0x993B82F6);
             }
+            }
+        } finally {
+            net.minecraft.client.renderer.GlStateManager.popMatrix();
         }
-        net.minecraft.client.renderer.GlStateManager.popMatrix();
     }
 
     private void drawChevron(float cx, float cy, boolean down, int alpha) {

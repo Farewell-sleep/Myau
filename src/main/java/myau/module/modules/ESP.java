@@ -113,38 +113,51 @@ public class ESP extends Module {
                 if (this.mode.getValue() == 3) {
                     GlStateManager.pushMatrix();
                     GlStateManager.pushAttrib();
-                    if (this.framebuffer == null) {
-                        this.framebuffer = new Framebuffer(mc.displayWidth, mc.displayHeight, false);
+                    try {
+                        if (this.framebuffer == null) {
+                            this.framebuffer = new Framebuffer(mc.displayWidth, mc.displayHeight, false);
+                        }
+                        this.framebuffer.bindFramebuffer(false);
+                        ((IAccessorEntityRenderer) mc.entityRenderer).callSetupCameraTransform(event.getPartialTicks(), 0);
+                        boolean shadow = mc.gameSettings.entityShadows;
+                        mc.gameSettings.entityShadows = false;
+                        this.outline = false;
+                        this.glow = false;
+                        this.glowShader.use();
+                        for (EntityPlayer player : renderedEntities) {
+                            Color entityColor = this.getEntityColor(player);
+                            this.glowShader.W(entityColor);
+                            boolean invisible = player.isInvisible();
+                            player.setInvisible(false);
+                            mc.getRenderManager().renderEntityStatic(player, event.getPartialTicks(), true);
+                            player.setInvisible(invisible);
+                        }
+                        this.glowShader.stop();
+                        this.glow = true;
+                        this.outline = true;
+                        mc.gameSettings.entityShadows = shadow;
+                        mc.entityRenderer.disableLightmap();
+                        mc.entityRenderer.setupOverlayRendering();
+                        mc.getFramebuffer().bindFramebuffer(false);
+                        this.outlineRenderer.use();
+                        RenderUtil.drawFramebuffer(this.framebuffer);
+                        this.outlineRenderer.stop();
+                        this.framebuffer.framebufferClear();
+                    } finally {
+                        // Whatever happens inside the shader/FBO pass, restore the
+                        // main framebuffer and pop our matrix/attrib stack so the
+                        // player skin/cape/sky render that follows is never corrupted.
+                        mc.getFramebuffer().bindFramebuffer(false);
+                        if (this.outlineRenderer != null && this.outlineRenderer.isShaderInUse()) {
+                            this.outlineRenderer.stop();
+                        }
+                        if (this.glowShader != null && this.glowShader.isShaderInUse()) {
+                            this.glowShader.stop();
+                        }
+                        org.lwjgl.opengl.GL20.glUseProgram(0);
+                        GlStateManager.popAttrib();
+                        GlStateManager.popMatrix();
                     }
-                    this.framebuffer.bindFramebuffer(false);
-                    ((IAccessorEntityRenderer) mc.entityRenderer).callSetupCameraTransform(event.getPartialTicks(), 0);
-                    boolean shadow = mc.gameSettings.entityShadows;
-                    mc.gameSettings.entityShadows = false;
-                    this.outline = false;
-                    this.glow = false;
-                    this.glowShader.use();
-                    for (EntityPlayer player : renderedEntities) {
-                        Color entityColor = this.getEntityColor(player);
-                        this.glowShader.W(entityColor);
-                        boolean invisible = player.isInvisible();
-                        player.setInvisible(false);
-                        mc.getRenderManager().renderEntityStatic(player, event.getPartialTicks(), true);
-                        player.setInvisible(invisible);
-                    }
-                    this.glowShader.stop();
-                    this.glow = true;
-                    this.outline = true;
-                    mc.gameSettings.entityShadows = shadow;
-                    mc.entityRenderer.disableLightmap();
-                    mc.entityRenderer.setupOverlayRendering();
-                    mc.getFramebuffer().bindFramebuffer(false);
-                    this.outlineRenderer.use();
-                    RenderUtil.drawFramebuffer(this.framebuffer);
-                    this.outlineRenderer.stop();
-                    this.framebuffer.framebufferClear();
-                    mc.getFramebuffer().bindFramebuffer(false);
-                    GlStateManager.popAttrib();
-                    GlStateManager.popMatrix();
                 }
                 if (this.mode.getValue() == 1 || this.healthBar.getValue() == 1) {
                     RenderUtil.enableRenderState();
@@ -222,16 +235,19 @@ public class ESP extends Module {
                         double z = RenderUtil.lerpDouble(player.posZ, player.lastTickPosZ, event.getPartialTicks())
                                 - ((IAccessorRenderManager) mc.getRenderManager()).getRenderPosZ();
                         GlStateManager.pushMatrix();
-                        GlStateManager.translate(x, y, z);
-                        GlStateManager.rotate(mc.getRenderManager().playerViewY * -1.0F, 0.0F, 1.0F, 0.0F);
-                        float heal = player.getHealth() + player.getAbsorptionAmount();
-                        float percent = Math.min(Math.max(heal / player.getMaxHealth(), 0.0F), 1.0F);
-                        Color healthColor = ColorUtil.getHealthBlend(percent);
-                        float height = player.height + 0.2F;
-                        RenderUtil.drawRect3D(0.57250005F, -0.027500002F, 0.7275F, height + 0.027500002F, Color.black.getRGB());
-                        RenderUtil.drawRect3D(0.6F, 0.0F, 0.70000005F, height, Color.darkGray.getRGB());
-                        RenderUtil.drawRect3D(0.6F, 0.0F, 0.70000005F, height * percent, healthColor.getRGB());
-                        GlStateManager.popMatrix();
+                        try {
+                            GlStateManager.translate(x, y, z);
+                            GlStateManager.rotate(mc.getRenderManager().playerViewY * -1.0F, 0.0F, 1.0F, 0.0F);
+                            float heal = player.getHealth() + player.getAbsorptionAmount();
+                            float percent = Math.min(Math.max(heal / player.getMaxHealth(), 0.0F), 1.0F);
+                            Color healthColor = ColorUtil.getHealthBlend(percent);
+                            float height = player.height + 0.2F;
+                            RenderUtil.drawRect3D(0.57250005F, -0.027500002F, 0.7275F, height + 0.027500002F, Color.black.getRGB());
+                            RenderUtil.drawRect3D(0.6F, 0.0F, 0.70000005F, height, Color.darkGray.getRGB());
+                            RenderUtil.drawRect3D(0.6F, 0.0F, 0.70000005F, height * percent, healthColor.getRGB());
+                        } finally {
+                            GlStateManager.popMatrix();
+                        }
                     }
                 }
             }

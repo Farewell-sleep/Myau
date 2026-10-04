@@ -1255,6 +1255,7 @@ public class BedESP extends Module {
         y2 *= 2.0f;
         GL11.glPushMatrix();
         GL11.glPushAttrib(GL11.GL_ALL_ATTRIB_BITS);
+        try {
         GL11.glScaled(0.5, 0.5, 0.5);
         GL11.glEnable(GL11.GL_BLEND);
         GL11.glDisable(GL11.GL_TEXTURE_2D);
@@ -1306,6 +1307,7 @@ public class BedESP extends Module {
         }
         GL11.glEnd();
         GL11.glPopMatrix();
+        } finally {
         GL11.glEnable(GL11.GL_TEXTURE_2D);
         GL11.glDisable(GL11.GL_BLEND);
         GL11.glDisable(GL11.GL_LINE_SMOOTH);
@@ -1315,6 +1317,7 @@ public class BedESP extends Module {
         GL11.glLineWidth(1.0f);
         GL11.glShadeModel(GL11.GL_FLAT);
         GlStateManager.color(1.0f, 1.0f, 1.0f, 1.0f);
+        }
     }
 
     private static void glColor(final int n) {
