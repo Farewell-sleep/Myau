@@ -102,17 +102,38 @@ public class GlassModuleEntry {
         net.minecraft.client.renderer.GlStateManager.scale(scale, scale, 1);
         net.minecraft.client.renderer.GlStateManager.translate(-midX, -midY, 0);
 
-        // 行背景：悬停胶囊填充
-        if (hoverEase > 0.02F) {
-            GlassRenderer.drawCapsuleRect(panel.getX() + 4, rowY, w - 8, 16,
-                    GlassRenderer.lerpColor(0x00000000, GlassRenderer.HOVER_FILL, hoverEase));
+        // ---- Rise downui 风格：每个模块一个常驻独立圆角卡片 ----
+        // 卡片底：半透明深色玻璃（叠在面板毛玻璃之上，形成层次）
+        float cardX1 = panel.getX() + 4;
+        float cardY1 = rowY;
+        float cardW = w - 8;
+        float cardH = 16;
+        float cardR = 5.0F;
+        int bodyAlpha = Math.round(0.16F * 255.0F * alpha / 255.0F);
+        GlassRenderer.drawRoundedRect(cardX1, cardY1, cardW, cardH, cardR, 0x00000000 | (bodyAlpha << 24));
+        // 1px hairline 描边（常驻，Rise downui 的方框感）
+        int outlineBase = module.isEnabled()
+                ? (0x33FFFFFF | (alpha << 24))
+                : (0x1FFFFFFF | (alpha << 24));
+        int outline = GlassRenderer.lerpColor(outlineBase, GlassRenderer.ACCENT, hoverEase * (module.isEnabled() ? 0.85F : 0.65F));
+        GlassRenderer.drawRoundedOutline(cardX1 + 0.5F, cardY1 + 0.5F, cardW - 1.0F, cardH - 1.0F, cardR - 0.5F, 1.0F, outline);
+        // 启用态：左侧主题色竖条（1.5px，圆角）
+        if (module.isEnabled()) {
+            GlassRenderer.drawRoundedRect(cardX1 + 2.5F, cardY1 + 3.5F, 1.5F, cardH - 7.0F, 0.75F, GlassRenderer.ACCENT);
         }
+        // 悬停：提亮卡片（Rise downui hover 高亮）
+        if (hoverEase > 0.02F) {
+            int hoverFill = GlassRenderer.lerpColor(0x00000000, GlassRenderer.HOVER_FILL, hoverEase);
+            GlassRenderer.drawRoundedRect(cardX1, cardY1, cardW, cardH, cardR, hoverFill);
+        }
+
         // 模块名（FontManager，10px；按行带垂直居中）
         int baseColor = module.isEnabled() ? GlassRenderer.TEXT_MAIN : GlassRenderer.TEXT_DIM;
         int textColor = (baseColor & 0xFFFFFF) | (alpha << 24);
+        float nameX = panel.getX() + 11;
         float nameY = rowY + 8.0F - FontManager.getBaseline(GlassControls.SIZE_LABEL)
                 + FontManager.getCapHeight(GlassControls.SIZE_LABEL) / 2.0F;
-        FontManager.drawString(module.getName(), panel.getX() + 10, nameY, textColor, false, GlassControls.SIZE_LABEL);
+        FontManager.drawString(module.getName(), nameX, nameY, textColor, false, GlassControls.SIZE_LABEL);
         // 状态指示：开关 OR accent 填充条 + 圆点（可切换）
         if (switchStyle) {
             GlassRenderer.drawCapsule(panel.getX() + w - 30, rowY + 2, 24, 12,
