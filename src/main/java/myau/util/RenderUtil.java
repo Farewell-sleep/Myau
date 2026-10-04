@@ -609,12 +609,12 @@ public class RenderUtil {
             framebuffer = new Framebuffer(mc.displayWidth, mc.displayHeight, depth);
             framebuffer.setFramebufferFilter(GL11.GL_LINEAR);
         }
-        GL11.glBindTexture(GL11.GL_TEXTURE_2D, framebuffer.framebufferTexture);
+        GlStateManager.bindTexture(framebuffer.framebufferTexture);
         GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MIN_FILTER, GL11.GL_LINEAR);
         GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MAG_FILTER, GL11.GL_LINEAR);
         GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_S, 0x812F);
         GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_T, 0x812F);
-        GL11.glBindTexture(GL11.GL_TEXTURE_2D, 0);
+        GlStateManager.bindTexture(0);
         return framebuffer;
     }
 
@@ -623,7 +623,11 @@ public class RenderUtil {
     }
 
     public static void bindTexture(int texture) {
-        GL11.glBindTexture(GL11.GL_TEXTURE_2D, texture);
+        // IMPORTANT: go through GlStateManager so its texture-binding cache stays
+        // in sync. Raw glBindTexture here used to desync the cache, so the next
+        // GlStateManager.bindTexture(skin) call was skipped and the player's skin
+        // was rendered with the flipped FBO texture (skin/cape upside down).
+        GlStateManager.bindTexture(texture);
     }
 
     public static void setAlphaLimit(float limit) {

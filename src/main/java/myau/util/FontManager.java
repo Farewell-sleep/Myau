@@ -253,7 +253,10 @@ public class FontManager {
         private void ensureAtlas() {
             if (this.atlasTexture != -1) return;
             this.atlasTexture = GL11.glGenTextures();
-            GL11.glBindTexture(GL11.GL_TEXTURE_2D, this.atlasTexture);
+            // Go through GlStateManager so the texture-binding cache stays in
+            // sync — a raw glBindTexture here used to desync the cache and made
+            // the next skin/cape bind get skipped (flipped FBO texture on skin).
+            GlStateManager.bindTexture(this.atlasTexture);
             GL11.glTexImage2D(GL11.GL_TEXTURE_2D, 0, GL11.GL_RGBA, this.atlasW, this.atlasH, 0,
                     GL11.GL_RGBA, GL11.GL_UNSIGNED_BYTE, (ByteBuffer) null);
             this.setTexParams();
@@ -270,7 +273,7 @@ public class FontManager {
             int newW = this.atlasW * 2;
             int newH = this.atlasH * 2;
             int newTex = GL11.glGenTextures();
-            GL11.glBindTexture(GL11.GL_TEXTURE_2D, newTex);
+            GlStateManager.bindTexture(newTex);
             GL11.glTexImage2D(GL11.GL_TEXTURE_2D, 0, GL11.GL_RGBA, newW, newH, 0,
                     GL11.GL_RGBA, GL11.GL_UNSIGNED_BYTE, (ByteBuffer) null);
             this.setTexParams();
@@ -300,7 +303,7 @@ public class FontManager {
                 buffer.put((byte) ((pixel >> 24) & 0xFF));
             }
             buffer.flip();
-            GL11.glBindTexture(GL11.GL_TEXTURE_2D, texture);
+            GlStateManager.bindTexture(texture);
             GL11.glTexSubImage2D(GL11.GL_TEXTURE_2D, 0, x, y, g.width, g.height,
                     GL11.GL_RGBA, GL11.GL_UNSIGNED_BYTE, buffer);
         }
