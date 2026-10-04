@@ -188,40 +188,6 @@ public class RenderUtil {
         drawRoundedRect(x1, y1, x2 - x1, y2 - y1, r, color);
     }
 
-    /** Horizontal gradient rounded rect (left color -> right color), used for slider fills. */
-    public static void drawRoundedRectGradientH(float x1, float y1, float x2, float y2, float r, int c1, int c2) {
-        if (x2 - x1 <= 0 || y2 - y1 <= 0) return;
-        r = Math.min(r, Math.min((x2 - x1) / 2.0F, (y2 - y1) / 2.0F));
-        GlStateManager.enableBlend();
-        GlStateManager.disableTexture2D();
-        GlStateManager.disableCull();
-        GlStateManager.blendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
-        GlStateManager.shadeModel(GL11.GL_SMOOTH);
-        GL11.glBegin(GL11.GL_POLYGON);
-        gradientVertex(x1 + r, y1 + r, r, 180, 270, c1, c2);
-        gradientVertex(x2 - r, y1 + r, r, 270, 360, c1, c2);
-        gradientVertex(x2 - r, y2 - r, r, 0, 90, c1, c2);
-        gradientVertex(x1 + r, y2 - r, r, 90, 180, c1, c2);
-        GL11.glEnd();
-        GlStateManager.shadeModel(GL11.GL_FLAT);
-        GlStateManager.enableTexture2D();
-        GlStateManager.disableBlend();
-        GlStateManager.color(1, 1, 1, 1);
-    }
-
-    private static void gradientVertex(float cx, float cy, float r, int startDeg, int endDeg, int c1, int c2) {
-        float minX = cx - r;
-        float maxX = cx + r;
-        for (int i = startDeg; i <= endDeg; i += 6) {
-            double ang = Math.toRadians(i);
-            float px = cx + (float) (Math.cos(ang) * r);
-            float py = cy + (float) (Math.sin(ang) * r);
-            float t = maxX - minX <= 0.0F ? 0.0F : (px - minX) / (maxX - minX);
-            gradientColor(c1, c2, t);
-            GL11.glVertex2f(px, py);
-        }
-    }
-
     /** Vertical gradient rounded rect (top color -> bottom color). */
     public static void drawRoundedRectGradient(float x1, float y1, float x2, float y2, float r, int topColor, int bottomColor) {
         if (x2 - x1 <= 0 || y2 - y1 <= 0) return;
