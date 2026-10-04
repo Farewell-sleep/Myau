@@ -39,12 +39,6 @@ public abstract class MixinRendererLivingEntity<T extends EntityLivingBase> exte
             at = {@At("HEAD")}
     )
     private void doRender(T entityLivingBase, double double2, double double3, double double4, float float5, float float6, CallbackInfo callbackInfo) {
-        // Hard GL isolation around every living-entity render: whatever leaked
-        // into this frame (texture binding, blend, alpha test, matrices) is
-        // snapshotted here and forcibly restored after the entity finishes, so
-        // skin/cape rendering can never be corrupted by HUD/ClickGUI state.
-        GlStateManager.pushAttrib();
-        GlStateManager.pushMatrix();
         EventManager.call(new RenderLivingEvent(EventType.PRE, entityLivingBase));
     }
 
@@ -53,16 +47,7 @@ public abstract class MixinRendererLivingEntity<T extends EntityLivingBase> exte
             at = {@At("RETURN")}
     )
     private void postRender(T entityLivingBase, double double2, double double3, double double4, float float5, float float6, CallbackInfo callbackInfo) {
-        try {
-            EventManager.call(new RenderLivingEvent(EventType.POST, entityLivingBase));
-        } finally {
-            // GL_PROGRAM / framebuffer are not covered by the attrib stack —
-            // force-clear them so a leaked shader or FBO cannot break the next
-            // entity (rain rendering in particular trips GL_INVALID_OPERATION).
-            org.lwjgl.opengl.GL20.glUseProgram(0);
-            GlStateManager.popAttrib();
-            GlStateManager.popMatrix();
-        }
+        EventManager.call(new RenderLivingEvent(EventType.POST, entityLivingBase));
     }
 
     @Inject(

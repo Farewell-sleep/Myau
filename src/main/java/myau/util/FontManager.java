@@ -389,29 +389,24 @@ public class FontManager {
             GlStateManager.disableAlpha();
             GlStateManager.bindTexture(this.atlasTexture);
 
-            try {
-                Tessellator tessellator = Tessellator.getInstance();
-                WorldRenderer wr = tessellator.getWorldRenderer();
-                wr.begin(GL11.GL_QUADS, DefaultVertexFormats.POSITION_TEX_COLOR);
-                float cursor = x;
-                int i = 0, len = text.length();
-                while (i < len) {
-                    int cp = text.codePointAt(i);
-                    i += Character.charCount(cp);
-                    Glyph glyph = this.getGlyph(cp);
-                    float glyphWidth = glyph.width * this.scale;
-                    float glyphHeight = glyph.height * this.scale;
-                    wr.pos(cursor, y, 0.0D).tex(glyph.u1, glyph.v1).color(red, green, blue, alpha).endVertex();
-                    wr.pos(cursor + glyphWidth, y, 0.0D).tex(glyph.u2, glyph.v1).color(red, green, blue, alpha).endVertex();
-                    wr.pos(cursor + glyphWidth, y + glyphHeight, 0.0D).tex(glyph.u2, glyph.v2).color(red, green, blue, alpha).endVertex();
-                    wr.pos(cursor, y + glyphHeight, 0.0D).tex(glyph.u1, glyph.v2).color(red, green, blue, alpha).endVertex();
-                    cursor += glyphWidth;
-                }
-                tessellator.draw();
-            } catch (Exception ignored) {
-                // A concurrent tessellator batch (e.g. another module drawing in
-                // the same frame) must never kill the HUD text — skip the batch.
+            Tessellator tessellator = Tessellator.getInstance();
+            WorldRenderer wr = tessellator.getWorldRenderer();
+            wr.begin(GL11.GL_QUADS, DefaultVertexFormats.POSITION_TEX_COLOR);
+            float cursor = x;
+            int i = 0, len = text.length();
+            while (i < len) {
+                int cp = text.codePointAt(i);
+                i += Character.charCount(cp);
+                Glyph glyph = this.getGlyph(cp);
+                float glyphWidth = glyph.width * this.scale;
+                float glyphHeight = glyph.height * this.scale;
+                wr.pos(cursor, y, 0.0D).tex(glyph.u1, glyph.v1).color(red, green, blue, alpha).endVertex();
+                wr.pos(cursor + glyphWidth, y, 0.0D).tex(glyph.u2, glyph.v1).color(red, green, blue, alpha).endVertex();
+                wr.pos(cursor + glyphWidth, y + glyphHeight, 0.0D).tex(glyph.u2, glyph.v2).color(red, green, blue, alpha).endVertex();
+                wr.pos(cursor, y + glyphHeight, 0.0D).tex(glyph.u1, glyph.v2).color(red, green, blue, alpha).endVertex();
+                cursor += glyphWidth;
             }
+            tessellator.draw();
 
             // Restore every state we touched.
             GlStateManager.bindTexture(prevTexture);
