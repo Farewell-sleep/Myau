@@ -64,7 +64,17 @@ public final class Callbacks {
             if (!Bootstrap.isStarted() || !GameState.inGame()) {
                 return;
             }
-            EventManager.call(new Render2DEvent(overlayPartialTicks));
+            // Isolate module 2D rendering: whatever a module changes (texture
+            // binding, blend, alpha test, matrices) is restored afterwards so it
+            // can never leak into the next frame's world / player skin rendering.
+            net.minecraft.client.renderer.GlStateManager.pushAttrib();
+            net.minecraft.client.renderer.GlStateManager.pushMatrix();
+            try {
+                EventManager.call(new Render2DEvent(overlayPartialTicks));
+            } finally {
+                net.minecraft.client.renderer.GlStateManager.popAttrib();
+                net.minecraft.client.renderer.GlStateManager.popMatrix();
+            }
         } catch (Throwable swallowed) {
             Log.swallowed(swallowed);
         }
@@ -74,7 +84,14 @@ public final class Callbacks {
             if (!Bootstrap.isStarted() || !GameState.inGame()) {
                 return;
             }
-            EventManager.call(new Render2DPostEvent(overlayPartialTicks));
+            net.minecraft.client.renderer.GlStateManager.pushAttrib();
+            net.minecraft.client.renderer.GlStateManager.pushMatrix();
+            try {
+                EventManager.call(new Render2DPostEvent(overlayPartialTicks));
+            } finally {
+                net.minecraft.client.renderer.GlStateManager.popAttrib();
+                net.minecraft.client.renderer.GlStateManager.popMatrix();
+            }
         } catch (Throwable swallowed) {
             Log.swallowed(swallowed);
         }
@@ -217,7 +234,16 @@ public final class Callbacks {
             if (!Bootstrap.isStarted() || !GameState.inGame()) {
                 return;
             }
-            EventManager.call(new Render3DEvent(worldPartialTicks));
+            // Isolate module 3D rendering so leaked GL state cannot corrupt the
+            // hand / entity rendering that follows in the same pass.
+            net.minecraft.client.renderer.GlStateManager.pushAttrib();
+            net.minecraft.client.renderer.GlStateManager.pushMatrix();
+            try {
+                EventManager.call(new Render3DEvent(worldPartialTicks));
+            } finally {
+                net.minecraft.client.renderer.GlStateManager.popAttrib();
+                net.minecraft.client.renderer.GlStateManager.popMatrix();
+            }
         } catch (Throwable swallowed) {
             Log.swallowed(swallowed);
         }

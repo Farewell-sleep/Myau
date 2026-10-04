@@ -135,7 +135,14 @@ public abstract class MixinEntityRenderer {
             )}
     )
     private void renderWorldPass(int integer, float float2, long long3, CallbackInfo callbackInfo) {
-        EventManager.call(new Render3DEvent(float2));
+        GlStateManager.pushAttrib();
+        GlStateManager.pushMatrix();
+        try {
+            EventManager.call(new Render3DEvent(float2));
+        } finally {
+            GlStateManager.popAttrib();
+            GlStateManager.popMatrix();
+        }
     }
 
     @ModifyConstant(

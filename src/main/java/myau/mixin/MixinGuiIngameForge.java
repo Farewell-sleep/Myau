@@ -5,6 +5,7 @@ import myau.event.EventManager;
 import myau.events.Render2DEvent;
 import myau.module.modules.NickHider;
 import net.minecraft.client.entity.EntityPlayerSP;
+import net.minecraft.client.renderer.GlStateManager;
 import net.minecraftforge.client.GuiIngameForge;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
@@ -27,7 +28,14 @@ public abstract class MixinGuiIngameForge {
             )}
     )
     private void renderGameOverlay(float float1, CallbackInfo callbackInfo) {
-        EventManager.call(new Render2DEvent(float1));
+        GlStateManager.pushAttrib();
+        GlStateManager.pushMatrix();
+        try {
+            EventManager.call(new Render2DEvent(float1));
+        } finally {
+            GlStateManager.popAttrib();
+            GlStateManager.popMatrix();
+        }
     }
 
     @Redirect(
