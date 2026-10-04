@@ -9,6 +9,7 @@ import myau.property.properties.IntProperty;
 import myau.property.properties.ModeProperty;
 import myau.property.properties.PercentProperty;
 import myau.property.properties.TextProperty;
+import myau.util.FontManager;
 import myau.util.KeyBindUtil;
 import net.minecraft.client.Minecraft;
 import org.lwjgl.input.Keyboard;
@@ -18,22 +19,57 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
-/** All Liquid Glass property widgets in one place. */
+/**
+ * All Liquid Glass property widgets in one place.
+ *
+ * 视觉语言（与规范第 2 节一致）：
+ *  - 半透明玻璃底 + 1px 发丝描边（GLASS_OUTLINE）
+ *  - 主题蓝 ACCENT 作强调（滑块填充 / 圆头描边 / 选中文字）
+ *  - 圆角 4-6px；滑块轨道为胶囊形，滑块头为圆形带 accent 描边
+ *  - 颜色控件显示色板圆点；绑定控件显示键位芯片 + 「点击设置」提示
+ *
+ * 字体统一走 {@link FontManager}（舒窈衡水），条目 10px、提示 9px。
+ */
 public final class GlassControls {
 
     private static final Minecraft mc = Minecraft.getMinecraft();
     private static final DecimalFormat DF = new DecimalFormat("0.00", new java.text.DecimalFormatSymbols(Locale.US));
 
+    /** 条目字号（面板内属性行）。 */
+    public static final float SIZE_LABEL = 10.0F;
+    /** 芯片 / 小字提示字号。 */
+    public static final float SIZE_SMALL = 9.0F;
+
+    /**
+     * 渲染期透明度覆盖（0..1）。由 GlassModuleEntry 在条目展开动画时设置，
+     * 让子设置区随行高一起淡入淡出；默认 1，无任何影响。
+     */
+    public static float RENDER_ALPHA = 1.0F;
+
     private GlassControls() {
     }
 
+    /** 把颜色的 alpha 分量乘上 RENDER_ALPHA（不影响 RGB）。 */
+    private static int fade(int color) {
+        if (RENDER_ALPHA >= 1.0F) return color;
+        int a = Math.round(((color >> 24) & 255) * RENDER_ALPHA);
+        return (Math.max(0, Math.min(255, a)) << 24) | (color & 0xFFFFFF);
+    }
 
-    private static void drawText(String text, int x, int y, int color) {
-        mc.fontRendererObj.drawStringWithShadow(text, x, y, color);
+    private static void drawText(String text, float x, float y, int color) {
+        FontManager.drawString(text, x, y, fade(color), true, SIZE_LABEL);
+    }
+
+    private static void drawText(String text, float x, float y, int color, float size) {
+        FontManager.drawString(text, x, y, fade(color), true, size);
     }
 
     private static int textWidth(String text) {
-        return mc.fontRendererObj.getStringWidth(text);
+        return FontManager.getStringWidth(text, SIZE_LABEL);
+    }
+
+    private static int textWidth(String text, float size) {
+        return FontManager.getStringWidth(text, size);
     }
 
     public static List<GlassComponent> buildFor(Module module, int width) {
@@ -77,7 +113,7 @@ public final class GlassControls {
         return v < 0 ? 0 : (v > 1 ? 1 : v);
     }
 
-    /** Toggle switch (BooleanProperty). */
+    /** Toggle switch（BooleanProperty）——液体玻璃小开关，保持不变。 */
     public static class CheckBox extends GlassComponent {
         private final BooleanProperty prop;
 
@@ -90,7 +126,7 @@ public final class GlassControls {
         public void draw(int mouseX, int mouseY) {
             boolean on = prop.getValue();
             drawText(prop.getName(), x + 2, y + 2, on ? GlassRenderer.TEXT_MAIN : GlassRenderer.TEXT_DIM);
-            GlassRenderer.drawCapsule(x + w - 26, y + 1, 24, 12, on, GlassRenderer.ACCENT);
+            GlassRenderer.drawCapsule(x + w - 26, y + 2, 24, 12, on, GlassRenderer.ACCENT);
         }
 
         @Override
@@ -101,7 +137,10 @@ public final class GlassControls {
         }
     }
 
-    /** Rounded track slider (Float / Int / Percent). */
+    /**
+     * 胶囊轨道滑块（Float / Int / Percent）。
+     * 轨道与填充均为胶囊形；滑块头为圆形白色圆点，带 1px accent 描边。
+     */
     public static class Slider extends GlassComponent {
         private final String name;
         private final java.util.function.Supplier<Object> getter;
@@ -131,18 +170,25 @@ public final class GlassControls {
             float v = value();
             float t = (max - min) <= 0 ? 0 : clamp01((v - min) / (max - min));
             String label = name + ": " + DF.format(v);
-            drawText(label, x + 2, y + 2, GlassRenderer.TEXT_DIM);
-            // track
-            int ty = y + h - 4;
-            GlassRenderer.drawRoundedRect(x + 2, ty, w - 4, 3, 1.5F, 0x40FFFFFF);
-            // fill
+            drawText(label, x + 2, y + 1, typing ? GlassRenderer.TEXT_MAIN : GlassRenderer.TEXT_DIM);
+
+            // 胶囊轨道（3px 高）
+            float ty = y + h - 5.0F;
+            GlassRenderer.drawCapsuleRect(x + 2, ty, w - 4, 3.0F, fade(0x33FFFFFF));
+            // accent 填充
             float fillW = (w - 4) * t;
             if (fillW > 0.5F) {
-                GlassRenderer.drawRoundedRect(x + 2, ty, fillW, 3, 1.5F, GlassRenderer.ACCENT);
+                GlassRenderer.drawCapsuleRect(x + 2, ty, fillW, 3.0F, fade(GlassRenderer.ACCENT));
             }
-            // knob (5px tall so it never pokes below the control's height)
+            // 圆形滑块头：白圆点 + accent 描边
             float kx = x + 2 + fillW;
-            GlassRenderer.drawRoundedRect(kx - 3, ty - 1.5F, 6, 5, 2.5F, dragging ? 0xFFFFFFFF : 0xE6FFFFFF);
+            float ky = ty + 1.5F;
+            GlassRenderer.drawCircle(kx, ky, 3.4F, fade(0xF2FFFFFF));
+            GlassRenderer.drawCircleOutline(kx, ky, 3.4F, 1.0F, fade(GlassRenderer.ACCENT));
+
+            if (typing && !typed.isEmpty()) {
+                drawText(typed, x + w - textWidth(typed) - 2, y + 1, GlassRenderer.ACCENT, SIZE_SMALL);
+            }
         }
 
         @Override
@@ -195,7 +241,7 @@ public final class GlassControls {
         }
     }
 
-    /** Mode cycle chip (ModeProperty): click to advance. */
+    /** 模式循环芯片（ModeProperty）：玻璃小药丸 + 发丝描边，左键前进 / 右键后退。 */
     public static class ModeCycle extends GlassComponent {
         private final ModeProperty prop;
 
@@ -208,17 +254,15 @@ public final class GlassControls {
         public void draw(int mouseX, int mouseY) {
             String name = prop.getName();
             String mode = prop.getModeString();
-            int textW = textWidth(mode);
             drawText(name, x + 2, y + 2, GlassRenderer.TEXT_DIM);
-            // mode chip (right side, shrink if needed)
-            int chipW = Math.min(w - textWidth(name) - 12, textW + 12);
-            if (chipW > 20) {
-                GlassRenderer.drawRoundedRect(x + w - chipW - 2, y + 1, chipW, 12, 6,
-                        isHovered(mouseX, mouseY) ? 0x33FFFFFF : 0x1FFFFFFF);
-                drawText(mode, x + w - chipW + 4, y + 3, GlassRenderer.ACCENT);
-            } else {
-                drawText(mode, x + w - textW - 2, y + 3, GlassRenderer.ACCENT);
-            }
+            // 右侧模式芯片：半透明玻璃底 + 发丝描边，圆角 4px
+            int chipW = textWidth(mode, SIZE_SMALL) + 12;
+            float chipX = x + w - chipW - 2;
+            GlassRenderer.drawRoundedRect(chipX, y + 2, chipW, 11, 4,
+                    fade(isHovered(mouseX, mouseY) ? 0x26FFFFFF : 0x14FFFFFF));
+            GlassRenderer.drawRoundedOutline(chipX + 0.5F, y + 2.5F, chipW - 1, 10, 3.5F, 1.0F,
+                    fade(GlassRenderer.GLASS_OUTLINE));
+            drawText(mode, chipX + 6, y + 3, GlassRenderer.ACCENT, SIZE_SMALL);
         }
 
         @Override
@@ -230,7 +274,7 @@ public final class GlassControls {
         }
     }
 
-    /** Hide toggle (Module.hidden): when on, the module disappears from the HUD arraylist. */
+    /** 隐藏开关（Module.hidden）：开启后模块从 HUD 数组列表中消失。 */
     public static class HideToggle extends GlassComponent {
         private final Module module;
 
@@ -243,7 +287,7 @@ public final class GlassControls {
         public void draw(int mouseX, int mouseY) {
             boolean on = module.isHidden();
             drawText("Hide", x + 2, y + 2, on ? GlassRenderer.TEXT_MAIN : GlassRenderer.TEXT_DIM);
-            GlassRenderer.drawCapsule(x + w - 26, y + 1, 24, 12, on, GlassRenderer.ACCENT);
+            GlassRenderer.drawCapsule(x + w - 26, y + 2, 24, 12, on, GlassRenderer.ACCENT);
         }
 
         @Override
@@ -254,7 +298,10 @@ public final class GlassControls {
         }
     }
 
-    /** Keybind button: click then press a key. */
+    /**
+     * 绑定按钮：左侧名称，右侧键位玻璃芯片。
+     * 点击进入「点击设置」态（芯片文字变 accent 提示），再按任意键完成绑定；右键清除。
+     */
     public static class BindButton extends GlassComponent {
         private final Module module;
         private boolean binding;
@@ -266,9 +313,17 @@ public final class GlassControls {
 
         @Override
         public void draw(int mouseX, int mouseY) {
-            String bind = module.getKey() == 0 ? "None" : KeyBindUtil.getKeyName(module.getKey());
-            String label = binding ? "Press a key..." : "Bind: " + bind;
-            drawText(label, x + 2, y + 2, binding ? GlassRenderer.ACCENT : GlassRenderer.TEXT_DIM);
+            drawText("Bind", x + 2, y + 2, GlassRenderer.TEXT_DIM);
+            // 右侧键位芯片：半透明玻璃底 + 发丝描边
+            String key = binding ? "..." : (module.getKey() == 0 ? "None" : KeyBindUtil.getKeyName(module.getKey()));
+            int chipW = textWidth(key, SIZE_SMALL) + 12;
+            float chipX = x + w - chipW - 2;
+            GlassRenderer.drawRoundedRect(chipX, y + 2, chipW, 11, 4,
+                    fade(binding ? GlassRenderer.ACCENT_DIM : 0x14FFFFFF));
+            GlassRenderer.drawRoundedOutline(chipX + 0.5F, y + 2.5F, chipW - 1, 10, 3.5F, 1.0F,
+                    fade(binding ? GlassRenderer.ACCENT : GlassRenderer.GLASS_OUTLINE));
+            drawText(key, chipX + 6, y + 3,
+                    binding ? GlassRenderer.ACCENT : GlassRenderer.TEXT_DIM, SIZE_SMALL);
         }
 
         @Override
@@ -293,7 +348,9 @@ public final class GlassControls {
         }
     }
 
-    /** Compact color picker (ColorProperty): RGB sliders inside one row-expanding group. */
+    /**
+     * 颜色行（ColorProperty）：右侧色板圆点（玻璃描边），左键展开 R/G/B 三个胶囊滑块。
+     */
     public static class ColorRow extends GlassComponent {
         private final ColorProperty prop;
         private boolean expanded;
@@ -319,17 +376,19 @@ public final class GlassControls {
 
         @Override
         public int getHeight() {
-            // swatch row (14) + R/G/B sliders at y+16/32/48, 16px each -> 64
-            return expanded ? 64 : 14;
+            // 色板行 16 + R/G/B 滑块（16px 间距）展开后 64
+            return expanded ? 64 : 16;
         }
 
         @Override
         public void draw(int mouseX, int mouseY) {
             int rgb = prop.getValue() & 0xFFFFFF;
             drawText(prop.getName(), x + 2, y + 2, GlassRenderer.TEXT_DIM);
-            // color swatch
-            GlassRenderer.drawRoundedRect(x + w - 22, y + 1, 20, 12, 4, 0xFF000000 | rgb);
-            GlassRenderer.drawRoundedOutline(x + w - 22, y + 1, 20, 12, 4, 1, 0x40FFFFFF);
+            // 色板圆点：实心色 + 玻璃描边
+            float dotX = x + w - 9;
+            float dotY = y + 7;
+            GlassRenderer.drawCircle(dotX, dotY, 5.0F, fade(0xFF000000 | rgb));
+            GlassRenderer.drawCircleOutline(dotX, dotY, 5.0F, 1.0F, fade(0x40FFFFFF));
             if (expanded) {
                 r.setBounds(x + 6, y + 16, w - 12, 16);
                 g.setBounds(x + 6, y + 32, w - 12, 16);
@@ -343,7 +402,7 @@ public final class GlassControls {
         @Override
         public void mouseDown(int mouseX, int mouseY, int button) {
             if (button == 0 && isHovered(mouseX, mouseY)) {
-                if (mouseY < y + 14) {
+                if (mouseY < y + 16) {
                     expanded = !expanded;
                     return;
                 }
@@ -374,7 +433,7 @@ public final class GlassControls {
         }
     }
 
-    /** Inline text field (TextProperty). */
+    /** 内联文本框（TextProperty）。 */
     public static class TextField extends GlassComponent {
         private final TextProperty prop;
         private boolean focused;

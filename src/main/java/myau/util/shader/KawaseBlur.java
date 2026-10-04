@@ -122,6 +122,9 @@ public class KawaseBlur {
         ShaderUtils.drawQuads();
         GlStateManager.bindTexture(0);
         GlStateManager.disableBlend();
+        // setAlphaLimit(0) 把 alphaFunc 改成了 GREATER/ref=0，会让半透明像素也通过测试；
+        // 此处恢复原版 GUI 默认的 GREATER/ref=0.1，避免后续渲染残留状态。
+        GlStateManager.alphaFunc(GL11.GL_GREATER, 0.1F);
     }
 
     private static void renderFBO(Framebuffer framebuffer, int framebufferTexture, ShaderUtils shader, float offset) {

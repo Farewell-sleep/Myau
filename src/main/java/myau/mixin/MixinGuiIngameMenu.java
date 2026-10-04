@@ -1,6 +1,7 @@
 package myau.mixin;
 
 import myau.util.FontManager;
+import myau.util.RenderUtil;
 import net.minecraft.client.gui.GuiIngameMenu;
 import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.renderer.GlStateManager;
@@ -24,7 +25,7 @@ import java.awt.Color;
 @Mixin(GuiIngameMenu.class)
 public abstract class MixinGuiIngameMenu extends GuiScreen {
 
-    private static final Color ACCENT = new Color(120, 170, 255);
+    private static final Color ACCENT = new Color(59, 130, 246); // ACCENT 0xFF3B82F6
 
     @Inject(method = "drawScreen", at = @At("HEAD"))
     private void myauDrawScreen(int mouseX, int mouseY, float partialTicks, CallbackInfo ci) {
@@ -36,12 +37,11 @@ public abstract class MixinGuiIngameMenu extends GuiScreen {
         float x0 = this.width / 2.0F - tw / 2.0F;
         float y = this.height / 4.0F - 34.0F;
         FontManager.drawString(title, x0, y - FontManager.getBaseline(size) + FontManager.getCapHeight(size) / 2.0F,
-                rgba(245, 248, 252, 255), false, size);
+                rgba(242, 244, 248, 255), false, size); // TEXT_MAIN
 
-        // accent underline under the title
+        // rounded accent underline under the title
         float uw = tw * 0.8F;
-        net.minecraft.client.gui.Gui.drawRect((int) (this.width / 2.0F - uw / 2.0F), (int) (y + size * 0.62F),
-                (int) (this.width / 2.0F + uw / 2.0F), (int) (y + size * 0.62F + 2.0F),
+        RenderUtil.drawRoundedRect(this.width / 2.0F - uw / 2.0F, y + size * 0.62F, uw, 2.0F, 1.0F,
                 rgba(ACCENT, 160));
 
         GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);

@@ -1,6 +1,7 @@
 package myau.ui.liquid;
 
 import myau.module.Module;
+import myau.util.FontManager;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.ScaledResolution;
 import net.minecraft.client.renderer.GlStateManager;
@@ -34,6 +35,7 @@ public class GlassPanel {
     private int scroll;
     private float animScroll;
     private String filter = "";
+    private long filterStart;
 
     // animation state
     private final long enterStart;
@@ -47,16 +49,18 @@ public class GlassPanel {
 
     public GlassPanel(String name, List<Module> modules, int staggerIndex) {
         this.name = name;
-        this.enterStart = System.currentTimeMillis() + staggerIndex * 60L;
+        // 面板入场 stagger：每块面板递增 30ms
+        this.enterStart = System.currentTimeMillis() + staggerIndex * 30L;
         // panels start fully open: put the collapse clock in the past
         this.openStart = System.currentTimeMillis() - GlassRenderer.DURATION;
         this.hoverStart = System.currentTimeMillis();
         this.releaseStart = System.currentTimeMillis();
+        this.filterStart = System.currentTimeMillis();
         for (Module m : modules) {
             entries.add(new GlassModuleEntry(m, this, w));
         }
         for (GlassModuleEntry e : entries) {
-            int tw = mc.fontRendererObj.getStringWidth(e.module.getName()) + 30;
+            int tw = FontManager.getStringWidth(e.module.getName(), GlassControls.SIZE_LABEL) + 30;
             if (tw > w) w = tw;
         }
         w = Math.min(w, 156);
@@ -86,6 +90,7 @@ public class GlassPanel {
         // the scroll right after every wheel event (nothing could scroll)
         if (!newFilter.equals(this.filter)) {
             this.filter = newFilter;
+            this.filterStart = System.currentTimeMillis();
             scroll = 0;
             animScroll = 0;
         }
@@ -156,6 +161,9 @@ public class GlassPanel {
         net.minecraft.client.renderer.GlStateManager.translate(-midX, -midY, 0);
 
         int bodyAlpha = (int) (enter * 255);
+        // 搜索过滤切换时：整列条目淡入（与滚动复位同步）
+        float filterEase = GlassRenderer.easeOutCubic(GlassRenderer.animate(filterStart, now));
+        int entryAlpha = (int) (bodyAlpha * filterEase);
 
         // Liquid Glass backdrop: SDF rounded mask + edge refraction shader
         // sampling the blurred frame. No grey glass body — the panel IS the
@@ -208,12 +216,13 @@ public class GlassPanel {
             GlassRenderer.drawRoundedRect(x, drawY, w, panelHF, RADIUS, wash);
         }
 
-        // header — title vertically centred: header centre (17) when expanded,
-        // whole-panel centre (20) when collapsed, lerped by the animation
+        // header —— 面板标题 12px，按 FontManager 度量垂直居中
         float titleCenter = 17.0F + (20.0F - 17.0F) * (1.0F - cp);
-        int titleY = (int) (drawY + titleCenter - 4.5F + 0.5F);
+        float titleSize = 12.0F;
+        float titleY = drawY + titleCenter - FontManager.getBaseline(titleSize)
+                + FontManager.getCapHeight(titleSize) / 2.0F;
         int headerText = (GlassRenderer.TEXT_MAIN & 0xFFFFFF) | (bodyAlpha << 24);
-        mc.fontRendererObj.drawString(name, x + 14, titleY, headerText);
+        FontManager.drawString(name, x + 14, titleY, headerText, false, titleSize);
         drawChevron(x + w - 17, drawY + titleCenter - 2.75F, cp > 0.5F, bodyAlpha);
 
         // content with scissor — drawn while the animated height is > 0 so
@@ -243,9 +252,7 @@ public class GlassPanel {
                 e.setWidth(w);
                 boolean rowHovered = mouseX >= x + 4 && mouseX <= x + w - 4
                         && mouseY >= cy && mouseY <= cy + 16;
-                e.draw(mouseX, mouseY, rowHovered, bodyAlpha);
-                // [DEBUG] entry bounds
-                // GlassRenderer.drawRoundedOutline(x + 2, cy, w - 4, eh, 4, 1, 0x40FF0000);
+                e.draw(mouseX, mouseY, rowHovered, entryAlpha);
                 cy += eh;
             }
             GL11.glDisable(GL11.GL_SCISSOR_TEST);
@@ -253,7 +260,8 @@ public class GlassPanel {
             if (contentHeight() > MAX_CONTENT_H) {
                 float thumbH = Math.max(16, MAX_CONTENT_H * MAX_CONTENT_H / (float) contentHeight());
                 float thumbY = (float) (drawY + HEADER_H + 2 + animScroll * (MAX_CONTENT_H - thumbH) / maxScroll);
-                GlassRenderer.drawRoundedRect(x + w - 4, thumbY, 2, thumbH, 1, 0x66FFFFFF);
+                // 细圆角滚动条：2.5px 宽、主题蓝
+                GlassRenderer.drawRoundedRect(x + w - 4.5F, thumbY, 2.5F, thumbH, 1.25F, 0x993B82F6);
             }
         }
         net.minecraft.client.renderer.GlStateManager.popMatrix();

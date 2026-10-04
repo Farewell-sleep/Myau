@@ -9,6 +9,7 @@ import myau.property.properties.BooleanProperty;
 import myau.property.properties.ColorProperty;
 import myau.property.properties.FloatProperty;
 import myau.property.properties.ModeProperty;
+import myau.util.FontManager;
 import myau.util.RenderUtil;
 import myau.util.SharedBlockHighlightCache;
 import net.minecraft.block.Block;
@@ -417,7 +418,9 @@ public class BedESP extends Module {
         } else {
             axisAlignedBB = new AxisAlignedBB(x, y, z, x + 1.0, y + height, z + 2.0);
         }
-        drawBoundingBox(axisAlignedBB, r, g, b, drawA);
+        // 现代化床框：半透明玻璃填充 + 1px 发丝描边
+        RenderUtil.drawFilledBoundingBox(axisAlignedBB, r, g, b, drawA * 0.7F);
+        RenderUtil.drawBoundingBox(axisAlignedBB, (int)(r*255f), (int)(g*255f), (int)(b*255f), (int) (Math.min(1.0F, drawA + 0.35F) * 255.0F), 1.0F);
         if (exposed) {
             int outlineColor = exposedOutlineColor.getValue();
             float outlineA = (outlineColor >> 24 & 0xFF) / 255.0f;
@@ -508,7 +511,7 @@ public class BedESP extends Module {
 
                 if (!showDefenseTools.getValue() && showDefenseCounts.getValue() && stackData.count > 1) {
                     String countText = String.valueOf(stackData.getCount());
-                    fontRenderer.drawStringWithShadow(countText, iconX + 17 - fontRenderer.getStringWidth(countText), iconY + 9, 0xFFFFFF);
+                    FontManager.drawString(countText, iconX + 17 - FontManager.getStringWidth(countText), iconY + 9, 0xFFFFFFFF, true);
                     applyDefenseOverlayTextState();
                 }
             }

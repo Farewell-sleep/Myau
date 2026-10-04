@@ -25,7 +25,7 @@ public class MainMenuScreen extends GuiScreen {
     private static final int BTN_GAP = 24;
     private static final String[] BUTTONS = {"Singleplayer", "Multiplayer", "Options", "Quit"};
 
-    private final Color accent = new Color(120, 170, 255);
+    private final Color accent = new Color(59, 130, 246); // ACCENT 0xFF3B82F6 (spec tokens)
     private long openedAt;
     private float titleSlide = 0.0F;
     private float fade = 0.0F;
@@ -74,7 +74,7 @@ public class MainMenuScreen extends GuiScreen {
         float x0 = this.width / 2.0F - tw / 2.0F;
 
         FontManager.drawString(title, x0, y - FontManager.getBaseline(size) + FontManager.getCapHeight(size) / 2.0F,
-                rgba(246, 249, 253, (int) alpha), false, size);
+                rgba(242, 244, 248, (int) alpha), false, size); // TEXT_MAIN
 
         // thin accent underline
         float uw = tw * 0.82F;
@@ -87,7 +87,7 @@ public class MainMenuScreen extends GuiScreen {
         String sub = "a modern 1.8.9 utility client";
         float ss = 12.0F;
         FontManager.drawString(sub, this.width / 2.0F - FontManager.getStringWidth(sub, ss) / 2.0F,
-                uy + 16.0F, rgba(140, 150, 168, (int) (200 * fade)), false, ss);
+                uy + 16.0F, rgba(138, 146, 166, (int) (200 * fade)), false, ss); // TEXT_DIM
     }
 
     private void drawButtons(int mouseX, int mouseY, float fade) {
@@ -102,18 +102,30 @@ public class MainMenuScreen extends GuiScreen {
             this.buttonAnims[i] += (target - this.buttonAnims[i]) * 0.16F;
             float a = this.buttonAnims[i];
 
-            int bg = rgba(17, 19, 26, (int) ((130 + 70 * a) * fade));
-            int border = rgba(accent, (int) ((40 + 110 * a) * fade));
-            RenderUtil.drawRoundedRect(cx - BTN_W / 2.0F - 0.5F, by - 0.5F, BTN_W + 1.0F, BTN_H + 1.0F, 5.5F, border);
-            RenderUtil.drawRoundedRect(cx - BTN_W / 2.0F, by, BTN_W, BTN_H, 5.0F, bg);
+            float bx = cx - BTN_W / 2.0F;
+            // glass body (GLASS_BODY 0xB91A2028) + idle 1px hairline (GLASS_OUTLINE 0x2AFFFFFF)
+            RenderUtil.drawRoundedRect(bx - 0.5F, by - 0.5F, BTN_W + 1.0F, BTN_H + 1.0F, 5.5F,
+                    rgba(255, 255, 255, (int) (42 * fade)));
+            RenderUtil.drawRoundedRect(bx, by, BTN_W, BTN_H, 5.0F,
+                    rgba(26, 32, 40, (int) (185 * fade)));
+
+            // hover: accent border wash + frosted hover fill + top sheen
+            if (a > 0.01F) {
+                RenderUtil.drawRoundedRect(bx - 0.5F, by - 0.5F, BTN_W + 1.0F, BTN_H + 1.0F, 5.5F,
+                        rgba(accent, (int) (120 * a * fade)));
+                RenderUtil.drawRoundedRect(bx, by, BTN_W, BTN_H, 5.0F,
+                        rgba(255, 255, 255, (int) (26 * a * fade)));
+                RenderUtil.drawRoundedRect(bx + 1.0F, by + 0.5F, BTN_W - 2.0F, 1.0F, 0.5F,
+                        rgba(255, 255, 255, (int) (60 * a * fade)));
+            }
 
             // left accent bar on hover
             if (a > 0.01F) {
-                RenderUtil.drawRoundedRect(cx - BTN_W / 2.0F + 6.0F, by + 4.0F, 2.0F + a * 2.0F, BTN_H - 8.0F, 1.0F,
+                RenderUtil.drawRoundedRect(bx + 6.0F, by + 4.0F, 2.0F + a * 2.0F, BTN_H - 8.0F, 1.0F,
                         rgba(accent, (int) (230 * a * fade)));
             }
 
-            int textColor = rgba(mix(new Color(160, 167, 182), new Color(245, 247, 252), a), (int) (255 * fade));
+            int textColor = rgba(mix(new Color(138, 146, 166), new Color(242, 244, 248), a), (int) (255 * fade));
             float textSize = 13.0F;
             float dx = a * 2.0F;
             FontManager.drawString(BUTTONS[i],
@@ -127,7 +139,7 @@ public class MainMenuScreen extends GuiScreen {
         String version = "Myau 1.0.0   -   MC 1.8.9";
         float vs = 11.0F;
         FontManager.drawString(version, (this.width - FontManager.getStringWidth(version, vs)) / 2.0F,
-                this.height - 26.0F, rgba(120, 129, 147, (int) (190 * fade)), false, vs);
+                this.height - 26.0F, rgba(90, 98, 118, (int) (190 * fade)), false, vs); // TEXT_FAINT
     }
 
     private void drawGlow(float cx, float cy, float radius, Color color, int alpha) {

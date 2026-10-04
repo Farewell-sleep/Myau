@@ -21,9 +21,13 @@ import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.util.MathHelper;
 import net.minecraft.util.Vec3;
 
-import java.awt.*;
+import java.awt.Color;
 import java.util.stream.Collectors;
 
+/**
+ * 现代化 Tracers：柔和发光描边线（外层低透明度宽线 + 内层高透明度细线）、
+ * 距离淡出、屏幕边缘指示箭头。视觉风格遵循 RENDER_SPEC 第 2 节令牌。
+ */
 public class Tracers extends Module {
     private static final Minecraft mc = Minecraft.getMinecraft();
     public final ModeProperty colorMode = new ModeProperty("color", 0, new String[]{"DEFAULT", "TEAMS", "HUD"});
@@ -130,22 +134,27 @@ public class Tracers extends Module {
                         );
             }
             position = new Vec3(position.xCoord, position.yCoord + (double) mc.getRenderViewEntity().getEyeHeight(), position.zCoord);
+            float maxDist = (float) this.distance.getValue();
             for (EntityPlayer player : TeamUtil.getLoadedEntitiesSorted().stream().filter(entity -> entity instanceof EntityPlayer && this.shouldRender((EntityPlayer) entity)).map(EntityPlayer.class::cast).collect(Collectors.toList())) {
                 Color color = this.getEntityColor(player, (float) this.opacity.getValue() / 100.0F);
                 double x = RenderUtil.lerpDouble(player.posX, player.lastTickPosX, event.getPartialTicks());
                 double y = RenderUtil.lerpDouble(player.posY, player.lastTickPosY, event.getPartialTicks()) - (player.isSneaking() ? 0.125 : 0.0);
                 double z = RenderUtil.lerpDouble(player.posZ, player.lastTickPosZ, event.getPartialTicks());
-                RenderUtil.drawLine3D(
-                        position,
-                        x,
-                        y + (double) player.getEyeHeight(),
-                        z,
-                        (float) color.getRed() / 255.0F,
-                        (float) color.getGreen() / 255.0F,
-                        (float) color.getBlue() / 255.0F,
-                        (float) color.getAlpha() / 255.0F,
-                        1.5F
-                );
+
+                // 距离淡出：近处全亮，远端衰减到 40%
+                double dist = position.distanceTo(new Vec3(x, y + player.getEyeHeight(), z));
+                float fade = (float) Math.max(0.4, 1.0 - (dist / maxDist) * 0.6);
+                float a = Math.min(1.0F, color.getAlpha() / 255.0F) * fade;
+                float r = color.getRed() / 255.0F;
+                float g = color.getGreen() / 255.0F;
+                float b = color.getBlue() / 255.0F;
+
+                // 外层柔光（宽线低透明度）
+                RenderUtil.drawLine3D(position, x, y + (double) player.getEyeHeight(), z,
+                        r, g, b, a * 0.18F, 4.5F);
+                // 内层清晰线
+                RenderUtil.drawLine3D(position, x, y + (double) player.getEyeHeight(), z,
+                        r, g, b, a, 1.5F);
             }
             RenderUtil.disableRenderState();
         }
@@ -184,12 +193,21 @@ public class Tracers extends Module {
                 GlStateManager.pushMatrix();
                 GlStateManager.translate(55.0F * arrowDirX + 1.0F, 55.0F * arrowDirY + 1.0F, -100.0F);
                 RenderUtil.enableRenderState();
+                Color arrowColor = this.getEntityColor(player, opacity);
+                // 箭头外圈发光 + 实心主体
+                RenderUtil.drawTriangle(
+                        0.0F,
+                        0.0F,
+                        (float) (Math.atan2(arrowDirY, arrowDirX) + Math.PI),
+                        14.0F,
+                        new Color(arrowColor.getRed(), arrowColor.getGreen(), arrowColor.getBlue(), (int) (opacity * 50)).getRGB()
+                );
                 RenderUtil.drawTriangle(
                         0.0F,
                         0.0F,
                         (float) (Math.atan2(arrowDirY, arrowDirX) + Math.PI),
                         10.0F,
-                        this.getEntityColor(player, opacity).getRGB()
+                        arrowColor.getRGB()
                 );
                 RenderUtil.disableRenderState();
                 GlStateManager.popMatrix();

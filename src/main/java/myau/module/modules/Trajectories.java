@@ -1,6 +1,7 @@
 package myau.module.modules;
 
 import myau.event.EventTarget;
+import myau.events.Render2DEvent;
 import myau.events.Render3DEvent;
 import myau.mixin.IAccessorRenderManager;
 import myau.module.Module;
@@ -13,6 +14,7 @@ import myau.property.properties.ModeProperty;
 import myau.property.properties.PercentProperty;
 import net.minecraft.block.material.Material;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.ScaledResolution;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.renderer.Tessellator;
 import net.minecraft.client.renderer.WorldRenderer;
@@ -21,9 +23,14 @@ import net.minecraft.client.renderer.vertex.DefaultVertexFormats;
 import net.minecraft.entity.Entity;
 import net.minecraft.item.*;
 import net.minecraft.util.*;
+import org.lwjgl.BufferUtils;
+import org.lwjgl.opengl.Display;
 import org.lwjgl.opengl.GL11;
+import org.lwjgl.util.glu.GLU;
 
 import java.awt.*;
+import java.nio.FloatBuffer;
+import java.nio.IntBuffer;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -48,6 +55,15 @@ public class Trajectories extends Module {
     public final ColorProperty onyxColor = new ColorProperty("onyx-color", 0xFF7744, () -> this.mode.getValue() == 1);
     public final ColorProperty onyxImpactColor = new ColorProperty("onyx-impact-color", 0xFFFF22, () -> this.mode.getValue() == 1);
 
+    // === 落点圆环：3D→屏幕投影缓冲（与 RenderUtil.projectToScreen 同一套 gluProject）===
+    private static final FloatBuffer MODEL_VIEW = BufferUtils.createFloatBuffer(16);
+    private static final FloatBuffer PROJECTION = BufferUtils.createFloatBuffer(16);
+    private static final IntBuffer VIEWPORT = BufferUtils.createIntBuffer(16);
+    private static final FloatBuffer PROJ_VEC = BufferUtils.createFloatBuffer(4);
+    private double impactScreenX;
+    private double impactScreenY;
+    private boolean impactOnScreen;
+
     public Trajectories() {
         super("Trajectories", false, true);
     }
@@ -58,6 +74,8 @@ public class Trajectories extends Module {
                 || mc.thePlayer.getHeldItem() == null || mc.gameSettings.thirdPersonView != 0) {
             return;
         }
+        // 每帧先清掉上一帧的落点圆环，避免切到 ORIGINAL 模式后残留
+        this.impactOnScreen = false;
         if (this.mode.getValue() == 1) {
             this.renderOnyx(event.getPartialTicks());
         } else {
@@ -381,33 +399,83 @@ public class Trajectories extends Module {
         double ry = ((IAccessorRenderManager) rm).getRenderPosY();
         double rz = ((IAccessorRenderManager) rm).getRenderPosZ();
 
-        int lineColor = this.onyxColor.getValue() | 0xFF000000;
+        // === 现代化弹道：外层柔光（宽线低透明）+ 内层清晰（原线宽全透明），与 Tracers 一致 ===
+        Color line = new Color(this.onyxColor.getValue() | 0xFF000000);
+        float lineWidth = this.onyxLineWidth.getValue();
+        boolean throughWalls = this.onyxThroughWalls.getValue();
+
         RenderUtil.enableRenderState();
-        RenderUtil.setColor(new Color(lineColor).getRGB());
-        GL11.glLineWidth(this.onyxLineWidth.getValue());
+        if (!throughWalls) {
+            GlStateManager.enableDepth(); // 不穿墙时弹道受世界几何遮挡
+        }
         GL11.glEnable(GL11.GL_LINE_SMOOTH);
         GL11.glHint(GL11.GL_LINE_SMOOTH_HINT, GL11.GL_NICEST);
+        drawTrajectoryStrip(points, rx, ry, rz, line, lineWidth * 3.0F, 0.18F); // 外层柔光
+        drawTrajectoryStrip(points, rx, ry, rz, line, lineWidth, 1.0F);        // 内层清晰
+        GL11.glDisable(GL11.GL_LINE_SMOOTH);
+        GL11.glLineWidth(2.0F);
+        GlStateManager.resetColor();
+        RenderUtil.disableRenderState();
+
+        // 落点：3D 命中点投影到屏幕，在 Render2D 用 drawCircleOutline 画圆环标记
+        if (hit != null && this.onyxImpactMarker.getValue()) {
+            projectHitToScreen(hit, rx, ry, rz);
+        }
+    }
+
+    /** 画一条 3D 弹道折线（LINE_STRIP），颜色按 alpha 叠加。 */
+    private void drawTrajectoryStrip(ArrayList<Vec3> points, double rx, double ry, double rz, Color c, float lineWidth, float alpha) {
+        RenderUtil.setColor(new Color(c.getRed(), c.getGreen(), c.getBlue(), (int) (alpha * 255.0F)).getRGB());
+        GL11.glLineWidth(lineWidth);
         WorldRenderer worldRenderer = Tessellator.getInstance().getWorldRenderer();
         worldRenderer.begin(GL11.GL_LINE_STRIP, DefaultVertexFormats.POSITION);
         for (Vec3 point : points) {
             worldRenderer.pos(point.xCoord - rx, point.yCoord - ry, point.zCoord - rz).endVertex();
         }
         Tessellator.getInstance().draw();
-        GL11.glDisable(GL11.GL_LINE_SMOOTH);
-        GL11.glLineWidth(2.0F);
-        GlStateManager.resetColor();
-        RenderUtil.disableRenderState();
+    }
 
-        if (hit != null && this.onyxImpactMarker.getValue()) {
-            double s = 0.12;
-            AxisAlignedBB box = AxisAlignedBB.fromBounds(
-                    hit.xCoord - s, hit.yCoord - s, hit.zCoord - s,
-                    hit.xCoord + s, hit.yCoord + s, hit.zCoord + s
-            ).offset(-rx, -ry, -rz);
-            Color impact = new Color(this.onyxImpactColor.getValue() | 0xFF000000);
-            RenderUtil.enableRenderState();
-            RenderUtil.drawBoundingBox(box, impact.getRed(), impact.getGreen(), impact.getBlue(), 200, this.onyxLineWidth.getValue());
-            RenderUtil.disableRenderState();
+    /** 把 3D 命中点投影到屏幕（缩放分辨率坐标系），结果存入 impactScreenX/Y/OnScreen。 */
+    private void projectHitToScreen(Vec3 hit, double rx, double ry, double rz) {
+        GL11.glGetFloat(GL11.GL_MODELVIEW_MATRIX, MODEL_VIEW);
+        GL11.glGetFloat(GL11.GL_PROJECTION_MATRIX, PROJECTION);
+        GL11.glGetInteger(GL11.GL_VIEWPORT, VIEWPORT);
+        boolean ok = GLU.gluProject(
+                (float) (hit.xCoord - rx), (float) (hit.yCoord - ry), (float) (hit.zCoord - rz),
+                MODEL_VIEW, PROJECTION, VIEWPORT, PROJ_VEC);
+        if (!ok) {
+            this.impactOnScreen = false;
+            return;
         }
+        float depth = PROJ_VEC.get(2);
+        if (depth < 0.0F || depth >= 1.0F) {
+            this.impactOnScreen = false;
+            return;
+        }
+        float scale = new ScaledResolution(mc).getScaleFactor();
+        this.impactScreenX = PROJ_VEC.get(0) / scale;
+        this.impactScreenY = (Display.getHeight() - PROJ_VEC.get(1)) / scale;
+        this.impactOnScreen = true;
+    }
+
+    /** 落点圆环：外层柔光大圈 + 内层清晰小圈（drawCircleOutline，2D 屏幕空间）。 */
+    @EventTarget
+    public void onRender2D(Render2DEvent event) {
+        if (!this.isEnabled() || !this.onyxImpactMarker.getValue() || !this.impactOnScreen) {
+            return;
+        }
+        if (this.mode.getValue() != 1) {
+            return;
+        }
+        Color impact = new Color(this.onyxImpactColor.getValue() | 0xFF000000);
+        float cx = (float) this.impactScreenX;
+        float cy = (float) this.impactScreenY;
+        float thickness = Math.max(1.0F, this.onyxLineWidth.getValue());
+        // 外层柔光环（低透明度）
+        int glow = new Color(impact.getRed(), impact.getGreen(), impact.getBlue(), 60).getRGB();
+        RenderUtil.drawCircleOutline(cx, cy, 7.5F, 32, thickness + 1.5F, glow);
+        // 内层清晰环
+        int crisp = new Color(impact.getRed(), impact.getGreen(), impact.getBlue(), 235).getRGB();
+        RenderUtil.drawCircleOutline(cx, cy, 4.5F, 32, thickness, crisp);
     }
 }

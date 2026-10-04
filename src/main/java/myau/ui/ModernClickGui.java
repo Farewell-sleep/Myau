@@ -64,11 +64,27 @@ public class ModernClickGui extends GuiScreen {
     private static final float ROW_GAP = 2.0F;
     private static final String[] CATEGORY_NAMES = {"Combat", "Movement", "Render", "HUD", "Player", "Misc"};
 
-    private static final Set<String> COMBAT = set("AimAssist", "AutoClicker", "KillAura", "NewKillAura", "SmartAttack", "Wtap", "BlockHit", "Autoblock", "AutoBlockIn", "Disabler", "HitSelect", "Velocity", "MoreKB", "NoHitDelay", "Reach", "BackTrack", "LagRange", "HitBox", "TargetStrafe", "Telly", "AutoAnduril", "AntiFireball", "AntiObbyTrap", "AntiDebuff", "AntiObfuscate");
-    private static final Set<String> MOVEMENT = set("AntiAFK", "Fly", "Speed", "LongJump", "Sprint", "InvWalk", "Jesus", "NoSlow", "Scaffold", "SafeWalk", "Eagle", "Freeze", "FastPlace", "SpeedMine", "NoJumpDelay");
-    private static final Set<String> RENDER = set("Capes", "ESP", "Chams", "FullBright", "Tracers", "NameTags", "Radar", "Trajectories", "ItemESP", "ChestESP", "BedESP", "Xray", "SnowFog", "CuteVisuals", "BreakProgress", "ViewClip", "NoHurtCam", "NickHider", "ItemPhysics", "Crosshair", "SeeInvisibles", "Ambience", "Hurtcam", "FogRemove");
-    private static final Set<String> HUD = set("HUD", "TargetHUD", "Indicators", "PotionHUD", "Watermark", "Keybinds");
-    private static final Set<String> PLAYER = set("Clutch", "AutoHeal", "AutoTool", "ChestStealer", "InvManager", "Refill", "InventoryClicker", "NoFall", "GhostHand", "AntiVoid", "AutoThrow", "InventoryMove", "Freecam", "NewScaffold");
+    // 分类以 LiquidClickGui（入口 GUI）的 GlassPanel 数组为准对齐：
+    // Combat/Movement/Render/HUD/Player 五个静态 Set 覆盖对应面板；
+    // 其余已注册模块（BedNuker/BedTracker/LightningTracker/NoRotate/Spammer、
+    // AntiObbyTrap/AntiObfuscate/AutoAnduril/Disabler/InventoryClicker/NickHider）
+    // 未列于任何 Set，由 categoryOf() 默认落入 Misc。
+    private static final Set<String> COMBAT = set("AimAssist", "AutoClicker", "KillAura", "Wtap", "Velocity", "Freeze",
+            "Reach", "TargetStrafe", "NoHitDelay", "AntiFireball", "LagRange", "BackTrack", "BlockHit", "Autoblock",
+            "HitBox", "MoreKB", "Refill", "HitSelect", "AutoThrow", "NewKillAura", "SmartAttack");
+    private static final Set<String> MOVEMENT = set("AntiAFK", "Fly", "Speed", "LongJump", "Sprint", "SafeWalk",
+            "Jesus", "Blink", "NoFall", "NoSlow", "KeepSprint", "Eagle", "NoJumpDelay", "AntiVoid");
+    private static final Set<String> RENDER = set("Capes", "ESP", "Chams", "FullBright", "Tracers", "NameTags",
+            "Xray", "BedESP", "ItemESP", "ItemPhysics", "BreakProgress", "Freelook", "ViewClip", "NoHurtCam",
+            "GuiModule", "ChestESP", "Trajectories", "Radar", "CuteVisuals", "SnowFog", "Crosshair", "SeeInvisibles",
+            "Ambience", "Hurtcam", "FogRemove");
+    private static final Set<String> HUD = set("HUD", "TargetHUD", "Indicators", "PotionHUD", "Watermark", "Keybinds",
+            "ModuleToggleNotify");
+    // PLAYER 尾部 InventoryMove/Freecam 为未注册模块的历史名称残留（磁盘上有类但未入 modules.put），
+    // 保留在此仅作分类记录，不参与实际模块列表，按要求保持原状并在交付说明中报告。
+    private static final Set<String> PLAYER = set("Clutch", "AutoHeal", "AutoTool", "ChestStealer", "InvManager",
+            "InvWalk", "Scaffold", "Telly", "NewScaffold", "AutoBlockIn", "SpeedMine", "FastPlace", "GhostHand",
+            "MCF", "AntiDebuff", "InventoryMove", "Freecam");
 
     private static ModernClickGui instance;
 

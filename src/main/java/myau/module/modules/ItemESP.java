@@ -6,6 +6,8 @@ import myau.events.Render3DEvent;
 import myau.module.Module;
 import myau.property.properties.BooleanProperty;
 import myau.property.properties.FloatProperty;
+import myau.util.FontManager;
+import myau.util.RenderUtil;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.entity.Entity;
@@ -193,7 +195,10 @@ public class ItemESP extends Module {
         float b = (boxColor & 0xFF) / 255.0f;
 
         float radius = Math.min(Math.max(0.2f, (float) (0.009999999776482582 * dist)), 0.4f);
-        drawBoundingBox(new AxisAlignedBB(posY - radius, posX, posZ - radius, posY + radius, posX + radius * 2.0f, posZ + radius), r, g, b, 0.35f);
+        AxisAlignedBB box = new AxisAlignedBB(posY - radius, posX, posZ - radius, posY + radius, posX + radius * 2.0f, posZ + radius);
+        // 现代化：半透明玻璃填充 + 1px 发丝描边
+        RenderUtil.drawFilledBoundingBox(box, r, g, b, 0.15f);
+        RenderUtil.drawBoundingBox(box, (int)(r*255f), (int)(g*255f), (int)(b*255f), (int) (0.45f * 255.0f), 1.0f);
         GL11.glEnable(GL11.GL_TEXTURE_2D);
         GL11.glEnable(GL11.GL_DEPTH_TEST);
         GL11.glDepthMask(true);
@@ -208,7 +213,7 @@ public class ItemESP extends Module {
         GlStateManager.depthMask(false);
         GlStateManager.disableDepth();
         String value = String.valueOf(size);
-        mc.fontRendererObj.drawString(value, -((float) mc.fontRendererObj.getStringWidth(value) / 2) + scale * 3.5f, -(123.805f * scale - 2.47494f), textColor, true);
+        FontManager.drawString(value, -FontManager.getStringWidth(value, 8.0F) / 2.0F + scale * 3.5f, -(123.805f * scale - 2.47494f), textColor, true, 8.0F);
         GlStateManager.enableDepth();
         GlStateManager.depthMask(true);
         GlStateManager.color(1.0f, 1.0f, 1.0f, 1.0f);

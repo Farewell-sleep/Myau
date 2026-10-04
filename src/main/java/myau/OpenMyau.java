@@ -133,6 +133,9 @@ public class OpenMyau {
         moduleManager.modules.put(GuiModule.class, new GuiModule());
         moduleManager.modules.put(HitSelect.class, new HitSelect());
         moduleManager.modules.put(HUD.class, new HUD());
+        // 模块开关通知：单例由 init() 创建并同时入表，随后在下方循环里统一
+        // 注册到事件总线（onRender2D 才能渲染该单例的通知队列）。
+        moduleManager.modules.put(ModuleToggleNotify.class, ModuleToggleNotify.init());
         moduleManager.modules.put(Hurtcam.class, new Hurtcam());
         moduleManager.modules.put(MoreKB.class, new MoreKB());
         moduleManager.modules.put(Indicators.class, new Indicators());
@@ -221,9 +224,8 @@ public class OpenMyau {
             propertyManager.properties.put(module.getClass(), properties);
             EventManager.register(module);
         }
-        // Core-layer, always-on, hidden module: not registered into the module map
-        // (click gui hard-validates every registered module) — chat toggle notify.
-        ModuleToggleNotify.init();
+        // 模块开关通知单例已在上方随模块表注册（见 ModuleToggleNotify.init()），
+        // 此处不再重复调用，避免产生第二个实例导致通知队列与渲染脱节。
         Config config = new Config("default", true);
         if (config.file.exists()) {
             config.load();

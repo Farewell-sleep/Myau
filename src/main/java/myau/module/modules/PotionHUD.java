@@ -8,6 +8,7 @@ import myau.property.properties.BooleanProperty;
 import myau.property.properties.FloatProperty;
 import myau.property.properties.ModeProperty;
 import myau.property.properties.PercentProperty;
+import myau.util.FontManager;
 import myau.util.RenderUtil;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.ScaledResolution;
@@ -22,11 +23,18 @@ import java.util.Comparator;
 import java.util.List;
 
 /**
- * Onxy-style potion status HUD, rewritten with Myau's native rendering.
+ * 现代化药水状态 HUD：玻璃卡片（圆角 6px + 发丝描边）、药水图标、
+ * FontManager 名称/时长、效果色圆点。视觉风格遵循 RENDER_SPEC 第 2 节令牌。
  */
 public class PotionHUD extends Module {
     private static final Minecraft mc = Minecraft.getMinecraft();
     private static final String[] ROMAN = {"", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"};
+
+    private static final int GLASS_BODY = 0xB91A2028;
+    private static final int GLASS_OUTLINE = 0x2AFFFFFF;
+    private static final int TEXT_MAIN = 0xFFF2F4F8;
+    private static final int TEXT_DIM = 0xFF8A92A6;
+    private static final float FS = 8.0F;
 
     public final ModeProperty sort = new ModeProperty("sort", 0, new String[]{"DURATION", "NAME", "LEVEL"});
     public final BooleanProperty icons = new BooleanProperty("icons", true);
@@ -73,73 +81,76 @@ public class PotionHUD extends Module {
 
         ScaledResolution sr = new ScaledResolution(mc);
         float scale = this.scale.getValue();
-        float rowH = 20.0F * scale;
-        float iconOffset = this.icons.getValue() ? 24.0F * scale : 0.0F;
+        float rowH = 20.0F;
+        float iconOffset = this.icons.getValue() ? 18.0F : 0.0F;
 
         int maxW = 0;
         for (PotionEffect e : effects) {
-            int w = mc.fontRendererObj.getStringWidth(this.getNameLine(e) + (this.amplifier.getValue() ? " " + getRoman(e) : ""));
+            String nameLine = this.getNameLine(e) + (this.amplifier.getValue() ? " " + getRoman(e) : "");
+            int w = FontManager.getStringWidth(nameLine, FS);
             if (this.duration.getValue()) {
-                w = Math.max(w, mc.fontRendererObj.getStringWidth(Potion.getDurationString(e)));
+                w = Math.max(w, FontManager.getStringWidth(Potion.getDurationString(e), FS));
             }
             maxW = Math.max(maxW, w);
         }
-        float width = 12.0F * scale + iconOffset + (float) maxW + 6.0F * scale;
-        float height = rowH * (float) effects.size() + 4.0F * scale;
+        float width = 8.0F + iconOffset + (float) maxW + 8.0F;
+        float height = rowH * (float) effects.size() + 4.0F;
 
         float x = (float) sr.getScaledWidth() * (this.posX.getValue().floatValue() / 100.0F);
         float y = (float) sr.getScaledHeight() * (this.posY.getValue().floatValue() / 100.0F);
-        if (x + width > (float) sr.getScaledWidth()) {
-            x = (float) sr.getScaledWidth() - width;
+        if (x + width * scale > (float) sr.getScaledWidth()) {
+            x = (float) sr.getScaledWidth() - width * scale;
         }
-        if (y + height > (float) sr.getScaledHeight()) {
-            y = (float) sr.getScaledHeight() - height;
+        if (y + height * scale > (float) sr.getScaledHeight()) {
+            y = (float) sr.getScaledHeight() - height * scale;
         }
 
         GlStateManager.pushMatrix();
         GlStateManager.scale(scale, scale, 1.0F);
         float sx = x / scale;
         float sy = y / scale;
-        float sRowH = 20.0F;
-        float sIcon = this.icons.getValue() ? 24.0F : 0.0F;
 
+        RenderUtil.enableRenderState();
         if (this.background.getValue()) {
-            RenderUtil.drawRect(sx, sy, sx + width / scale, sy + height / scale, new Color(0, 0, 0, 90).getRGB());
+            RenderUtil.drawRoundedRect(sx, sy, width, height, 6.0F, GLASS_BODY);
+            RenderUtil.drawRoundedOutline(sx, sy, sx + width, sy + height, 6.0F, 1.0F, GLASS_OUTLINE);
         }
 
         float rowY = sy + 2.0F;
         for (PotionEffect effect : effects) {
-            int color = 0xFFFFFFFF;
+            int color = TEXT_MAIN;
+            int dotColor = 0xFFFFFFFF;
             if (this.potionColor.getValue() && effect.getPotionID() >= 0 && effect.getPotionID() < Potion.potionTypes.length) {
                 Potion p = Potion.potionTypes[effect.getPotionID()];
                 if (p != null) {
-                    color = 0xFF000000 | p.getLiquidColor();
+                    dotColor = 0xFF000000 | p.getLiquidColor();
                 }
             }
-            float textX = sx + 6.0F * scale + sIcon;
-            float textY = rowY + 1.0F;
+            // 效果色玻璃圆点
+            if (this.potionColor.getValue()) {
+                RenderUtil.fillCircle(sx + 4.0F, rowY + rowH / 2.0F, 2.5, 12, dotColor);
+            }
+            float textX = sx + 6.0F + iconOffset;
+            float textY = rowY + 5.0F;
             if (this.icons.getValue()) {
-                RenderUtil.renderPotionEffect(effect, (int) (sx + 3.0F * scale), (int) (rowY + 1.0F));
+                RenderUtil.renderPotionEffect(effect, (int) (sx + 6.0F), (int) (rowY + 2.0F));
             }
             String nameLine = this.getNameLine(effect);
             if (this.amplifier.getValue()) {
                 nameLine += " " + getRoman(effect);
             }
-            mc.fontRendererObj.drawStringWithShadow(nameLine, textX, textY, color);
+            FontManager.drawString(nameLine, textX, textY, color, false, FS);
             if (this.duration.getValue()) {
                 boolean low = this.lowTimeWarn.getValue()
                         && !effect.getIsPotionDurationMax()
                         && effect.getDuration() < 200;
                 String time = effect.getIsPotionDurationMax() ? "**:**" : Potion.getDurationString(effect);
-                mc.fontRendererObj.drawStringWithShadow(
-                        time,
-                        textX + (float) mc.fontRendererObj.getStringWidth(nameLine) + 6.0F * scale,
-                        textY,
-                        low ? 0xFFFF5555 : 0xFFAAAAAA
-                );
+                FontManager.drawString(time, sx + width - 6.0F - (float) FontManager.getStringWidth(time, FS), textY,
+                        low ? 0xFFFF5555 : TEXT_DIM, false, FS);
             }
-            rowY += sRowH;
+            rowY += rowH;
         }
+        RenderUtil.disableRenderState();
         GlStateManager.popMatrix();
     }
 

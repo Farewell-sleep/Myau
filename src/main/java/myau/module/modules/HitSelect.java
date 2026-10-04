@@ -5,10 +5,13 @@ import myau.event.EventTarget;
 import myau.event.types.EventType;
 import myau.event.types.Priority;
 import myau.events.PacketEvent;
+import myau.events.Render2DEvent;
 import myau.events.UpdateEvent;
 import myau.module.Module;
 import myau.property.properties.ModeProperty;
+import myau.util.RenderUtil;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.ScaledResolution;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.projectile.EntityLargeFireball;
@@ -16,17 +19,26 @@ import net.minecraft.network.play.client.C02PacketUseEntity;
 import net.minecraft.network.play.client.C0BPacketEntityAction;
 import net.minecraft.util.Vec3;
 
+/**
+ * HIT SELECT — 命中判定逻辑保持不变；命中成功时在准星处绘制
+ * 扩散圆环命中标记（drawCircleOutline + 主题色 + ease-out 扩散/淡出）。
+ * 视觉风格遵循 RENDER_SPEC 第 2 节令牌。
+ */
 public class HitSelect extends Module {
     private static final Minecraft mc = Minecraft.getMinecraft();
-    
+
+    private static final int ACCENT = 0xFF3B82F6; // 规范主题蓝
+
     public final ModeProperty mode = new ModeProperty("mode", 0, new String[]{"SECOND", "CRITICALS", "W_TAP"});
-    
+
     private boolean sprintState = false;
     private boolean set = false;
     private double savedSlowdown = 0.0;
-    
+
     private int blockedHits = 0;
     private int allowedHits = 0;
+
+    private long lastHit = 0L; // 命中标记动画触发时间
 
     public HitSelect() {
         super("HitSelect", false);
@@ -37,7 +49,7 @@ public class HitSelect extends Module {
         if (!this.isEnabled()) {
             return;
         }
-        
+
         if (event.getType() == EventType.POST) {
             this.resetMotion();
         }
@@ -64,7 +76,7 @@ public class HitSelect extends Module {
 
         if (event.getPacket() instanceof C02PacketUseEntity) {
             C02PacketUseEntity use = (C02PacketUseEntity) event.getPacket();
-            
+
             if (use.getAction() != C02PacketUseEntity.Action.ATTACK) {
                 return;
             }
@@ -98,8 +110,32 @@ public class HitSelect extends Module {
                 this.blockedHits++;
             } else {
                 this.allowedHits++;
+                this.lastHit = System.currentTimeMillis();
             }
         }
+    }
+
+    @EventTarget
+    public void onRender2D(Render2DEvent event) {
+        if (!this.isEnabled() || this.lastHit == 0L || mc.thePlayer == null) {
+            return;
+        }
+        long age = System.currentTimeMillis() - this.lastHit;
+        final long duration = 450L;
+        if (age > duration) {
+            return;
+        }
+        float t = age / (float) duration;
+        float ease = 1.0F - (float) Math.pow(1.0F - t, 3.0); // ease-out cubic
+        ScaledResolution sr = new ScaledResolution(mc);
+        float cx = sr.getScaledWidth() / 2.0F;
+        float cy = sr.getScaledHeight() / 2.0F;
+        float radius = 6.0F + ease * 20.0F;       // 扩散
+        int alpha = (int) (255.0F * (1.0F - ease)); // 淡出
+        int color = ACCENT & 0x00FFFFFF | (alpha << 24);
+        RenderUtil.enableRenderState();
+        RenderUtil.drawCircleOutline(cx, cy, radius, 40, 1.5F, color);
+        RenderUtil.disableRenderState();
     }
 
     private boolean prioritizeSecondHit(EntityLivingBase player, EntityLivingBase target) {
@@ -188,13 +224,13 @@ public class HitSelect extends Module {
         try {
             // Save the current slowdown value
             this.savedSlowdown = keepSprint.slowdown.getValue().doubleValue();
-            
+
             // Enable KeepSprint and set slowdown to 0
             if (!keepSprint.isEnabled()) {
                 keepSprint.toggle();
             }
             keepSprint.slowdown.setValue(0);
-            
+
             this.set = true;
         } catch (Exception e) {
             e.printStackTrace();
@@ -214,7 +250,7 @@ public class HitSelect extends Module {
         try {
             // Restore the original slowdown value
             keepSprint.slowdown.setValue((int) this.savedSlowdown);
-            
+
             // Disable KeepSprint if we enabled it
             if (keepSprint.isEnabled()) {
                 keepSprint.toggle();
@@ -275,6 +311,7 @@ public class HitSelect extends Module {
         this.savedSlowdown = 0.0;
         this.blockedHits = 0;
         this.allowedHits = 0;
+        this.lastHit = 0L;
     }
 
     @Override

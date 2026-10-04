@@ -13,23 +13,40 @@ import java.awt.FontMetrics;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
+import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
  * Modern font renderer used by the HUD, ClickGUI and other UI.
  *
- * Every size class owns one glyph-atlas texture (power-of-two). Glyphs are
- * rasterized from the bundled HarmonyOS Sans TTF and uploaded with
- * glTexSubImage2D. Text is drawn with the standard Tessellator quad path
- * (same as the vanilla FontRenderer), which is reliable in every GL context
- * and far cheaper than per-character immediate-mode batches.
+ * 字体回退链（码点级）：主字体 = 仓库内置系统标准字体 Segoe UI（覆盖 ASCII / Latin-1），
+ * 其次 = 内置 SimHei 黑体（中文标准字体），再次 = 内嵌 HarmonyOS Sans，
+ * 最后落到系统 CJK / 通用字体（Microsoft YaHei 等）。
+ * 绘制时逐码点选择第一个 canDisplay 该码点的字体，因此中文等缺失字形会自动
+ * 落到中文字体，而 ASCII / 拉丁字符由 Segoe UI 渲染。
  *
- * The renderer never disables the texture or blend state it did not own, so
- * world rendering is never corrupted after the HUD is drawn.
+ * Every size class owns one glyph-atlas texture (power-of-two). Glyphs are
+ * rasterized per codepoint from whichever font in the chain covers it and
+ * uploaded with glTexSubImage2D. Text is drawn with the standard Tessellator
+ * quad path (same as the vanilla FontRenderer), which is reliable in every
+ * GL context and far cheaper than per-character immediate-mode batches.
+ *
+ * The renderer saves the full GL state it touches (texture binding, alpha test,
+ * blend, texture2D) before drawing and restores it afterwards, so world/entity
+ * rendering is never corrupted after the HUD is drawn.
  */
 public class FontManager {
+
+    /** 系统回退字体名（按优先级），用于覆盖内置字体缺失的 CJK 与符号。 */
+    private static final String[] FALLBACK_FONT_NAMES = {
+            "Microsoft YaHei", "Microsoft YaHei UI", "SimSun", "NSimSun",
+            "Segoe UI Emoji", "Segoe UI Symbol", "Arial", "SansSerif"
+    };
 
     private static final Minecraft mc = Minecraft.getMinecraft();
     private static final Map<Float, FontRenderer> CACHE = new HashMap<>();
@@ -114,9 +131,11 @@ public class FontManager {
 
     private static final class FontRenderer {
         private final Font awtFont;
+        private final Font[] chain;
         private final float scale;
         private final int fontSize;
-        private final Map<Character, Glyph> glyphs = new HashMap<>();
+        private final Map<Integer, Glyph> glyphs = new HashMap<>();
+        private final Map<Integer, Font> resolved = new HashMap<>();
 
         private int atlasTexture = -1;
         private int atlasW = 256;
@@ -127,15 +146,64 @@ public class FontManager {
 
         private FontRenderer(int size) {
             this.fontSize = size;
-            Font base;
-            try {
-                base = Font.createFont(Font.TRUETYPE_FONT,
-                        new java.io.ByteArrayInputStream(FontData.harmonyosSansRegular()));
-            } catch (Exception e) {
-                base = new Font("Dialog", Font.PLAIN, size);
+            Font systemSans = loadTrueType(loadResource("/assets/myau/fonts/SystemSans.ttf"));
+            Font systemCjk = loadTrueType(loadResource("/assets/myau/fonts/SystemCJK.ttf"));
+            Font harmony = loadTrueType(FontData.harmonyosSansRegular());
+            this.awtFont = systemSans.deriveFont(Font.PLAIN, size * 2.0F);
+            Font cjkScaled = systemCjk.deriveFont(Font.PLAIN, size * 2.0F);
+            Font harmonyScaled = harmony.deriveFont(Font.PLAIN, size * 2.0F);
+            List<Font> list = new ArrayList<>();
+            list.add(this.awtFont);              // 1) Segoe UI（系统标准，主）
+            list.add(cjkScaled);                 // 2) SimHei 黑体（系统标准，中文）
+            list.add(harmonyScaled);             // 3) HarmonyOS（内嵌回退）
+            for (String name : FALLBACK_FONT_NAMES) {
+                list.add(new Font(name, Font.PLAIN, size * 2)); // 4) 系统 CJK / 通用
             }
-            this.awtFont = base.deriveFont(Font.PLAIN, size * 2.0F);
+            this.chain = list.toArray(new Font[0]);
             this.scale = 0.5F;
+        }
+
+        /** 从 jar 资源读取字体文件字节；失败返回 null。 */
+        private static byte[] loadResource(String path) {
+            try (InputStream in = FontManager.class.getResourceAsStream(path)) {
+                if (in == null) return null;
+                ByteArrayOutputStream out = new ByteArrayOutputStream();
+                byte[] buf = new byte[8192];
+                int n;
+                while ((n = in.read(buf)) != -1) {
+                    out.write(buf, 0, n);
+                }
+                return out.toByteArray();
+            } catch (Exception e) {
+                return null;
+            }
+        }
+
+        /** 从字节加载 TTF；失败时退回逻辑字体，保证运行时不抛异常。 */
+        private static Font loadTrueType(byte[] data) {
+            try {
+                if (data == null) {
+                    return new Font("Dialog", Font.PLAIN, 16);
+                }
+                return Font.createFont(Font.TRUETYPE_FONT, new java.io.ByteArrayInputStream(data));
+            } catch (Exception e) {
+                return new Font("Dialog", Font.PLAIN, 16);
+            }
+        }
+
+        /** 码点级回退：返回链中第一个 canDisplay 该码点的字体，结果按码点缓存。 */
+        private Font resolveFont(int codePoint) {
+            Font cached = this.resolved.get(codePoint);
+            if (cached != null) return cached;
+            Font chosen = this.chain[0];
+            for (Font candidate : this.chain) {
+                if (candidate.canDisplay(codePoint)) {
+                    chosen = candidate;
+                    break;
+                }
+            }
+            this.resolved.put(codePoint, chosen);
+            return chosen;
         }
 
         private static final class Glyph {
@@ -156,17 +224,20 @@ public class FontManager {
 
         private int getStringWidth(String text) {
             float width = 0.0F;
-            for (char c : text.toCharArray()) {
-                width += this.getGlyph(c).width * this.scale;
+            int i = 0, len = text.length();
+            while (i < len) {
+                int cp = text.codePointAt(i);
+                i += Character.charCount(cp);
+                width += this.getGlyph(cp).width * this.scale;
             }
             return Math.round(width);
         }
 
-        private Glyph getGlyph(char c) {
-            Glyph glyph = this.glyphs.get(c);
+        private Glyph getGlyph(int codePoint) {
+            Glyph glyph = this.glyphs.get(codePoint);
             if (glyph == null) {
-                glyph = this.renderGlyph(c);
-                this.glyphs.put(c, glyph);
+                glyph = this.renderGlyph(codePoint);
+                this.glyphs.put(codePoint, glyph);
             }
             return glyph;
         }
@@ -226,11 +297,13 @@ public class FontManager {
                     GL11.GL_RGBA, GL11.GL_UNSIGNED_BYTE, buffer);
         }
 
-        private Glyph renderGlyph(char c) {
+        private Glyph renderGlyph(int codePoint) {
+            Font font = this.resolveFont(codePoint);
+            String s = new String(Character.toChars(codePoint));
             Graphics2D probe = new BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB).createGraphics();
-            probe.setFont(this.awtFont);
+            probe.setFont(font);
             FontMetrics metrics = probe.getFontMetrics();
-            int width = Math.max(1, metrics.charWidth(c));
+            int width = Math.max(1, metrics.stringWidth(s));
             int height = Math.max(1, metrics.getHeight());
             int baseline = metrics.getAscent();
             probe.dispose();
@@ -253,11 +326,11 @@ public class FontManager {
 
             BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
             Graphics2D g = image.createGraphics();
-            g.setFont(this.awtFont);
+            g.setFont(font);
             g.setColor(Color.WHITE);
             g.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
             g.setRenderingHint(RenderingHints.KEY_FRACTIONALMETRICS, RenderingHints.VALUE_FRACTIONALMETRICS_OFF);
-            g.drawString(String.valueOf(c), 0, baseline);
+            g.drawString(s, 0, baseline);
             g.dispose();
 
             Glyph glyph = new Glyph();
@@ -298,6 +371,17 @@ public class FontManager {
             float blue = (float) (color & 0xFF) / 255.0F;
 
             this.ensureAtlas();
+
+            // 保存完整 GL 状态，绘制后逐项恢复，避免污染后续世界 / 实体（皮肤）渲染。
+            int prevTexture = GL11.glGetInteger(GL11.GL_TEXTURE_BINDING_2D);
+            int prevAlphaFunc = GL11.glGetInteger(GL11.GL_ALPHA_TEST_FUNC);
+            float prevAlphaRef = GL11.glGetFloat(GL11.GL_ALPHA_TEST_REF);
+            boolean prevAlpha = GL11.glIsEnabled(GL11.GL_ALPHA_TEST);
+            boolean prevBlend = GL11.glIsEnabled(GL11.GL_BLEND);
+            boolean prevTex2D = GL11.glIsEnabled(GL11.GL_TEXTURE_2D);
+            int prevBlendSrc = GL11.glGetInteger(GL11.GL_BLEND_SRC);
+            int prevBlendDst = GL11.glGetInteger(GL11.GL_BLEND_DST);
+
             GlStateManager.enableBlend();
             GlStateManager.blendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
             GlStateManager.enableTexture2D();
@@ -308,8 +392,11 @@ public class FontManager {
             WorldRenderer wr = tessellator.getWorldRenderer();
             wr.begin(GL11.GL_QUADS, DefaultVertexFormats.POSITION_TEX_COLOR);
             float cursor = x;
-            for (char c : text.toCharArray()) {
-                Glyph glyph = this.getGlyph(c);
+            int i = 0, len = text.length();
+            while (i < len) {
+                int cp = text.codePointAt(i);
+                i += Character.charCount(cp);
+                Glyph glyph = this.getGlyph(cp);
                 float glyphWidth = glyph.width * this.scale;
                 float glyphHeight = glyph.height * this.scale;
                 wr.pos(cursor, y, 0.0D).tex(glyph.u1, glyph.v1).color(red, green, blue, alpha).endVertex();
@@ -320,9 +407,25 @@ public class FontManager {
             }
             tessellator.draw();
 
-            // Restore only the states we changed; never leave texture/alpha disabled.
-            GlStateManager.enableAlpha();
-            GlStateManager.enableTexture2D();
+            // Restore every state we touched.
+            GlStateManager.bindTexture(prevTexture);
+            if (prevAlpha) {
+                GlStateManager.enableAlpha();
+                GlStateManager.alphaFunc(prevAlphaFunc, prevAlphaRef);
+            } else {
+                GlStateManager.disableAlpha();
+            }
+            if (prevTex2D) {
+                GlStateManager.enableTexture2D();
+            } else {
+                GlStateManager.disableTexture2D();
+            }
+            if (prevBlend) {
+                GlStateManager.enableBlend();
+                GlStateManager.blendFunc(prevBlendSrc, prevBlendDst);
+            } else {
+                GlStateManager.disableBlend();
+            }
         }
     }
 }

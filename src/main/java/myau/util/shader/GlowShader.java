@@ -29,9 +29,16 @@ public class GlowShader extends Shader {
     @Override
     public void onUse() {
         GL20.glUseProgram(this.programId);
-        int texLoc = this.getUniformLocationCached("texture");
-        GL20.glUniform1i(texLoc, 0);
-        GL20.glUniform4f(texLoc, 1.0f, 1.0f, 1.0f, 1.0f);
+        Integer texLoc = this.getUniformLocationCached("texture");
+        if (texLoc != null && texLoc != -1) {
+            GL20.glUniform1i(texLoc, 0);
+        }
+        // 默认颜色置白；实际实体颜色随后由 W(Color) 覆盖。
+        // （原实现误把 vec4 写进 sampler 的 location，会触发 GL_INVALID_OPERATION。）
+        Integer colorLoc = this.getUniformLocationCached("color");
+        if (colorLoc != null && colorLoc != -1) {
+            GL20.glUniform4f(colorLoc, 1.0f, 1.0f, 1.0f, 1.0f);
+        }
     }
 
     public void W(Color color) {

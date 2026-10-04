@@ -7,6 +7,7 @@ import myau.events.Render3DEvent;
 import myau.mixin.IAccessorRenderManager;
 import myau.module.Module;
 import myau.util.ColorUtil;
+import myau.util.FontManager;
 import myau.util.RenderUtil;
 import myau.util.TeamUtil;
 import myau.property.properties.*;
@@ -125,13 +126,19 @@ public class NameTags extends Module {
                         GlStateManager.rotate(mc.getRenderManager().playerViewX, view, 0.0F, 0.0F);
                         double scale = Math.pow(Math.min(Math.max(this.autoScale.getValue() ? distance : 0.0, 6.0), 128.0), 0.75) * 0.0075;
                         GlStateManager.scale(-scale * (double) this.scale.getValue(), -scale * (double) this.scale.getValue(), 1.0);
+                        // 现代化名牌：玻璃卡片（半透明深色底 + 发丝描边 + 圆角）+ FontManager 舒窈衡水分段文本。
+                        final float FONT = 8.0F;
+                        final int TEXT_MAIN = 0xFFF2F4F8;
+                        final int TEXT_DIM = 0xFF8A92A6;
+                        final int HAIRLINE = 0x2AFFFFFF;
+
                         String distanceText = "";
                         switch (this.distanceMode.getValue()) {
                             case 1:
-                                distanceText = String.format("&7%dm&r ", (int) distance);
+                                distanceText = (int) distance + "m ";
                                 break;
                             case 2:
-                                distanceText = String.format("&a[&f%d&a]&r ", (int) distance);
+                                distanceText = "[" + (int) distance + "] ";
                         }
                         float health = ((EntityLivingBase) entity).getHealth();
                         float absorption = ((EntityLivingBase) entity).getAbsorptionAmount();
@@ -140,14 +147,11 @@ public class NameTags extends Module {
                         String healText = "";
                         switch (this.healthMode.getValue()) {
                             case 1:
-                                healText = String.format(" %d%s", (int) health, absorption > 0.0F ? String.format(" &6%d&r", (int) absorption) : "&r");
+                                healText = " " + (int) health + (absorption > 0.0F ? " " + (int) absorption : "");
                                 break;
                             case 2:
-                                healText = String.format(
-                                        " %s%s",
-                                        healthFormatter.format((double) health / 2.0),
-                                        absorption > 0.0F ? String.format(" &6%s&r", healthFormatter.format((double) absorption / 2.0)) : "&r"
-                                );
+                                healText = " " + healthFormatter.format((double) health / 2.0)
+                                        + (absorption > 0.0F ? " " + healthFormatter.format((double) absorption / 2.0) : "");
                                 break;
                             case 3:
                                 if (entity instanceof EntityPlayer) {
@@ -157,40 +161,56 @@ public class NameTags extends Module {
                                         if (objective != null) {
                                             Score score = scoreboard.getValueFromObjective(entity.getName(), objective);
                                             if (score != null) {
-                                                healText = String.format(" &e%d&r", score.getScorePoints());
+                                                healText = " " + score.getScorePoints();
                                             }
                                         }
                                     }
                                 }
                         }
-                        String color = ChatColors.formatColor(String.format("%s&f%s&r%s", distanceText, teamName, healText));
-                        int width = mc.fontRendererObj.getStringWidth(color);
-                        if (this.backgroundOpacity.getValue() > 0) {
-                            Color textColor = !entity.isSneaking() && !entity.isInvisible()
-                                    ? new Color(0.0F, 0.0F, 0.0F, (float) this.backgroundOpacity.getValue() / 100.0F)
-                                    : new Color(0.33F, 0.0F, 0.33F, (float) this.backgroundOpacity.getValue() / 100.0F);
-                            RenderUtil.enableRenderState();
-                            RenderUtil.drawRect(
-                                    (float) (-width) / 2.0F - 1.0F,
-                                    (float) (-mc.fontRendererObj.FONT_HEIGHT) - 1.0F,
-                                    (float) width / 2.0F + (this.shadow.getValue() ? 1.0F : 0.0F),
-                                    this.shadow.getValue() ? 0.0F : -1.0F,
-                                    textColor.getRGB()
-                            );
-                            RenderUtil.disableRenderState();
+                        String namePlain = EnumChatFormatting.getTextWithoutFormattingCodes(teamName);
+
+                        // 分段：距离(弱色) / 名字(血量色) / 血量(主色)
+                        List<String> segText = new ArrayList<>();
+                        List<Integer> segColor = new ArrayList<>();
+                        if (!distanceText.isEmpty()) {
+                            segText.add(distanceText);
+                            segColor.add(TEXT_DIM);
                         }
+                        segText.add(namePlain);
+                        segColor.add(ColorUtil.getHealthBlend(percent).getRGB());
+                        if (!healText.isEmpty()) {
+                            segText.add(healText);
+                            segColor.add(TEXT_MAIN);
+                        }
+
+                        float totalW = 0.0F;
+                        for (String s : segText) {
+                            totalW += FontManager.getStringWidth(s, FONT);
+                        }
+
+                        // 玻璃卡片
+                        float pad = 2.0F;
+                        float cardL = -totalW / 2.0F - pad;
+                        float cardT = -FONT - pad;
+                        float cardR = totalW / 2.0F + pad;
+                        float cardB = pad;
+                        if (this.backgroundOpacity.getValue() > 0) {
+                            int bgA = (int) (this.backgroundOpacity.getValue() / 100.0 * 0xB9);
+                            RenderUtil.drawRoundedRectWithGl(cardL, cardT, cardR, cardB, 3.0F, (bgA << 24) | 0x14202B);
+                            RenderUtil.drawRoundedOutline(cardL, cardT, cardR, cardB, 3.0F, 1.0F, HAIRLINE);
+                        }
+
                         GlStateManager.disableDepth();
-                        mc.fontRendererObj
-                                .drawString(
-                                        color,
-                                        (float) (-width) / 2.0F,
-                                        (float) (-mc.fontRendererObj.FONT_HEIGHT),
-                                        ColorUtil.getHealthBlend(percent).getRGB(),
-                                        this.shadow.getValue()
-                                );
+                        float cursorX = -totalW / 2.0F;
+                        for (int i = 0; i < segText.size(); i++) {
+                            String s = segText.get(i);
+                            FontManager.drawString(s, cursorX, -FONT, segColor.get(i), this.shadow.getValue(), FONT);
+                            cursorX += FontManager.getStringWidth(s, FONT);
+                        }
                         GlStateManager.enableDepth();
+
                         if (entity instanceof EntityPlayer) {
-                            int height = mc.fontRendererObj.FONT_HEIGHT + 2;
+                            int height = (int) FONT + 2;
                             if (this.armor.getValue()) {
                                 ArrayList<ItemStack> renderingItems = new ArrayList<>();
                                 for (int i = 4; i >= 0; i--) {
@@ -229,23 +249,11 @@ public class NameTags extends Module {
                                 }
                             }
                             if (TeamUtil.isFriend((EntityPlayer) entity)) {
-                                RenderUtil.enableRenderState();
-                                float x1 = (float) (-width) / 2.0F - 1.0F;
-                                view = (float) (-mc.fontRendererObj.FONT_HEIGHT) - 1.0F;
-                                float y1 = (float) width / 2.0F + 1.0F;
-                                float offset = this.shadow.getValue() ? 0.0F : -1.0F;
                                 int friendColor = OpenMyau.friendManager.getColor().getRGB();
-                                RenderUtil.drawOutlineRect(x1, view, y1, offset, 1.5F, 0, friendColor);
-                                RenderUtil.disableRenderState();
+                                RenderUtil.drawRoundedOutline(cardL, cardT, cardR, cardB, 3.0F, 1.0F, friendColor | 0xFF000000);
                             } else if (TeamUtil.isTarget((EntityPlayer) entity)) {
-                                RenderUtil.enableRenderState();
-                                float x1 = (float) (-width) / 2.0F - 1.0F;
-                                view = (float) (-mc.fontRendererObj.FONT_HEIGHT) - 1.0F;
-                                float y1 = (float) width / 2.0F + 1.0F;
-                                float offset = this.shadow.getValue() ? 0.0F : -1.0F;
                                 int targetColor = OpenMyau.targetManager.getColor().getRGB();
-                                RenderUtil.drawOutlineRect(x1, view, y1, offset, 1.5F, 0, targetColor);
-                                RenderUtil.disableRenderState();
+                                RenderUtil.drawRoundedOutline(cardL, cardT, cardR, cardB, 3.0F, 1.0F, targetColor | 0xFF000000);
                             }
                         }
                         GlStateManager.popMatrix();

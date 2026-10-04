@@ -98,9 +98,10 @@ public class ChestESP extends Module {
                                 -((IAccessorRenderManager) mc.getRenderManager()).getRenderPosY(),
                                 -((IAccessorRenderManager) mc.getRenderManager()).getRenderPosZ()
                         );
-                RenderUtil.drawBoundingBox(
-                        aabb, color.getRed(), color.getGreen(), color.getBlue(), 255, 1.5F
-                );
+                // 现代化：半透明玻璃填充 + 外层柔光 + 1px 发丝描边
+                RenderUtil.drawFilledBoundingBox(aabb, color.getRed(), color.getGreen(), color.getBlue(), 0.18F);
+                RenderUtil.drawBoundingBox(aabb, color.getRed(), color.getGreen(), color.getBlue(), 80, 3.0F);
+                RenderUtil.drawBoundingBox(aabb, color.getRed(), color.getGreen(), color.getBlue(), 255, 1.0F);
                 if (this.tracers.getValue()) {
                     Vec3 vec;
                     if (mc.gameSettings.thirdPersonView == 0) {
@@ -150,17 +151,15 @@ public class ChestESP extends Module {
                     }
                     vec = new Vec3(vec.xCoord, vec.yCoord + (double) mc.getRenderViewEntity().getEyeHeight(), vec.zCoord);
                     float opacity = (float) ((Tracers) OpenMyau.moduleManager.modules.get(Tracers.class)).opacity.getValue() / 100.0F;
-                    RenderUtil.drawLine3D(
-                            vec,
-                            (double) chest.getPos().getX() + 0.5,
-                            (double) chest.getPos().getY() + 0.5,
-                            (double) chest.getPos().getZ() + 0.5,
-                            (float) color.getRed() / 255.0F,
-                            (float) color.getGreen() / 255.0F,
-                            (float) color.getBlue() / 255.0F,
-                            opacity,
-                            1.5F
-                    );
+                    float tr = (float) color.getRed() / 255.0F;
+                    float tg = (float) color.getGreen() / 255.0F;
+                    float tb = (float) color.getBlue() / 255.0F;
+                    double tx = (double) chest.getPos().getX() + 0.5;
+                    double ty = (double) chest.getPos().getY() + 0.5;
+                    double tz = (double) chest.getPos().getZ() + 0.5;
+                    // 外层柔光 + 内层清晰线
+                    RenderUtil.drawLine3D(vec, tx, ty, tz, tr, tg, tb, opacity * 0.18F, 4.5F);
+                    RenderUtil.drawLine3D(vec, tx, ty, tz, tr, tg, tb, opacity, 1.5F);
                 }
             }
             RenderUtil.disableRenderState();

@@ -1,9 +1,9 @@
 package myau.module.modules;
 
-import myau.enums.ChatColors;
 import myau.event.EventTarget;
 import myau.events.Render2DEvent;
 import myau.module.Module;
+import myau.util.FontManager;
 import myau.util.RenderUtil;
 import myau.util.RotationUtil;
 import myau.util.TeamUtil;
@@ -25,6 +25,10 @@ import net.minecraft.item.ItemStack;
 import java.awt.*;
 import java.util.stream.Collectors;
 
+/**
+ * 现代化投射物方向指示：围绕屏幕中心的径向图标 + 距离玻璃小芯片（FontManager）
+ * + 主题色箭头。视觉风格遵循 RENDER_SPEC 第 2 节令牌。
+ */
 public class Indicators extends Module {
     private static final Minecraft mc = Minecraft.getMinecraft();
     public final FloatProperty scale = new FloatProperty("scale", 1.0f, 0.5f, 1.5f);
@@ -35,6 +39,11 @@ public class Indicators extends Module {
     public final BooleanProperty arrows = new BooleanProperty("arrows", true);
     public final BooleanProperty egg = new BooleanProperty("egg", true);
     public final BooleanProperty snowball = new BooleanProperty("snowball", true);
+
+    private static final int GLASS_BODY = 0xB91A2028;
+    private static final int GLASS_OUTLINE = 0x2AFFFFFF;
+    private static final int TEXT_MAIN = 0xFFF2F4F8;
+    private static final float FS = 8.0F;
 
     private boolean shouldRender(Entity entity) {
         double d = (entity.posX - entity.lastTickPosX) * (Indicators.mc.thePlayer.posX - entity.posX) + (entity.posY - entity.lastTickPosY) * (Indicators.mc.thePlayer.posY + (double) Indicators.mc.thePlayer.getEyeHeight() - entity.posY - (double) entity.height / 2.0) + (entity.posZ - entity.lastTickPosZ) * (Indicators.mc.thePlayer.posZ - entity.posZ);
@@ -111,11 +120,20 @@ public class Indicators extends Module {
             GlStateManager.translate((offset + 0.0f) * x - 8.0f, (offset + 0.0f) * z - 8.0f, -300.0f);
             mc.getRenderItem().renderItemAndEffectIntoGUI(new ItemStack(this.getIndicatorItem(entity)), 0, 0);
             GlStateManager.popMatrix();
+
             String string = String.format("%dm", (int) Indicators.mc.thePlayer.getDistanceToEntity(entity));
+            float textW = (float) FontManager.getStringWidth(string, FS);
+            float chipW = textW + 6.0F;
+            float chipH = 10.0F;
             GlStateManager.pushMatrix();
-            GlStateManager.translate((offset + 0.0f) * x - (float) Indicators.mc.fontRendererObj.getStringWidth(string) / 2.0f + 1.0f, (offset + 0.0f) * z + 1.0f, -100.0f);
-            Indicators.mc.fontRendererObj.drawStringWithShadow(string, 0.0f, 0.0f, ChatColors.GRAY.toAwtColor() & 0xFFFFFF | 0xBF000000);
+            GlStateManager.translate((offset + 0.0f) * x - chipW / 2.0f, (offset + 0.0f) * z + 9.0f, -100.0f);
+            RenderUtil.enableRenderState();
+            RenderUtil.drawRoundedRect(0.0F, 0.0F, chipW, chipH, 3.0F, GLASS_BODY);
+            RenderUtil.drawRoundedOutline(0.0F, 0.0F, chipW, chipH, 3.0F, 1.0F, GLASS_OUTLINE);
+            RenderUtil.disableRenderState();
+            FontManager.drawString(string, 3.0F, 1.0F, TEXT_MAIN, false, FS);
             GlStateManager.popMatrix();
+
             GlStateManager.pushMatrix();
             GlStateManager.translate((offset + 15.0f) * x + 1.0f, (offset + 15.0f) * z + 1.0f, -100.0f);
             RenderUtil.enableRenderState();

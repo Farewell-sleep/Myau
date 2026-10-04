@@ -7,6 +7,7 @@ import myau.module.Module;
 import myau.property.properties.BooleanProperty;
 import myau.property.properties.FloatProperty;
 import myau.property.properties.PercentProperty;
+import myau.util.FontManager;
 import myau.util.RenderUtil;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.ScaledResolution;
@@ -17,10 +18,17 @@ import net.minecraft.client.renderer.GlStateManager;
 import java.awt.*;
 
 /**
- * Onxy-style client watermark with optional live stats, rewritten with Myau native rendering.
+ * 现代化客户端水印：玻璃胶囊（圆角=高度一半）+ 主题色标题 + FontManager 状态行。
+ * 视觉风格遵循 RENDER_SPEC 第 2 节令牌。
  */
 public class Watermark extends Module {
     private static final Minecraft mc = Minecraft.getMinecraft();
+
+    private static final int GLASS_BODY = 0xB91A2028;
+    private static final int GLASS_OUTLINE = 0x2AFFFFFF;
+    private static final int TEXT_MAIN = 0xFFF2F4F8;
+    private static final int TEXT_DIM = 0xFF8A92A6;
+    private static final float FS = 8.0F;
 
     public final BooleanProperty showFps = new BooleanProperty("fps", true);
     public final BooleanProperty showPing = new BooleanProperty("ping", true);
@@ -40,24 +48,24 @@ public class Watermark extends Module {
         if (!this.isEnabled() || mc.gameSettings.showDebugInfo) {
             return;
         }
-        String title = "\u2665 Myau " + OpenMyau.version;
-        StringBuilder line2 = new StringBuilder();
+        String title = "Myau " + OpenMyau.version;
+        StringBuilder stats = new StringBuilder();
         if (this.showFps.getValue()) {
-            if (line2.length() > 0) line2.append("  \u00a77\u2503  ");
-            line2.append("\u00a7fFPS \u00a7a").append(Minecraft.getDebugFPS());
+            if (stats.length() > 0) stats.append("  ·  ");
+            stats.append("FPS ").append(Minecraft.getDebugFPS());
         }
         if (this.showPing.getValue()) {
-            if (line2.length() > 0) line2.append("  \u00a77\u2503  ");
-            line2.append("\u00a7fPing \u00a7a").append(this.getPing());
+            if (stats.length() > 0) stats.append("  ·  ");
+            stats.append("Ping ").append(this.getPing());
         }
         if (this.showUsername.getValue()) {
-            if (line2.length() > 0) line2.append("  \u00a77\u2503  ");
-            line2.append("\u00a7fUser \u00a7a").append(mc.getSession() != null ? mc.getSession().getUsername() : "Player");
+            if (stats.length() > 0) stats.append("  ·  ");
+            stats.append("User ").append(mc.getSession() != null ? mc.getSession().getUsername() : "Player");
         }
         if (this.showServer.getValue()) {
-            if (line2.length() > 0) line2.append("  \u00a77\u2503  ");
+            if (stats.length() > 0) stats.append("  ·  ");
             ServerData serverData = mc.getCurrentServerData();
-            line2.append("\u00a7fServer \u00a7a").append(serverData != null ? serverData.serverIP : "Singleplayer");
+            stats.append("Server ").append(serverData != null ? serverData.serverIP : "Singleplayer");
         }
 
         ScaledResolution sr = new ScaledResolution(mc);
@@ -69,17 +77,28 @@ public class Watermark extends Module {
         GlStateManager.scale(scale, scale, 1.0F);
         float sx = x / scale;
         float sy = y / scale;
-        int w1 = mc.fontRendererObj.getStringWidth(title);
-        int w2 = line2.length() > 0 ? mc.fontRendererObj.getStringWidth(line2.toString()) : 0;
-        float boxW = Math.max(w1, w2) + 10.0F;
-        float boxH = 20.0F;
+
+        HUD hud = (HUD) OpenMyau.moduleManager.modules.get(HUD.class);
+        int accent = hud.getColor(System.currentTimeMillis()).getRGB();
+
+        float w1 = (float) FontManager.getStringWidth(title, FS);
+        float w2 = stats.length() > 0 ? (float) FontManager.getStringWidth(stats.toString(), FS) : 0.0F;
+        float boxW = Math.max(w1, w2) + 12.0F;
+        float boxH = 18.0F;
+        float radius = boxH / 2.0F;
+
+        RenderUtil.enableRenderState();
         if (this.background.getValue()) {
-            RenderUtil.drawRect(sx, sy, sx + boxW, sy + boxH, new Color(0, 0, 0, 90).getRGB());
-            RenderUtil.drawRect(sx, sy, sx + 2.0F, sy + boxH, new Color(255, 85, 255, 220).getRGB());
+            RenderUtil.drawRoundedRect(sx, sy, boxW, boxH, radius, GLASS_BODY);
+            RenderUtil.drawRoundedOutline(sx, sy, sx + boxW, sy + boxH, radius, 1.0F, GLASS_OUTLINE);
+            // 主题色左强调点
+            RenderUtil.drawRoundedRect(sx + 4.0F, sy + boxH / 2.0F - 1.5F, 3.0F, 3.0F, 1.5F, accent);
         }
-        mc.fontRendererObj.drawStringWithShadow(title, sx + 5.0F, sy + 2.0F, new Color(255, 85, 255).getRGB());
-        if (line2.length() > 0) {
-            mc.fontRendererObj.drawStringWithShadow(line2.toString(), sx + 5.0F, sy + 12.0F, 0xFFFFFFFF);
+        RenderUtil.disableRenderState();
+
+        FontManager.drawString(title, sx + 9.0F, sy + 2.0F, accent, false, FS);
+        if (stats.length() > 0) {
+            FontManager.drawString(stats.toString(), sx + 9.0F, sy + 10.0F, TEXT_DIM, false, FS);
         }
         GlStateManager.popMatrix();
     }

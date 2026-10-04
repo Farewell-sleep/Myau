@@ -162,17 +162,26 @@ public class ESP extends Module {
                             float z = (float) screenPosition.z;
                             float w = (float) screenPosition.w;
                             if (this.mode.getValue() == 1) {
-                                int color = this.getEntityColor(player).getRGB();
-                                RenderUtil.drawOutlineRect(x, y, z, w, 3.0F, 0, (color & 16579836) >> 2 | color & 0xFF000000);
-                                RenderUtil.drawOutlineRect(x, y, z, w, 1.5F, 0, color);
+                                int ec = this.getEntityColor(player).getRGB();
+                                int rgb = ec & 0xFFFFFF;
+                                // 半透明玻璃填充
+                                RenderUtil.drawRoundedRectWithGl(x, y, z, w, 2.0F, rgb | 0x14000000);
+                                // 外层柔光（低 alpha 宽描边）
+                                RenderUtil.drawRoundedOutline(x - 1.0F, y - 1.0F, z + 1.0F, w + 1.0F, 3.0F, 2.5F, rgb | 0x33000000);
+                                // 1px 发丝描边
+                                RenderUtil.drawRoundedOutline(x, y, z, w, 2.0F, 1.0F, rgb | 0xFF000000);
                             }
                             if (this.healthBar.getValue() == 1) {
                                 float heal = player.getHealth() + player.getAbsorptionAmount();
                                 float percent = Math.min(Math.max(heal / player.getMaxHealth(), 0.0F), 1.0F);
                                 float box = (z - x) * 0.08F;
-                                Color healthColor = ColorUtil.getHealthBlend(percent);
-                                RenderUtil.drawLine(x - box, y, x - box, w, 3.0F, ColorUtil.darker(healthColor, 0.2F).getRGB());
-                                RenderUtil.drawLine(x - box, w, x - box, w + (y - w) * percent, 1.5F, healthColor.getRGB());
+                                float barX = x - box;
+                                // 暗色轨道
+                                RenderUtil.drawRect(barX - 1.0F, y, barX + 1.0F, w, 0x66000000);
+                                // 绿->红竖向渐变填充（顶部绿=满血，底部红=空血），按血量比例自底向上
+                                float fillH = (w - y) * percent;
+                                RenderUtil.drawRectGradient(barX - 1.0F, w - fillH, barX + 1.0F, w,
+                                        0xFF4ADE80, 0xFFF87171, false);
                             }
                         }
                     }
@@ -191,7 +200,9 @@ public class ESP extends Module {
                 if (player.ignoreFrustumCheck || RenderUtil.isInViewFrustum(player.getEntityBoundingBox(), 0.1F)) {
                     if (this.mode.getValue() == 2) {
                         Color color = this.getEntityColor(player);
-                        RenderUtil.drawEntityBoundingBox(player, color.getRed(), color.getGreen(), color.getBlue(), color.getAlpha(), 1.5F, 0.1F);
+                        // 半透明玻璃填充 + 1px 发丝描边
+                        RenderUtil.drawEntityBox(player, color.getRed(), color.getGreen(), color.getBlue());
+                        RenderUtil.drawEntityBoundingBox(player, color.getRed(), color.getGreen(), color.getBlue(), 200, 1.0F, 0.1F);
                         GlStateManager.resetColor();
                     }
                     if (this.mode.getValue() == 4) {

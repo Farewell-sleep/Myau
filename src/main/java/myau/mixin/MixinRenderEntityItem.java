@@ -77,60 +77,63 @@ public abstract class MixinRenderEntityItem extends Render<Entity> {
         GlStateManager.tryBlendFuncSeparate(770, 771, 1, 0);
 
         GlStateManager.pushMatrix();
+        try {
+            IBakedModel model = mc.getRenderItem().getItemModelMesher().getItemModel(stack);
+            boolean is3D = model.isGui3d();
+            int count = itemPhysics$getModelCount(stack);
 
-        IBakedModel model = mc.getRenderItem().getItemModelMesher().getItemModel(stack);
-        boolean is3D = model.isGui3d();
-        int count = itemPhysics$getModelCount(stack);
-
-        GlStateManager.translate((float) x, (float) y, (float) z);
-        if (is3D) {
-            GlStateManager.scale(0.5f, 0.5f, 0.5f);
-        }
-
-        GL11.glRotatef(90.0f, 1.0f, 0.0f, 0.0f);
-        GL11.glRotatef(entity.rotationYaw, 0.0f, 0.0f, 1.0f);
-
-        if (is3D) {
-            GlStateManager.translate(0.0, 0.0, -0.08);
-        } else {
-            GlStateManager.translate(0.0, 0.0, -0.04);
-        }
-
-        if (!entity.onGround) {
-            double rot = itemPhysics$rotation * 2.0;
-            entity.rotationPitch += (float) rot;
-        } else if (!is3D) {
-            entity.rotationPitch = 0.0f;
-        }
-
-        if (is3D || mc.getRenderManager().options != null) {
-            GlStateManager.rotate(entity.rotationPitch, 1.0f, 0.0f, 0.0f);
-        }
-
-        GlStateManager.color(1.0f, 1.0f, 1.0f, 1.0f);
-
-        for (int k = 0; k < count; ++k) {
-            GlStateManager.pushMatrix();
+            GlStateManager.translate((float) x, (float) y, (float) z);
             if (is3D) {
-                if (k > 0) {
-                    float ox = (itemPhysics$random.nextFloat() * 2.0f - 1.0f) * 0.15f;
-                    float oy = (itemPhysics$random.nextFloat() * 2.0f - 1.0f) * 0.15f;
-                    float oz = (itemPhysics$random.nextFloat() * 2.0f - 1.0f) * 0.15f;
-                    GlStateManager.translate(self.shouldSpreadItems() ? ox : 0.0f,
-                            self.shouldSpreadItems() ? oy : 0.0f, oz);
-                }
-                model = ForgeHooksClient.handleCameraTransforms(model, ItemCameraTransforms.TransformType.GROUND);
-                mc.getRenderItem().renderItem(stack, model);
-                GlStateManager.popMatrix();
-            } else {
-                model = ForgeHooksClient.handleCameraTransforms(model, ItemCameraTransforms.TransformType.GROUND);
-                mc.getRenderItem().renderItem(stack, model);
-                GlStateManager.popMatrix();
-                GlStateManager.translate(0.0f, 0.0f, 0.05375f);
+                GlStateManager.scale(0.5f, 0.5f, 0.5f);
             }
-        }
 
-        GlStateManager.popMatrix();
+            GL11.glRotatef(90.0f, 1.0f, 0.0f, 0.0f);
+            GL11.glRotatef(entity.rotationYaw, 0.0f, 0.0f, 1.0f);
+
+            if (is3D) {
+                GlStateManager.translate(0.0, 0.0, -0.08);
+            } else {
+                GlStateManager.translate(0.0, 0.0, -0.04);
+            }
+
+            if (!entity.onGround) {
+                double rot = itemPhysics$rotation * 2.0;
+                entity.rotationPitch += (float) rot;
+            } else if (!is3D) {
+                entity.rotationPitch = 0.0f;
+            }
+
+            if (is3D || mc.getRenderManager().options != null) {
+                GlStateManager.rotate(entity.rotationPitch, 1.0f, 0.0f, 0.0f);
+            }
+
+            GlStateManager.color(1.0f, 1.0f, 1.0f, 1.0f);
+
+            for (int k = 0; k < count; ++k) {
+                GlStateManager.pushMatrix();
+                try {
+                    if (is3D) {
+                        if (k > 0) {
+                            float ox = (itemPhysics$random.nextFloat() * 2.0f - 1.0f) * 0.15f;
+                            float oy = (itemPhysics$random.nextFloat() * 2.0f - 1.0f) * 0.15f;
+                            float oz = (itemPhysics$random.nextFloat() * 2.0f - 1.0f) * 0.15f;
+                            GlStateManager.translate(self.shouldSpreadItems() ? ox : 0.0f,
+                                    self.shouldSpreadItems() ? oy : 0.0f, oz);
+                        }
+                        model = ForgeHooksClient.handleCameraTransforms(model, ItemCameraTransforms.TransformType.GROUND);
+                        mc.getRenderItem().renderItem(stack, model);
+                    } else {
+                        model = ForgeHooksClient.handleCameraTransforms(model, ItemCameraTransforms.TransformType.GROUND);
+                        mc.getRenderItem().renderItem(stack, model);
+                        GlStateManager.translate(0.0f, 0.0f, 0.05375f);
+                    }
+                } finally {
+                    GlStateManager.popMatrix();
+                }
+            }
+        } finally {
+            GlStateManager.popMatrix();
+        }
         GlStateManager.disableRescaleNormal();
         GlStateManager.disableBlend();
 

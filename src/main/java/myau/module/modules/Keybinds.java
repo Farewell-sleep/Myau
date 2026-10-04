@@ -7,6 +7,7 @@ import myau.module.Module;
 import myau.property.properties.BooleanProperty;
 import myau.property.properties.FloatProperty;
 import myau.property.properties.PercentProperty;
+import myau.util.FontManager;
 import myau.util.KeyBindUtil;
 import myau.util.RenderUtil;
 import net.minecraft.client.Minecraft;
@@ -19,11 +20,19 @@ import java.util.Comparator;
 import java.util.List;
 
 /**
- * Onxy-style keybind list HUD, rewritten with Myau native rendering.
- * Each entry is wrapped in its own translucent box.
+ * 现代化按键列表：每行玻璃圆角卡片（键位芯片 + 模块名 FontManager），
+ * 启用态高亮。视觉风格遵循 RENDER_SPEC 第 2 节令牌。
  */
 public class Keybinds extends Module {
     private static final Minecraft mc = Minecraft.getMinecraft();
+
+    private static final int GLASS_BODY = 0xB91A2028;
+    private static final int GLASS_OUTLINE = 0x2AFFFFFF;
+    private static final int CHIP_BODY = 0x40FFFFFF;
+    private static final int TEXT_MAIN = 0xFFF2F4F8;
+    private static final int TEXT_DIM = 0xFF8A92A6;
+    private static final int ENABLED = 0xFF4ADE80;
+    private static final float FS = 8.0F;
 
     public final BooleanProperty background = new BooleanProperty("background", true);
     public final BooleanProperty colored = new BooleanProperty("enabled-color", true);
@@ -53,7 +62,7 @@ public class Keybinds extends Module {
 
         ScaledResolution sr = new ScaledResolution(mc);
         float scale = this.scale.getValue();
-        float rowH = (float) (mc.fontRendererObj.FONT_HEIGHT + 4);
+        float rowH = 12.0F;
         float gap = 2.0F;
 
         GlStateManager.pushMatrix();
@@ -61,17 +70,26 @@ public class Keybinds extends Module {
         float x = (float) sr.getScaledWidth() * (this.posX.getValue().floatValue() / 100.0F) / scale;
         float y = (float) sr.getScaledHeight() * (this.posY.getValue().floatValue() / 100.0F) / scale;
 
+        RenderUtil.enableRenderState();
         float rowY = y;
         for (Module m : bound) {
-            String line = m.getName() + ": " + KeyBindUtil.getKeyName(m.getKey());
-            float boxW = (float) (mc.fontRendererObj.getStringWidth(line) + 8);
+            String keyName = KeyBindUtil.getKeyName(m.getKey());
+            String modName = m.getName();
+            float keyW = (float) FontManager.getStringWidth(keyName, FS) + 6.0F;
+            float nameW = (float) FontManager.getStringWidth(modName, FS);
+            float boxW = 4.0F + keyW + 4.0F + nameW + 4.0F;
             if (this.background.getValue()) {
-                RenderUtil.drawRect(x, rowY, x + boxW, rowY + rowH, new Color(0, 0, 0, 70).getRGB());
+                RenderUtil.drawRoundedRect(x, rowY, boxW, rowH, 4.0F, GLASS_BODY);
+                RenderUtil.drawRoundedOutline(x, rowY, x + boxW, rowY + rowH, 4.0F, 1.0F, GLASS_OUTLINE);
             }
-            int textColor = this.colored.getValue() && m.isEnabled() ? 0xFF55FF55 : 0xFFFFFFFF;
-            mc.fontRendererObj.drawStringWithShadow(line, x + 4.0F, rowY + 2.0F, textColor);
+            // 键位芯片
+            RenderUtil.drawRoundedRect(x + 3.0F, rowY + 2.0F, keyW, rowH - 4.0F, 2.0F, CHIP_BODY);
+            FontManager.drawString(keyName, x + 3.0F + 3.0F, rowY + 2.0F, TEXT_DIM, false, FS);
+            int nameColor = this.colored.getValue() && m.isEnabled() ? ENABLED : TEXT_MAIN;
+            FontManager.drawString(modName, x + 3.0F + keyW + 4.0F, rowY + 2.0F, nameColor, false, FS);
             rowY += rowH + gap;
         }
+        RenderUtil.disableRenderState();
         GlStateManager.popMatrix();
     }
 

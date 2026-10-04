@@ -1,13 +1,13 @@
 package myau.module.modules;
 
 import myau.OpenMyau;
-import myau.enums.ChatColors;
 import myau.event.EventTarget;
 import myau.event.types.EventType;
 import myau.events.PacketEvent;
 import myau.events.Render2DEvent;
 import myau.module.Module;
 import myau.util.ColorUtil;
+import myau.util.FontManager;
 import myau.util.RenderUtil;
 import myau.util.TeamUtil;
 import myau.util.TimerUtil;
@@ -25,13 +25,17 @@ import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.network.play.client.C02PacketUseEntity;
 import net.minecraft.network.play.client.C02PacketUseEntity.Action;
 import net.minecraft.util.ResourceLocation;
-import org.lwjgl.opengl.GL11;
 
 import java.awt.*;
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
 import java.util.Locale;
 
+/**
+ * 现代化 TargetHUD：玻璃卡片（圆角 6px + 发丝描边）、FontManager 文本、
+ * 圆角渐变血条（绿→红）、头像保留。NORMAL 保持经典可用，MODERN 对齐令牌。
+ * 视觉风格遵循 RENDER_SPEC 第 2 节令牌。
+ */
 public class TargetHUD extends Module {
     private static final Minecraft mc = Minecraft.getMinecraft();
     private static final DecimalFormat healthFormat = new DecimalFormat("0.0", new DecimalFormatSymbols(Locale.US));
@@ -44,6 +48,16 @@ public class TargetHUD extends Module {
     private float oldHealth = 0.0F;
     private float newHealth = 0.0F;
     private float maxHealth = 0.0F;
+
+    private static final int GLASS_BODY = 0xB91A2028;   // 规范 GLASS_BODY
+    private static final int GLASS_OUTLINE = 0x2AFFFFFF; // 规范 GLASS_OUTLINE
+    private static final int TEXT_MAIN = 0xFFF2F4F8;     // 规范 TEXT_MAIN
+    private static final int TEXT_DIM = 0xFF8A92A6;      // 规范 TEXT_DIM
+    private static final int HEALTH_GREEN = 0xFF4ADE80;  // 规范 HEALTH_GREEN
+    private static final int HEALTH_RED = 0xFFF87171;    // 规范 HEALTH_RED
+    private static final float FS = 8.0F;               // FontManager 字号
+
+    public final ModeProperty mode = new ModeProperty("mode", 1, new String[]{"NORMAL", "MODERN"});
     public final ModeProperty color = new ModeProperty("color", 0, new String[]{"DEFAULT", "HUD"});
     public final ModeProperty posX = new ModeProperty("position-x", 1, new String[]{"LEFT", "MIDDLE", "RIGHT"});
     public final ModeProperty posY = new ModeProperty("position-y", 1, new String[]{"TOP", "MIDDLE", "BOTTOM"});
@@ -143,24 +157,24 @@ public class TargetHUD extends Module {
                 float healthDeltaRatio = Math.min(Math.max((health - heal + 1.0F) / 2.0F, 0.0F), 1.0F);
                 Color healthDeltaColor = ColorUtil.getHealthBlend(healthDeltaRatio);
                 ScaledResolution scaledResolution = new ScaledResolution(mc);
-                String targetNameText = ChatColors.formatColor(String.format("&r%s&r", TeamUtil.stripName(this.target)));
-                int targetNameWidth = mc.fontRendererObj.getStringWidth(targetNameText);
-                String healthText = ChatColors.formatColor(
-                        String.format("&r&f%s%s❤&r", healthFormat.format(heal), abs > 0.0F ? "&6" : "&c")
-                );
-                int healthTextWidth = mc.fontRendererObj.getStringWidth(healthText);
-                String statusText = ChatColors.formatColor(String.format("&r&l%s&r", heal == health ? "D" : (heal < health ? "W" : "L")));
-                int statusTextWidth = mc.fontRendererObj.getStringWidth(statusText);
-                String healthDiffText = ChatColors.formatColor(
-                        String.format("&r%s&r", heal == health ? "0.0" : diffFormat.format(health - heal))
-                );
-                int healthDiffWidth = mc.fontRendererObj.getStringWidth(healthDiffText);
+
+                // FontManager 纯文本（剥离 § 码）
+                String targetNameText = TeamUtil.stripName(this.target);
+                String healthText = healthFormat.format(heal) + (abs > 0.0F ? "+" : "");
+                String statusText = heal == health ? "D" : (heal < health ? "W" : "L");
+                String healthDiffText = heal == health ? "0.0" : diffFormat.format(health - heal);
+
+                float targetNameWidth = (float) FontManager.getStringWidth(targetNameText, FS);
+                float healthTextWidth = (float) FontManager.getStringWidth(healthText, FS);
+                float statusTextWidth = (float) FontManager.getStringWidth(statusText, FS);
+                float healthDiffWidth = (float) FontManager.getStringWidth(healthDiffText, FS);
+
                 float barContentWidth = Math.max(
-                        (float) targetNameWidth + (this.indicator.getValue() ? 2.0F + (float) statusTextWidth + 2.0F : 0.0F),
-                        (float) healthTextWidth + (this.indicator.getValue() ? 2.0F + (float) healthDiffWidth + 2.0F : 0.0F)
+                        targetNameWidth + (this.indicator.getValue() ? 3.0F + statusTextWidth + 3.0F : 0.0F),
+                        healthTextWidth + (this.indicator.getValue() ? 3.0F + healthDiffWidth + 3.0F : 0.0F)
                 );
                 float headIconOffset = this.head.getValue() && this.headTexture != null ? 25.0F : 0.0F;
-                float barTotalWidth = Math.max(headIconOffset + 70.0F, headIconOffset + 2.0F + barContentWidth + 2.0F);
+                float barTotalWidth = Math.max(headIconOffset + 70.0F, headIconOffset + 4.0F + barContentWidth + 4.0F);
                 float posX = this.offX.getValue().floatValue() / this.scale.getValue();
                 switch (this.posX.getValue()) {
                     case 1:
@@ -183,20 +197,39 @@ public class TargetHUD extends Module {
                 GlStateManager.scale(this.scale.getValue(), this.scale.getValue(), 0.0F);
                 GlStateManager.translate(posX, posY, -450.0F);
                 RenderUtil.enableRenderState();
-                int backgroundColor = new Color(0.0F, 0.0F, 0.0F, (float) this.background.getValue() / 100.0F).getRGB();
-                int outlineColor = this.outline.getValue() ? targetColor.getRGB() : new Color(0, 0, 0, 0).getRGB();
-                RenderUtil.drawOutlineRect(0.0F, 0.0F, barTotalWidth, 27.0F, 1.5F, backgroundColor, outlineColor);
-                RenderUtil.drawRect(headIconOffset + 2.0F, 22.0F, barTotalWidth - 2.0F, 25.0F, ColorUtil.darker(healthBarColor, 0.2F).getRGB());
-                RenderUtil.drawRect(headIconOffset + 2.0F, 22.0F, headIconOffset + 2.0F + healthRatio * (barTotalWidth - 2.0F - headIconOffset - 2.0F), 25.0F, healthBarColor.getRGB());
+
+                boolean modern = this.mode.getValue() == 1;
+                if (modern) {
+                    // 玻璃卡片主体 + 发丝描边
+                    RenderUtil.drawRoundedRect(0.0F, 0.0F, barTotalWidth, 27.0F, 6.0F, GLASS_BODY);
+                    RenderUtil.drawRoundedOutline(0.0F, 0.0F, barTotalWidth, 27.0F, 6.0F, 1.0F, GLASS_OUTLINE);
+                    // 主题色左强调条
+                    RenderUtil.drawRoundedRect(0.0F, 0.0F, 2.0F, 27.0F, 1.0F, targetColor.getRGB());
+                    // 血条轨道 + 圆角渐变填充（绿→红）
+                    float barX = headIconOffset + 2.0F;
+                    float barW = barTotalWidth - barX - 2.0F;
+                    RenderUtil.drawRoundedRect(barX, 22.0F, barW, 3.0F, 1.5F, new Color(0, 0, 0, 140).getRGB());
+                    float fillW = Math.max(barW * healthRatio, 0.0F);
+                    if (fillW > 0.5F) {
+                        int c1 = this.color.getValue() == 0 ? HEALTH_GREEN : targetColor.getRGB();
+                        int c2 = this.color.getValue() == 0 ? HEALTH_RED : targetColor.getRGB();
+                        RenderUtil.drawRoundedRectGradient(barX, 22.0F, barX + fillW, 25.0F, 1.5F, c1, c2);
+                    }
+                } else {
+                    int backgroundColor = new Color(0.0F, 0.0F, 0.0F, (float) this.background.getValue() / 100.0F).getRGB();
+                    int outlineColor = this.outline.getValue() ? targetColor.getRGB() : new Color(0, 0, 0, 0).getRGB();
+                    RenderUtil.drawOutlineRect(0.0F, 0.0F, barTotalWidth, 27.0F, 1.5F, backgroundColor, outlineColor);
+                    RenderUtil.drawRect(headIconOffset + 2.0F, 22.0F, barTotalWidth - 2.0F, 25.0F, ColorUtil.darker(healthBarColor, 0.2F).getRGB());
+                    RenderUtil.drawRect(headIconOffset + 2.0F, 22.0F, headIconOffset + 2.0F + healthRatio * (barTotalWidth - 2.0F - headIconOffset - 2.0F), 25.0F, healthBarColor.getRGB());
+                }
                 RenderUtil.disableRenderState();
-                GlStateManager.disableDepth();
-                GlStateManager.enableBlend();
-                GlStateManager.blendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
-                mc.fontRendererObj.drawString(targetNameText, headIconOffset + 2.0F, 2.0F, -1, this.shadow.getValue());
-                mc.fontRendererObj.drawString(healthText, headIconOffset + 2.0F, 12.0F, -1, this.shadow.getValue());
+
+                boolean shadow = this.shadow.getValue();
+                FontManager.drawString(targetNameText, headIconOffset + 2.0F, 2.0F, modern ? TEXT_MAIN : -1, shadow, FS);
+                FontManager.drawString(healthText, headIconOffset + 2.0F, 12.0F, modern ? TEXT_DIM : -1, shadow, FS);
                 if (this.indicator.getValue()) {
-                    mc.fontRendererObj.drawString(statusText, barTotalWidth - 2.0F - (float) statusTextWidth, 2.0F, healthDeltaColor.getRGB(), this.shadow.getValue());
-                    mc.fontRendererObj.drawString(healthDiffText, barTotalWidth - 2.0F - (float) healthDiffWidth, 12.0F, ColorUtil.darker(healthDeltaColor, 0.8F).getRGB(), this.shadow.getValue());
+                    FontManager.drawString(statusText, barTotalWidth - 2.0F - statusTextWidth, 2.0F, healthDeltaColor.getRGB(), shadow, FS);
+                    FontManager.drawString(healthDiffText, barTotalWidth - 2.0F - healthDiffWidth, 12.0F, ColorUtil.darker(healthDeltaColor, 0.8F).getRGB(), shadow, FS);
                 }
                 if (this.head.getValue() && this.headTexture != null) {
                     GlStateManager.color(1.0F, 1.0F, 1.0F);
@@ -205,8 +238,6 @@ public class TargetHUD extends Module {
                     Gui.drawScaledCustomSizeModalRect(2, 2, 40.0F, 8.0F, 8, 8, 23, 23, 64.0F, 64.0F);
                     GlStateManager.color(1.0F, 1.0F, 1.0F);
                 }
-                GlStateManager.disableBlend();
-                GlStateManager.enableDepth();
                 GlStateManager.popMatrix();
             }
         }

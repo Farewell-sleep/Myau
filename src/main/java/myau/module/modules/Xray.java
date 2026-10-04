@@ -63,19 +63,19 @@ public class Xray extends Module {
     private void renderOreHighlight(BlockPos blockPos, int blockId, Vec3 viewVector) {
         if (mc.thePlayer.getDistance(blockPos.getX(), blockPos.getY(), blockPos.getZ()) <= this.range.getValue().doubleValue()) {
             Color color = this.getOreColor(blockId);
-            RenderUtil.drawBlockBoundingBox(blockPos, 1.0, color.getRed(), color.getGreen(), color.getBlue(), color.getAlpha(), 1.5F);
+            // 现代化：半透明玻璃填充 + 1px 发丝描边
+            RenderUtil.drawBlockBox(blockPos, 1.0, color.getRed(), color.getGreen(), color.getBlue());
+            RenderUtil.drawBlockBoundingBox(blockPos, 1.0, color.getRed(), color.getGreen(), color.getBlue(), 220, 1.5F);
             if (this.shouldDrawTracer(blockId)) {
-                RenderUtil.drawLine3D(
-                        viewVector,
-                        (double) blockPos.getX() + 0.5,
-                        (double) blockPos.getY() + 0.5,
-                        (double) blockPos.getZ() + 0.5,
-                        (float) color.getRed() / 255.0F,
-                        (float) color.getGreen() / 255.0F,
-                        (float) color.getBlue() / 255.0F,
-                        1.0F,
-                        1.5F
-                );
+                float r = (float) color.getRed() / 255.0F;
+                float g = (float) color.getGreen() / 255.0F;
+                float b = (float) color.getBlue() / 255.0F;
+                double cx = (double) blockPos.getX() + 0.5;
+                double cy = (double) blockPos.getY() + 0.5;
+                double cz = (double) blockPos.getZ() + 0.5;
+                // 外层柔光 + 内层清晰线
+                RenderUtil.drawLine3D(viewVector, cx, cy, cz, r, g, b, 0.18F, 4.5F);
+                RenderUtil.drawLine3D(viewVector, cx, cy, cz, r, g, b, 1.0F, 1.5F);
             }
         }
     }

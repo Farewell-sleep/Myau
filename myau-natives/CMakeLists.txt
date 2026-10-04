@@ -92,7 +92,7 @@ endif()
 
 if(NOT DEFINED FONT_SOURCE)
     set(FONT_SOURCE
-            "${CMAKE_CURRENT_SOURCE_DIR}/../OpenMyau-Inject/src/main/resources/myau/font/product_sans_regular.ttf")
+            "${CMAKE_CURRENT_SOURCE_DIR}/../src/main/resources/assets/myau/fonts/ShuYaoHengShui.ttf")
 endif()
 if(EXISTS "${FONT_SOURCE}")
     list(APPEND PAYLOAD_FILES "${FONT_SOURCE}")

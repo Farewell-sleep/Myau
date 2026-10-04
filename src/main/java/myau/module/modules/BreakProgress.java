@@ -8,6 +8,8 @@ import myau.mixin.IAccessorPlayerControllerMP;
 import myau.module.Module;
 import myau.property.properties.BooleanProperty;
 import myau.property.properties.ModeProperty;
+import myau.util.FontManager;
+import myau.util.RenderUtil;
 import net.minecraft.block.Block;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.GlStateManager;
@@ -18,10 +20,12 @@ import net.minecraft.util.BlockPos;
 import net.minecraft.util.MovingObjectPosition.MovingObjectType;
 import org.lwjgl.opengl.GL11;
 
+import java.awt.Color;
+
 /**
- * BREAK PROGRESS — skidded from Raven B4 (keystrokesmod), verbatim logic:
- * shows a progress label on the block currently being broken (manual or
- * BedNuker target). Modes: Percentage / Time remaining / Decimal.
+ * BREAK PROGRESS — 破坏进度：在准星所指方块上方画圆角玻璃进度条
+ * （背景玻璃底 + 主题色渐变填充），数值用 FontManager。模式 Percentage / Time / Decimal。
+ * 视觉风格遵循 RENDER_SPEC 第 2 节令牌。
  */
 public class BreakProgress extends Module {
 
@@ -31,6 +35,9 @@ public class BreakProgress extends Module {
     public final BooleanProperty manual = new BooleanProperty("Show manual", true);
     public final BooleanProperty bedAura = new BooleanProperty("Show bedAura", true);
     public final BooleanProperty fadeIn = new BooleanProperty("Fade in", false);
+
+    private static final int GLASS_BODY = 0xB91A2028;
+    private static final float FS = 8.0F;
 
     private BlockPos block;
     private float progress;
@@ -114,14 +121,29 @@ public class BreakProgress extends Module {
         GlStateManager.disableDepth();
         GL11.glEnable(GL11.GL_BLEND);
 
-        int colorAlpha = (-1 & 0xFFFFFF) | (Math.max(10, (int) (255 * progress)) << 24);
-        mc.fontRendererObj.drawString(
-                this.progressStr,
-                (float) (-mc.fontRendererObj.getStringWidth(this.progressStr) / 2),
-                -3.0F,
-                fadeIn.getValue() ? colorAlpha : -1,
-                true
-        );
+        HUD hud = (HUD) OpenMyau.moduleManager.modules.get(HUD.class);
+        int accent = hud.getColor(System.currentTimeMillis()).getRGB();
+
+        int alpha = this.fadeIn.getValue() ? Math.max(26, (int) (255 * progress)) : 255;
+        int textColor = 0x00FFFFFF | (alpha << 24);
+        int glass = GLASS_BODY | (alpha << 24);
+        int fill = accent | (alpha << 24);
+
+        float barW = 42.0F;
+        float barH = 4.0F;
+        float barY = -2.0F;
+
+        // 圆角玻璃底 + 主题色前景填充
+        RenderUtil.enableRenderState();
+        RenderUtil.drawRoundedRect(-barW / 2.0F, barY, barW, barH, 2.0F, glass);
+        float fillW = Math.max(barW * this.progress, 0.0F);
+        if (fillW > 0.5F) {
+            RenderUtil.drawRoundedRect(-barW / 2.0F, barY, fillW, barH, 2.0F, fill);
+        }
+        RenderUtil.disableRenderState();
+
+        float textW = (float) FontManager.getStringWidth(this.progressStr, FS);
+        FontManager.drawString(this.progressStr, -textW / 2.0F, -12.0F, textColor, true, FS);
 
         GL11.glDisable(GL11.GL_BLEND);
         GlStateManager.enableDepth();

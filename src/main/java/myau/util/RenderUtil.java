@@ -272,6 +272,237 @@ public class RenderUtil {
             GL11.glVertex2d(cx + Math.cos(ang) * r, cy + Math.sin(ang) * r);
         }
     }
+
+    // ==================================================================
+    // 新增 API（冻结规范第 4 节）——全部自包含保存/恢复 GL 状态
+    // ==================================================================
+
+    /** 圆角矩形描边（x1,y1 左上 / x2,y2 右下），thickness 为线宽。 */
+    public static void drawRoundedOutline(float x1, float y1, float x2, float y2, float r, float thickness, int color) {
+        if (x2 - x1 <= 0 || y2 - y1 <= 0 || color == 0) return;
+        r = Math.min(r, Math.min((x2 - x1) / 2.0F, (y2 - y1) / 2.0F));
+        GlStateManager.enableBlend();
+        GlStateManager.disableTexture2D();
+        GlStateManager.disableCull();
+        GlStateManager.blendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
+        setColor(color);
+        GL11.glLineWidth(Math.max(0.5F, thickness));
+        GL11.glEnable(GL11.GL_LINE_SMOOTH);
+        GL11.glHint(GL11.GL_LINE_SMOOTH_HINT, GL11.GL_NICEST);
+        GL11.glBegin(GL11.GL_LINE_LOOP);
+        roundedArc(x1 + r, y1 + r, r, 180, 270);
+        roundedArc(x2 - r, y1 + r, r, 270, 360);
+        roundedArc(x2 - r, y2 - r, r, 0, 90);
+        roundedArc(x1 + r, y2 - r, r, 90, 180);
+        GL11.glEnd();
+        GL11.glDisable(GL11.GL_LINE_SMOOTH);
+        GL11.glLineWidth(1.0F);
+        GlStateManager.enableTexture2D();
+        GlStateManager.disableBlend();
+        GlStateManager.color(1, 1, 1, 1);
+    }
+
+    /** 四角渐变圆角矩形填充：TL/TR/BR/BL 四个角各自取色，内部双线性插值。 */
+    public static void drawRoundedGradient4(float x1, float y1, float x2, float y2, float r, int cTL, int cTR, int cBR, int cBL) {
+        if (x2 - x1 <= 0 || y2 - y1 <= 0) return;
+        r = Math.min(r, Math.min((x2 - x1) / 2.0F, (y2 - y1) / 2.0F));
+        GlStateManager.enableBlend();
+        GlStateManager.disableTexture2D();
+        GlStateManager.disableCull();
+        GlStateManager.blendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
+        GlStateManager.shadeModel(GL11.GL_SMOOTH);
+        GL11.glBegin(GL11.GL_POLYGON);
+        roundedArcGrad4(x1 + r, y1 + r, r, 180, 270, x1, y1, x2, y2, cTL, cTR, cBR, cBL);
+        roundedArcGrad4(x2 - r, y1 + r, r, 270, 360, x1, y1, x2, y2, cTL, cTR, cBR, cBL);
+        roundedArcGrad4(x2 - r, y2 - r, r, 0, 90, x1, y1, x2, y2, cTL, cTR, cBR, cBL);
+        roundedArcGrad4(x1 + r, y2 - r, r, 90, 180, x1, y1, x2, y2, cTL, cTR, cBR, cBL);
+        GL11.glEnd();
+        GlStateManager.shadeModel(GL11.GL_FLAT);
+        GlStateManager.enableTexture2D();
+        GlStateManager.disableBlend();
+        GlStateManager.color(1, 1, 1, 1);
+    }
+
+    private static void roundedArcGrad4(float cx, float cy, float r, int startDeg, int endDeg,
+                                        float x1, float y1, float x2, float y2,
+                                        int cTL, int cTR, int cBR, int cBL) {
+        for (int i = startDeg; i <= endDeg; i += 6) {
+            double ang = Math.toRadians(i);
+            float px = cx + (float) (Math.cos(ang) * r);
+            float py = cy + (float) (Math.sin(ang) * r);
+            gradient4Color(px, py, x1, y1, x2, y2, cTL, cTR, cBR, cBL);
+            GL11.glVertex2f(px, py);
+        }
+    }
+
+    /** 四角渐变取色：先按 x 插值出顶/底边颜色，再按 y 在二者间插值。 */
+    private static void gradient4Color(float px, float py, float x1, float y1, float x2, float y2,
+                                       int cTL, int cTR, int cBR, int cBL) {
+        float tx = x2 - x1 <= 0.0F ? 0.0F : (px - x1) / (x2 - x1);
+        float ty = y2 - y1 <= 0.0F ? 0.0F : (py - y1) / (y2 - y1);
+        int aT = (cTL >> 24) & 255, rT = (cTL >> 16) & 255, gT = (cTL >> 8) & 255, bT = cTL & 255;
+        int aR = (cTR >> 24) & 255, rR = (cTR >> 16) & 255, gR = (cTR >> 8) & 255, bR = cTR & 255;
+        int aB = (cBR >> 24) & 255, rB = (cBR >> 16) & 255, gB = (cBR >> 8) & 255, bB = cBR & 255;
+        int aL = (cBL >> 24) & 255, rL = (cBL >> 16) & 255, gL = (cBL >> 8) & 255, bL = cBL & 255;
+        int aTop = (int) (aT + (aR - aT) * tx), rTop = (int) (rT + (rR - rT) * tx);
+        int gTop = (int) (gT + (gR - gT) * tx), bTop = (int) (bT + (bR - bT) * tx);
+        int aBot = (int) (aL + (aB - aL) * tx), rBot = (int) (rL + (rB - rL) * tx);
+        int gBot = (int) (gL + (gB - gL) * tx), bBot = (int) (bL + (bB - bL) * tx);
+        GL11.glColor4f(
+                (rTop + (rBot - rTop) * ty) / 255.0F,
+                (gTop + (gBot - gTop) * ty) / 255.0F,
+                (bTop + (bBot - bTop) * ty) / 255.0F,
+                (aTop + (aBot - aTop) * ty) / 255.0F
+        );
+    }
+
+    /** 上下渐变圆角描边：c1 顶 -> c2 底。 */
+    public static void drawGradientOutline(float x1, float y1, float x2, float y2, float r, float thickness, int c1, int c2) {
+        if (x2 - x1 <= 0 || y2 - y1 <= 0) return;
+        r = Math.min(r, Math.min((x2 - x1) / 2.0F, (y2 - y1) / 2.0F));
+        GlStateManager.enableBlend();
+        GlStateManager.disableTexture2D();
+        GlStateManager.disableCull();
+        GlStateManager.blendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
+        GlStateManager.shadeModel(GL11.GL_SMOOTH);
+        GL11.glLineWidth(Math.max(0.5F, thickness));
+        GL11.glEnable(GL11.GL_LINE_SMOOTH);
+        GL11.glHint(GL11.GL_LINE_SMOOTH_HINT, GL11.GL_NICEST);
+        GL11.glBegin(GL11.GL_LINE_LOOP);
+        roundedArcGradV(x1 + r, y1 + r, r, 180, 270, y1, y2, c1, c2);
+        roundedArcGradV(x2 - r, y1 + r, r, 270, 360, y1, y2, c1, c2);
+        roundedArcGradV(x2 - r, y2 - r, r, 0, 90, y1, y2, c1, c2);
+        roundedArcGradV(x1 + r, y2 - r, r, 90, 180, y1, y2, c1, c2);
+        GL11.glEnd();
+        GL11.glDisable(GL11.GL_LINE_SMOOTH);
+        GL11.glLineWidth(1.0F);
+        GlStateManager.shadeModel(GL11.GL_FLAT);
+        GlStateManager.enableTexture2D();
+        GlStateManager.disableBlend();
+        GlStateManager.color(1, 1, 1, 1);
+    }
+
+    private static void roundedArcGradV(float cx, float cy, float r, int startDeg, int endDeg,
+                                        float y1, float y2, int cTop, int cBottom) {
+        for (int i = startDeg; i <= endDeg; i += 6) {
+            double ang = Math.toRadians(i);
+            float px = cx + (float) (Math.cos(ang) * r);
+            float py = cy + (float) (Math.sin(ang) * r);
+            float t = y2 - y1 <= 0.0F ? 0.0F : (py - y1) / (y2 - y1);
+            gradientColor(cTop, cBottom, t);
+            GL11.glVertex2f(px, py);
+        }
+    }
+
+    /** 分层软阴影：从外向内逐层绘制扩展圆角矩形，alpha 逐层累积增强。 */
+    public static void drawShadowRect(float x1, float y1, float x2, float y2, float radius, int color, int passes, float step) {
+        if (x2 - x1 <= 0 || y2 - y1 <= 0 || color == 0 || passes <= 0 || step <= 0.0F) return;
+        int baseA = (color >> 24) & 255;
+        if (baseA == 0) baseA = 64; // 未指定 alpha 时给一个默认阴影强度
+        for (int i = passes; i >= 1; i--) {
+            float grow = step * i;
+            float factor = (float) (passes - i + 1) / passes; // 越靠内越强
+            int layerA = Math.min(255, (int) (baseA * factor * 0.55F));
+            int layerColor = (layerA << 24) | (color & 0x00FFFFFF);
+            drawRoundedRect(x1 - grow, y1 - grow, (x2 - x1) + grow * 2.0F, (y2 - y1) + grow * 2.0F,
+                    radius + grow, layerColor);
+        }
+    }
+
+    /** 圆形描边。 */
+    public static void drawCircleOutline(float cx, float cy, float r, int segments, float thickness, int color) {
+        if (r <= 0 || color == 0) return;
+        GlStateManager.enableBlend();
+        GlStateManager.disableTexture2D();
+        GlStateManager.disableCull();
+        GlStateManager.blendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
+        setColor(color);
+        GL11.glLineWidth(Math.max(0.5F, thickness));
+        GL11.glEnable(GL11.GL_LINE_SMOOTH);
+        GL11.glHint(GL11.GL_LINE_SMOOTH_HINT, GL11.GL_NICEST);
+        GL11.glBegin(GL11.GL_LINE_LOOP);
+        for (int i = 0; i < segments; i++) {
+            double ang = (double) i * (Math.PI * 2.0 / segments);
+            GL11.glVertex2d(cx + Math.cos(ang) * r, cy + Math.sin(ang) * r);
+        }
+        GL11.glEnd();
+        GL11.glDisable(GL11.GL_LINE_SMOOTH);
+        GL11.glLineWidth(1.0F);
+        GlStateManager.enableTexture2D();
+        GlStateManager.disableBlend();
+        GlStateManager.color(1, 1, 1, 1);
+    }
+
+    /** 直角矩形渐变：horizontal=true 时 c1 左->c2 右，否则 c1 上->c2 下。 */
+    public static void drawRectGradient(float x1, float y1, float x2, float y2, int c1, int c2, boolean horizontal) {
+        if (x2 - x1 <= 0 || y2 - y1 <= 0) return;
+        GlStateManager.enableBlend();
+        GlStateManager.disableTexture2D();
+        GlStateManager.disableCull();
+        GlStateManager.blendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
+        GlStateManager.shadeModel(GL11.GL_SMOOTH);
+        GL11.glBegin(GL11.GL_POLYGON);
+        if (horizontal) {
+            gradientColor(c1, c2, 0.0F); GL11.glVertex2f(x1, y1);
+            gradientColor(c1, c2, 0.0F); GL11.glVertex2f(x1, y2);
+            gradientColor(c1, c2, 1.0F); GL11.glVertex2f(x2, y2);
+            gradientColor(c1, c2, 1.0F); GL11.glVertex2f(x2, y1);
+        } else {
+            gradientColor(c1, c2, 0.0F); GL11.glVertex2f(x1, y1);
+            gradientColor(c1, c2, 1.0F); GL11.glVertex2f(x1, y2);
+            gradientColor(c1, c2, 1.0F); GL11.glVertex2f(x2, y2);
+            gradientColor(c1, c2, 0.0F); GL11.glVertex2f(x2, y1);
+        }
+        GL11.glEnd();
+        GlStateManager.shadeModel(GL11.GL_FLAT);
+        GlStateManager.enableTexture2D();
+        GlStateManager.disableBlend();
+        GlStateManager.color(1, 1, 1, 1);
+    }
+
+    /** 粗渐变线：c1 在 (x1,y1) 端，c2 在 (x2,y2) 端，width 为线宽。 */
+    public static void drawLineGradient(float x1, float y1, float x2, float y2, float width, int c1, int c2) {
+        float dx = x2 - x1, dy = y2 - y1;
+        float len = (float) Math.sqrt(dx * dx + dy * dy);
+        if (len <= 0.0F) return;
+        float nx = -dy / len * (width / 2.0F);
+        float ny = dx / len * (width / 2.0F);
+        GlStateManager.enableBlend();
+        GlStateManager.disableTexture2D();
+        GlStateManager.disableCull();
+        GlStateManager.blendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
+        GlStateManager.shadeModel(GL11.GL_SMOOTH);
+        GL11.glBegin(GL11.GL_QUADS);
+        gradientColor(c1, c2, 0.0F); GL11.glVertex2f(x1 + nx, y1 + ny);
+        gradientColor(c1, c2, 0.0F); GL11.glVertex2f(x1 - nx, y1 - ny);
+        gradientColor(c1, c2, 1.0F); GL11.glVertex2f(x2 - nx, y2 - ny);
+        gradientColor(c1, c2, 1.0F); GL11.glVertex2f(x2 + nx, y2 + ny);
+        GL11.glEnd();
+        GlStateManager.shadeModel(GL11.GL_FLAT);
+        GlStateManager.enableTexture2D();
+        GlStateManager.disableBlend();
+        GlStateManager.color(1, 1, 1, 1);
+    }
+
+    /** 启用裁剪：按当前 ScaledResolution 把 GUI 坐标换算为帧缓冲像素（左下原点）。 */
+    public static void beginScissor(float x, float y, float w, float h) {
+        if (w < 0) w = 0;
+        if (h < 0) h = 0;
+        ScaledResolution sr = new ScaledResolution(mc);
+        int scale = sr.getScaleFactor();
+        int sx = Math.round(x * scale);
+        int sy = Math.round((sr.getScaledHeight() - (y + h)) * scale);
+        int sw = Math.round(w * scale);
+        int sh = Math.round(h * scale);
+        GL11.glEnable(GL11.GL_SCISSOR_TEST);
+        GL11.glScissor(sx, sy, sw, sh);
+    }
+
+    /** 关闭裁剪。 */
+    public static void endScissor() {
+        GL11.glDisable(GL11.GL_SCISSOR_TEST);
+    }
+
     public static void drawRect3D(float x1, float y1, float x2, float y2, int color) {
         if (color == 0) {
             return;

@@ -221,7 +221,10 @@ public class HitBox extends Module {
                             expandedBox.maxY - entity.posY + (RenderUtil.lerpDouble(entity.posY, entity.lastTickPosY, event.getPartialTicks()) - ((IAccessorRenderManager) mc.getRenderManager()).getRenderPosY()),
                             expandedBox.maxZ - entity.posZ + (RenderUtil.lerpDouble(entity.posZ, entity.lastTickPosZ, event.getPartialTicks()) - ((IAccessorRenderManager) mc.getRenderManager()).getRenderPosZ())
                     );
-                    RenderUtil.drawBoundingBox(offsetBox, renderColor.getRed(), renderColor.getGreen(), renderColor.getBlue(), 150, 1.5F);
+                    // 现代化：半透明玻璃填充 + 外层柔光 + 1px 发丝描边
+                    RenderUtil.drawFilledBoundingBox(offsetBox, renderColor.getRed(), renderColor.getGreen(), renderColor.getBlue(), 0.12F);
+                    RenderUtil.drawBoundingBox(offsetBox, renderColor.getRed(), renderColor.getGreen(), renderColor.getBlue(), 80, 3.0F);
+                    RenderUtil.drawBoundingBox(offsetBox, renderColor.getRed(), renderColor.getGreen(), renderColor.getBlue(), 255, 1.0F);
                 }
                 RenderUtil.disableRenderState();
             }

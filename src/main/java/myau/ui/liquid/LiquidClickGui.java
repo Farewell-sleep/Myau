@@ -3,6 +3,7 @@ package myau.ui.liquid;
 import myau.OpenMyau;
 import myau.module.Module;
 import myau.module.modules.*;
+import myau.util.FontManager;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.gui.ScaledResolution;
@@ -59,12 +60,12 @@ public class LiquidClickGui extends GuiScreen {
         panels.add(new GlassPanel("Movement", category(AntiAFK.class, Fly.class, Speed.class, LongJump.class, Sprint.class,
                 SafeWalk.class, Jesus.class, Blink.class, NoFall.class, NoSlow.class, KeepSprint.class, Eagle.class,
                 NoJumpDelay.class, AntiVoid.class), i++));
-        panels.add(new GlassPanel("Render", category(ESP.class, Chams.class, FullBright.class, Tracers.class, NameTags.class,
+        panels.add(new GlassPanel("Render", category(ESP.class, Capes.class, Chams.class, FullBright.class, Tracers.class, NameTags.class,
                 Xray.class, BedESP.class, ItemESP.class, ItemPhysics.class, BreakProgress.class,
                 Freelook.class, ViewClip.class, NoHurtCam.class,
                 GuiModule.class, ChestESP.class, Trajectories.class, Radar.class, CuteVisuals.class, SnowFog.class,
                 Crosshair.class, SeeInvisibles.class, Ambience.class, Hurtcam.class, FogRemove.class), i++));
-        panels.add(new GlassPanel("HUD", category(HUD.class, TargetHUD.class, Indicators.class, PotionHUD.class, Watermark.class, Keybinds.class), i++));
+        panels.add(new GlassPanel("HUD", category(HUD.class, TargetHUD.class, Indicators.class, PotionHUD.class, Watermark.class, Keybinds.class, ModuleToggleNotify.class), i++));
         panels.add(new GlassPanel("Player", category(Clutch.class, AutoHeal.class, AutoTool.class, ChestStealer.class, InvManager.class,
                 InvWalk.class, Scaffold.class, Telly.class, NewScaffold.class, AutoBlockIn.class, SpeedMine.class, FastPlace.class,
                 GhostHand.class, MCF.class, AntiDebuff.class), i++));
@@ -133,15 +134,17 @@ public class LiquidClickGui extends GuiScreen {
 
         // header — liquid glass title pill (true capsule)
         drawGlassCapsuleBg(12, 6, 118, 34, 1.0F);
-        mc.fontRendererObj.drawStringWithShadow("Myau", 20, 12, GlassRenderer.ACCENT);
-        mc.fontRendererObj.drawStringWithShadow("Dev TTHILLTT", 20, 24, GlassRenderer.TEXT_FAINT);
+        FontManager.drawString("Myau", 20, 23 - FontManager.getBaseline(15.0F)
+                + FontManager.getCapHeight(15.0F) / 2.0F, GlassRenderer.ACCENT, true, 15.0F);
+        FontManager.drawString("Dev TTHILLTT", 20, 26.5F, GlassRenderer.TEXT_FAINT, false, 9.0F);
 
         // module state style toggle button (top-right) — same liquid glass pill
         int styleX = width - 92;
         boolean styleHover = mouseX >= styleX && mouseX <= styleX + 82 && mouseY >= 8 && mouseY <= 26;
         drawGlassCapsuleBg(styleX, 8, 82, 18, styleHover ? 1.0F : 0.85F);
-        mc.fontRendererObj.drawString("State: " + (GlassModuleEntry.switchStyle ? "Switch" : "Accent"),
-                styleX + 10, 12, GlassRenderer.TEXT_MAIN);
+        FontManager.drawString("State: " + (GlassModuleEntry.switchStyle ? "Switch" : "Accent"),
+                styleX + 10, 17 - FontManager.getBaseline(11.0F) + FontManager.getCapHeight(11.0F) / 2.0F,
+                GlassRenderer.TEXT_MAIN, false, 11.0F);
 
         // search bar — same liquid glass refraction as the panels
         int sy = 12;
@@ -182,9 +185,14 @@ public class LiquidClickGui extends GuiScreen {
         GlassRenderer.drawCapsuleOutline(searchX + 0.5F, sy + 0.5F, searchW - 1, searchH - 1, 1.0F, GlassRenderer.GLASS_OUTLINE);
         String hint = search.length() == 0 ? "Search modules..." : search.toString();
         int hintColor = search.length() == 0 ? GlassRenderer.TEXT_FAINT : GlassRenderer.TEXT_MAIN;
-        mc.fontRendererObj.drawString(hint, searchX + 10, sy + 6, hintColor);
-        if (searchFocused) {
-            GlassRenderer.drawRoundedRect(searchX + 10 + mc.fontRendererObj.getStringWidth(hint), sy + 5, 1.2F, 10, 0.6F, 0x9922C55E);
+        float searchSize = 11.0F;
+        float hintY = sy + searchH / 2.0F - FontManager.getBaseline(searchSize)
+                + FontManager.getCapHeight(searchSize) / 2.0F;
+        FontManager.drawString(hint, searchX + 10, hintY, hintColor, false, searchSize);
+        // 输入光标：主题蓝、500ms 闪烁
+        if (searchFocused && (System.currentTimeMillis() / 500L) % 2L == 0L) {
+            float caretX = searchX + 10 + FontManager.getStringWidth(hint, searchSize);
+            GlassRenderer.drawRoundedRect(caretX, sy + 5, 1.2F, 10, 0.6F, GlassRenderer.ACCENT);
         }
         drawSearchIcon(searchX + searchW - 18, sy + 6);
 
@@ -248,6 +256,10 @@ public class LiquidClickGui extends GuiScreen {
         }
         int srcTex = mc.getFramebuffer().framebufferTexture;
 
+        // GL 状态纪律：scissor / depth 由本流程以裸 GL11 切换，进入前记录、finally 恢复，
+        // 避免把对 scissor 的依赖泄漏给后续 GUI 绘制（面板自身每帧开关 scissor 不受影响）。
+        boolean scissorWasEnabled = GL11.glIsEnabled(GL11.GL_SCISSOR_TEST);
+        boolean depthWasEnabled = GL11.glIsEnabled(GL11.GL_DEPTH_TEST);
         try {
             // CRITICAL: do NOT touch the projection matrix. We draw in the
             // existing scaled GUI coordinates (0..width, 0..height) — a
@@ -296,6 +308,11 @@ public class LiquidClickGui extends GuiScreen {
             GlStateManager.enableAlpha();
             GlStateManager.enableTexture2D();
             GlStateManager.color(1, 1, 1, 1);
+            // 恢复进入前的 scissor / depth 状态
+            if (scissorWasEnabled) GL11.glEnable(GL11.GL_SCISSOR_TEST);
+            else GL11.glDisable(GL11.GL_SCISSOR_TEST);
+            if (depthWasEnabled) GL11.glEnable(GL11.GL_DEPTH_TEST);
+            else GL11.glDisable(GL11.GL_DEPTH_TEST);
         }
     }
 
