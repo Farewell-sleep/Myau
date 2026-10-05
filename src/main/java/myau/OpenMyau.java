@@ -152,6 +152,7 @@ public class OpenMyau {
         moduleManager.modules.put(BackTrack.class, new BackTrack());
         moduleManager.modules.put(Autoblock.class, new Autoblock());
         moduleManager.modules.put(Keybinds.class, new Keybinds());
+        moduleManager.modules.put(LeaderFontManager.class, new LeaderFontManager());
         moduleManager.modules.put(NewScaffold.class, new NewScaffold());
         moduleManager.modules.put(LightningTracker.class, new LightningTracker());
         moduleManager.modules.put(LongJump.class, new LongJump());

@@ -8,7 +8,7 @@ import myau.mixin.IAccessorPlayerControllerMP;
 import myau.module.Module;
 import myau.property.properties.BooleanProperty;
 import myau.property.properties.ModeProperty;
-import myau.risefont.RiseFontManager;
+import myau.module.modules.LeaderFontManager;
 import myau.util.RenderUtil;
 import net.minecraft.block.Block;
 import net.minecraft.client.Minecraft;
@@ -142,8 +142,8 @@ public class BreakProgress extends Module {
         }
         RenderUtil.disableRenderState();
 
-        float textW = (float) RiseFontManager.getStringWidth(this.progressStr, FS);
-        RiseFontManager.drawString(this.progressStr, -textW / 2.0F, -12.0F, textColor, true, FS);
+        float textW = (float) LeaderFontManager.getStringWidth(this.progressStr, FS);
+        LeaderFontManager.drawString(this.progressStr, -textW / 2.0F, -12.0F, textColor, true, FS);
 
         GL11.glDisable(GL11.GL_BLEND);
         GlStateManager.enableDepth();

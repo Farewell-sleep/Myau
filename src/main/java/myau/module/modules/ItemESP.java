@@ -6,7 +6,7 @@ import myau.events.Render3DEvent;
 import myau.module.Module;
 import myau.property.properties.BooleanProperty;
 import myau.property.properties.FloatProperty;
-import myau.risefont.RiseFontManager;
+import myau.module.modules.LeaderFontManager;
 import myau.util.RenderUtil;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.GlStateManager;
@@ -216,7 +216,7 @@ public class ItemESP extends Module {
         GlStateManager.depthMask(false);
         GlStateManager.disableDepth();
         String value = String.valueOf(size);
-        RiseFontManager.drawString(value, -RiseFontManager.getStringWidth(value, 8.0F) / 2.0F + scale * 3.5f, -(123.805f * scale - 2.47494f), textColor, true, 8.0F);
+        LeaderFontManager.drawString(value, -LeaderFontManager.getStringWidth(value, 8.0F) / 2.0F + scale * 3.5f, -(123.805f * scale - 2.47494f), textColor, true, 8.0F);
         GlStateManager.enableDepth();
         GlStateManager.depthMask(true);
         GlStateManager.color(1.0f, 1.0f, 1.0f, 1.0f);

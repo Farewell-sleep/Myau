@@ -9,49 +9,35 @@ import myau.events.TickEvent;
 import myau.mixin.IAccessorGuiChat;
 import myau.module.Module;
 import myau.property.properties.*;
-import myau.risefont.RiseFont;
-import myau.risefont.RiseFontManager;
-import myau.risefont.RiseFontWeight;
-import myau.ui.liquid.GlassRenderer;
+import myau.util.LeaderFontRender;
 import myau.util.RenderUtil;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiChat;
 import net.minecraft.client.gui.ScaledResolution;
 import net.minecraft.client.renderer.GlStateManager;
-import net.minecraft.client.shader.Framebuffer;
 import org.lwjgl.opengl.GL11;
-import org.lwjgl.opengl.GL30;
 
 import java.awt.*;
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
- * Modern arraylist HUD — skidded rendering style from Rise (ModernInterface /
- * ArrayListEntry) and Onyx (module toggles). Text is rendered with the skidded
- * Rise font chain (RiseFontManager: Product Sans + HarmonyOS Sans SC), and all
- * card geometry is drawn with raw GL primitives (no Myau RenderUtil /
- * FontManager), so this HUD never pollutes world / entity rendering.
+ * Modern arraylist HUD — skidded rendering style from Leader-Lite
+ * (leader.module.modules.render.HUD). Rows are rendered top-aligned with a
+ * fixed row height of getFontHeight() - 1, optional frosted-glass backdrop
+ * (same FBO pipeline as the ClickGUI), per-row bar (RIGHT / LEFT / TOP /
+ * BOTTOM), glow outline + glow text, gray suffixes and width-descending sort.
+ * Text is drawn through the Leader font chain (LeaderFontManager ->
+ * LeaderFontRender -> CustomFontRenderer), default Xylitol 18px.
  *
- * Public API (class name, getColor, properties) stays config-compatible.
+ * Positioning keeps Myau's posX / posY / offsetX / offsetY properties
+ * (Leader uses a drag manager that Myau does not have).
  */
 public class HUD extends Module {
     private static final Minecraft mc = Minecraft.getMinecraft();
-
-    private static final float PAD_X = 5.0F;
-    /** Hengshui-era card radius (3px): rows sit flush together and read as
-     *  one continuous frame column instead of separate pills. */
-    private static final float CARD_R = 3.0F;
-    /** Onyx Array List fixed row height (14px text line). */
-    private static final float ONYX_ROW_H = 14.0F;
-    /** Onyx ACCENT_BAR accent width. */
-    private static final float ACCENT_W = 2.0F;
 
     private List<Module> activeModules = new ArrayList<>();
     public final ModeProperty colorMode = new ModeProperty(
@@ -68,7 +54,6 @@ public class HUD extends Module {
     public final IntProperty offsetX = new IntProperty("offset-x", 2, 0, 255);
     public final IntProperty offsetY = new IntProperty("offset-y", 2, 0, 255);
     public final FloatProperty scale = new FloatProperty("scale", 1.0F, 0.5F, 1.5F);
-    public final PercentProperty background = new PercentProperty("background", 25);
     public final IntProperty rowSpacing = new IntProperty("row-spacing", 0, 0, 10);
     public final BooleanProperty showBar = new BooleanProperty("bar", true);
     public final BooleanProperty shadow = new BooleanProperty("shadow", true);
@@ -78,26 +63,9 @@ public class HUD extends Module {
     public final BooleanProperty blinkTimer = new BooleanProperty("blink-timer", true);
     public final BooleanProperty toggleSound = new BooleanProperty("toggle-sounds", true);
     public final BooleanProperty toggleAlerts = new BooleanProperty("toggle-alerts", false);
-    public final BooleanProperty bgColor = new BooleanProperty("bg-color", false);
-    public final BooleanProperty glow = new BooleanProperty("glow", false);
+    public final BooleanProperty glow = new BooleanProperty("glow", true);
     public final IntProperty barless = new IntProperty("barless", 0, 0, 8, () -> this.showBar.getValue());
     public final ModeProperty barMode = new ModeProperty("bar-mode", 0, new String[]{"RIGHT", "LEFT", "TOP", "BOTTOM"}, () -> this.showBar.getValue());
-
-    // ---- Liquid-glass backdrop (same pipeline as the ClickGUI) ----
-    private Framebuffer hudBlurA;
-    private boolean hudBlurFailed;
-
-    // ---- Rise-style entry animation state ----
-    private long lastFrame = System.currentTimeMillis();
-    private final Map<Module, Long> rowBorn = new HashMap<>();
-    private final Map<Module, float[]> lastRect = new HashMap<>();
-    private final Map<Module, float[]> dying = new HashMap<>();
-
-    /** Onyx-style font instance (13px optical weight — the Array List text
-     *  size), rendered through the skidded Rise font chain. */
-    private RiseFont font() {
-        return RiseFontManager.MAIN.get(13, RiseFontWeight.MEDIUM);
-    }
 
     private String getModuleName(Module module) {
         String moduleName = module.getName();
@@ -118,15 +86,16 @@ public class HUD extends Module {
     }
 
     private int getModuleWidth(Module module) {
-        return this.calculateStringWidth(this.getModuleName(module), this.getModuleSuffix(module));
+        return this.calculateStringWidth(
+                this.getModuleName(module), this.getModuleSuffix(module)
+        );
     }
 
     private int calculateStringWidth(String string, String[] arr) {
-        RiseFont f = this.font();
-        int width = f.getStringWidth(string);
+        int width = LeaderFontRender.getStringWidth(string, 18.0F, LeaderFontManager.isCustomFont());
         if (this.suffixes.getValue()) {
             for (String str : arr) {
-                width += 3 + f.getStringWidth(str);
+                width += 3 + LeaderFontRender.getStringWidth(str, 18.0F, LeaderFontManager.isCustomFont());
             }
         }
         return width;
@@ -225,182 +194,27 @@ public class HUD extends Module {
         }
     }
 
-    // ---- raw GL rounded-rect primitives (no Myau RenderUtil) ----
-    private static void roundedArc(float cx, float cy, float r, int startDeg, int endDeg) {
-        GL11.glBegin(GL11.GL_POLYGON);
-        for (int i = startDeg; i <= endDeg; i += 6) {
-            double ang = Math.toRadians(i);
-            GL11.glVertex2f(cx + (float) (Math.cos(ang) * r), cy + (float) (Math.sin(ang) * r));
-        }
-        GL11.glEnd();
-    }
+    // ---- glow helpers (Leader-Lite style) ----
 
-    private static void drawRoundedRect(float x, float y, float w, float h, float r, int color) {
-        if (w <= 0.0F || h <= 0.0F) return;
-        r = Math.min(r, Math.min(w / 2.0F, h / 2.0F));
-        float a = (color >> 24 & 0xFF) / 255.0F;
-        float red = (color >> 16 & 0xFF) / 255.0F;
-        float green = (color >> 8 & 0xFF) / 255.0F;
-        float blue = (color & 0xFF) / 255.0F;
+    private void drawGlowText(String text, float x, float y, int color, int passes, float spread) {
         GlStateManager.enableBlend();
-        GlStateManager.disableTexture2D();
-        GlStateManager.disableCull();
         GlStateManager.blendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
-        GlStateManager.color(red, green, blue, a);
-        roundedArc(x + r, y + r, r, 180, 270);
-        roundedArc(x + w - r, y + r, r, 270, 360);
-        roundedArc(x + w - r, y + h - r, r, 0, 90);
-        roundedArc(x + r, y + h - r, r, 90, 180);
-        GL11.glBegin(GL11.GL_POLYGON);
-        GL11.glVertex2f(x + r, y);
-        GL11.glVertex2f(x + w - r, y);
-        GL11.glVertex2f(x + w - r, y + h);
-        GL11.glVertex2f(x + r, y + h);
-        GL11.glEnd();
-        GL11.glBegin(GL11.GL_POLYGON);
-        GL11.glVertex2f(x, y + r);
-        GL11.glVertex2f(x + w, y + r);
-        GL11.glVertex2f(x + w, y + h - r);
-        GL11.glVertex2f(x, y + h - r);
-        GL11.glEnd();
         GlStateManager.enableTexture2D();
+        for (int i = passes; i >= 1; i--) {
+            float offset = i * spread;
+            float intensity = (float) (passes - i + 1) / (float) passes;
+            int glowColor = setAlpha(color, 0.35F * intensity * intensity);
+            float diagonal = offset * 0.65F;
+            LeaderFontRender.drawString(text, x + offset, y, glowColor, false, 18.0F, LeaderFontManager.isCustomFont());
+            LeaderFontRender.drawString(text, x - offset, y, glowColor, false, 18.0F, LeaderFontManager.isCustomFont());
+            LeaderFontRender.drawString(text, x, y + offset, glowColor, false, 18.0F, LeaderFontManager.isCustomFont());
+            LeaderFontRender.drawString(text, x, y - offset, glowColor, false, 18.0F, LeaderFontManager.isCustomFont());
+            LeaderFontRender.drawString(text, x + diagonal, y + diagonal, glowColor, false, 18.0F, LeaderFontManager.isCustomFont());
+            LeaderFontRender.drawString(text, x - diagonal, y + diagonal, glowColor, false, 18.0F, LeaderFontManager.isCustomFont());
+            LeaderFontRender.drawString(text, x + diagonal, y - diagonal, glowColor, false, 18.0F, LeaderFontManager.isCustomFont());
+            LeaderFontRender.drawString(text, x - diagonal, y - diagonal, glowColor, false, 18.0F, LeaderFontManager.isCustomFont());
+        }
         GlStateManager.disableBlend();
-        GlStateManager.resetColor();
-    }
-
-    private static void drawRect(float x, float y, float w, float h, int color) {
-        if (w <= 0.0F || h <= 0.0F) return;
-        float a = (color >> 24 & 0xFF) / 255.0F;
-        float red = (color >> 16 & 0xFF) / 255.0F;
-        float green = (color >> 8 & 0xFF) / 255.0F;
-        float blue = (color & 0xFF) / 255.0F;
-        GlStateManager.enableBlend();
-        GlStateManager.disableTexture2D();
-        GlStateManager.blendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
-        GL11.glColor4f(red, green, blue, a);
-        GL11.glBegin(GL11.GL_QUADS);
-        GL11.glVertex2f(x, y);
-        GL11.glVertex2f(x + w, y);
-        GL11.glVertex2f(x + w, y + h);
-        GL11.glVertex2f(x, y + h);
-        GL11.glEnd();
-        GlStateManager.enableTexture2D();
-        GlStateManager.disableBlend();
-        GlStateManager.resetColor();
-    }
-
-    /** 1px hairline rounded outline (outer rounded rect minus inner fill). */
-    private static void drawRoundedOutline(float x, float y, float w, float h, float r, int color) {
-        drawRoundedRect(x, y, w, h, r, color);
-        drawRoundedRect(x + 0.75F, y + 0.75F, Math.max(0.0F, w - 1.5F), Math.max(0.0F, h - 1.5F), Math.max(0.5F, r - 0.75F), 0x00000000);
-    }
-
-    // ---- Liquid-glass backdrop (same FBO pipeline as the ClickGUI) ----
-
-    private void ensureBlurFbo() {
-        if (hudBlurFailed) return;
-        if (hudBlurA == null || hudBlurA.framebufferWidth != mc.displayWidth
-                || hudBlurA.framebufferHeight != mc.displayHeight) {
-            try {
-                if (hudBlurA != null) hudBlurA.deleteFramebuffer();
-                hudBlurA = new Framebuffer(mc.displayWidth, mc.displayHeight, true);
-                hudBlurA.setFramebufferColor(0, 0, 0, 0);
-            } catch (Throwable t) {
-                hudBlurFailed = true;
-                hudBlurA = null;
-                System.out.println("[Myau] HUD glass FBO init failed: " + t);
-            }
-        }
-    }
-
-    /** Copy the current main frame into hudBlurA once per frame so the cards
-     *  can sample it as their frosted-glass backdrop. Restores every GL state
-     *  it touches (scissor / depth / blend / alpha / texture / color). */
-    private void renderBlurBackdrop(int scaledW, int scaledH) {
-        if (hudBlurFailed || hudBlurA == null || mc.getFramebuffer() == null
-                || mc.getFramebuffer().framebufferTexture == 0) {
-            return;
-        }
-        int srcTex = mc.getFramebuffer().framebufferTexture;
-        boolean scissorWasEnabled = GL11.glIsEnabled(GL11.GL_SCISSOR_TEST);
-        boolean depthWasEnabled = GL11.glIsEnabled(GL11.GL_DEPTH_TEST);
-        try {
-            GL11.glDisable(GL11.GL_SCISSOR_TEST);
-            GL11.glDisable(GL11.GL_DEPTH_TEST);
-            GlStateManager.disableBlend();
-            GlStateManager.disableAlpha();
-            GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, hudBlurA.framebufferObject);
-            GL11.glViewport(0, 0, hudBlurA.framebufferWidth, hudBlurA.framebufferHeight);
-            GlassRenderer.drawTextureQuad(srcTex, scaledW, scaledH);
-            GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, mc.getFramebuffer().framebufferObject);
-            GL11.glViewport(0, 0, mc.displayWidth, mc.displayHeight);
-        } catch (Throwable t) {
-            hudBlurFailed = true;
-            GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, mc.getFramebuffer().framebufferObject);
-            GL11.glViewport(0, 0, mc.displayWidth, mc.displayHeight);
-        } finally {
-            GlStateManager.enableBlend();
-            GlStateManager.enableAlpha();
-            GlStateManager.enableTexture2D();
-            GlStateManager.color(1, 1, 1, 1);
-            if (scissorWasEnabled) GL11.glEnable(GL11.GL_SCISSOR_TEST);
-            else GL11.glDisable(GL11.GL_SCISSOR_TEST);
-            if (depthWasEnabled) GL11.glEnable(GL11.GL_DEPTH_TEST);
-            else GL11.glDisable(GL11.GL_DEPTH_TEST);
-        }
-    }
-
-    /** Frosted-glass card backdrop: samples the blurred frame copy with the
-     *  LiquidGlass edge-refraction shader (same look as the ClickGUI). Falls
-     *  back to the translucent gradient when the blur pipeline is unavailable.
-     *  @return true if the glass shader path was used. */
-    private boolean drawGlassCardBg(float x1, float y1, float x2, float y2, float r, float alpha,
-                                    int themeRgb, boolean useThemeBg, boolean hasBg, float bgPct, float p) {
-        if (!hasBg) return false;
-        if (hudBlurFailed || hudBlurA == null) {
-            return false;
-        }
-        try {
-            ScaledResolution sr = new ScaledResolution(mc);
-            int sw = sr.getScaledWidth(), sh = sr.getScaledHeight();
-            float w = x2 - x1, h = y2 - y1;
-            if (w <= 0 || h <= 0) return false;
-            float rClamp = Math.min(r, Math.min(w / 2.0F, h / 2.0F));
-            int prevTexture = GL11.glGetInteger(GL11.GL_TEXTURE_BINDING_2D);
-            GlStateManager.bindTexture(hudBlurA.framebufferTexture);
-            GlStateManager.enableTexture2D();
-            GlStateManager.disableCull();
-            GlStateManager.enableBlend();
-            if (useThemeBg) {
-                Color c = new Color(themeRgb);
-                GlStateManager.color(c.getRed() / 255.0F, c.getGreen() / 255.0F, c.getBlue() / 255.0F, alpha);
-            } else {
-                GlStateManager.color(1, 1, 1, alpha);
-            }
-            GlassRenderer.LiquidGlassShader.INSTANCE.use();
-            float halfH = 0.5F * h / w;
-            float rUv = Math.min(rClamp / w, Math.min(0.5F, halfH));
-            GlassRenderer.LiquidGlassShader.INSTANCE.setPanelParams(
-                    0.5F, halfH, rUv, w / sw, h / sh, x1 / sw, 1 - y1 / sh);
-            GL11.glBegin(GL11.GL_QUADS);
-            GL11.glTexCoord2f(0, 0);
-            GL11.glVertex2f(x1, y1);
-            GL11.glTexCoord2f(1, 0);
-            GL11.glVertex2f(x2, y1);
-            GL11.glTexCoord2f(1, 1);
-            GL11.glVertex2f(x2, y2);
-            GL11.glTexCoord2f(0, 1);
-            GL11.glVertex2f(x1, y2);
-            GL11.glEnd();
-            GlassRenderer.LiquidGlassShader.INSTANCE.stop();
-            GlStateManager.color(1, 1, 1, 1);
-            GlStateManager.bindTexture(prevTexture);
-            return true;
-        } catch (Throwable t) {
-            hudBlurFailed = true;
-            GlStateManager.color(1, 1, 1, 1);
-            return false;
-        }
     }
 
     @EventTarget
@@ -408,189 +222,121 @@ public class HUD extends Module {
         if (this.chatOutline.getValue() && mc.currentScreen instanceof GuiChat) {
             String text = ((IAccessorGuiChat) mc.currentScreen).getInputField().getText().trim();
             if (OpenMyau.commandManager != null && OpenMyau.commandManager.isTypingCommand(text)) {
-                drawRoundedOutline(
+                RenderUtil.enableRenderState();
+                RenderUtil.drawOutlineRect(
                         2.0F,
                         (float) (mc.currentScreen.height - 14),
-                        (float) (mc.currentScreen.width - 4),
-                        (float) (mc.currentScreen.height - 2) - (float) (mc.currentScreen.height - 14),
+                        (float) (mc.currentScreen.width - 2),
+                        (float) (mc.currentScreen.height - 2),
                         1.5F,
+                        0,
                         this.getColor(System.currentTimeMillis()).getRGB()
                 );
+                RenderUtil.disableRenderState();
             }
         }
         if (this.isEnabled() && !mc.gameSettings.showDebugInfo) {
-            long now = System.currentTimeMillis();
-            float dt = Math.min(60.0F, now - this.lastFrame);
-            this.lastFrame = now;
-
-            float scale = this.scale.getValue();
+            float height = (float) LeaderFontRender.getFontHeight(18.0F, LeaderFontManager.isCustomFont()) - 1.0F;
             ScaledResolution sr = new ScaledResolution(mc);
-
-            boolean left = this.posX.getValue() == 0;
+            boolean rightAlign = this.posX.getValue() == 1;
             boolean top = this.posY.getValue() == 0;
-            float anchorX = this.offsetX.getValue() / scale;
-            float rightEdge = sr.getScaledWidth() / scale - this.offsetX.getValue() / scale;
-            RiseFont f = this.font();
-            // Onyx Array List: fixed 14px text line, rows are 14px tall plus spacing.
-            float rowH = ONYX_ROW_H;
-            float rowStep = rowH + this.rowSpacing.getValue();
-            float curY = top
-                    ? this.offsetY.getValue() / scale + 1.0F
-                    : sr.getScaledHeight() / scale - this.offsetY.getValue() / scale - rowH;
+            float scale = this.scale.getValue();
 
-            // Frosted-glass frame copy runs OUTSIDE the scale transform so the
-            // full-screen quad always covers the whole viewport.
-            float bgPct0 = this.background.getValue().floatValue() / 100.0F;
-            if (bgPct0 > 0.001F) {
-                this.ensureBlurFbo();
-                this.renderBlurBackdrop(sr.getScaledWidth(), sr.getScaledHeight());
-            }
+            // Anchor (Myau positioning; Leader uses a drag manager we do not have)
+            float anchorX = rightAlign
+                    ? sr.getScaledWidth() - this.offsetX.getValue()
+                    : this.offsetX.getValue();
+            float anchorY = top
+                    ? this.offsetY.getValue()
+                    : sr.getScaledHeight() - this.offsetY.getValue() - height * scale;
 
             GlStateManager.pushMatrix();
             GlStateManager.scale(scale, scale, 1.0F);
-            try {
+            long l = System.currentTimeMillis();
             long idx = 0L;
-            float bgPct = bgPct0;
-            boolean useThemeBg = this.bgColor.getValue();
-            boolean hasBg = bgPct > 0.001F;
-            int gray = new Color(0x99, 0x99, 0x99).getRGB();
+            float x = anchorX / scale;
+            float y = anchorY / scale;
 
-            // Side bar: one continuous vertical bar spanning the whole column
-            // (instead of per-row fragments) — Onyx ACCENT_BAR style.
-            float colTop = curY;
-            float colBottom = curY + Math.max(0, this.activeModules.size() - 1) * rowStep + rowH;
-            int firstBarColor = 0xFFFFFFFF;
-            int barModeVal = this.showBar.getValue() ? this.barMode.getValue() : -1;
-            boolean sideBar = barModeVal == 0 || barModeVal == 1;
-            float barX = 0.0F;
-            if (sideBar) {
-                if (barModeVal == 0) {
-                    barX = left ? anchorX - ACCENT_W - 1.0F : rightEdge + 1.0F;
-                } else {
-                    barX = left ? rightEdge + 1.0F : anchorX - ACCENT_W - 1.0F;
-                }
-            }
+            int gray = new Color(0x99, 0x99, 0x99).getRGB();
 
             for (Module module : this.activeModules) {
                 String moduleName = this.getModuleName(module);
                 String[] moduleSuffix = this.getModuleSuffix(module);
-                float textW = (float) this.calculateStringWidth(moduleName, moduleSuffix);
-                float cardW = textW + PAD_X * 2.0F;
-
-                Long born = this.rowBorn.get(module);
-                if (born == null) {
-                    born = now;
-                    this.rowBorn.put(module, born);
+                float totalWidth = (float) (this.calculateStringWidth(moduleName, moduleSuffix) - (this.shadow.getValue() ? 0 : 1));
+                Color themeColor = this.getColor(l, idx);
+                int color = themeColor.getRGB();
+                float sx = x;
+                float sy = y;
+                float bgX1, bgX2, textX;
+                if (rightAlign) {
+                    bgX2 = sx + 1.0F;
+                    bgX1 = sx - totalWidth - 1.0F;
+                    textX = sx - totalWidth;
+                } else {
+                    bgX1 = sx - 1.0F;
+                    bgX2 = sx + 1.0F + totalWidth;
+                    textX = sx;
                 }
-                float p = clamp01((now - born - idx * 30L) / 200.0F);
-                p = 1.0F - (float) Math.pow(1.0F - p, 3.0);
+                float bgY1 = sy - this.rowSpacing.getValue() - (idx == 0L ? 1.0F : 0.0F);
+                float bgY2 = sy + height + this.rowSpacing.getValue() + (this.shadow.getValue() ? 1.0F : 0.0F);
+                float textY = sy;
 
-                // Onyx SLIDE_FADE: rows slide in horizontally by 14px and
-                // scale 0.9 -> 1.0 while fading in.
-                float slideX = (1.0F - p) * 14.0F;
-                float rowScale = 0.9F + 0.1F * p;
-                float cardX1 = (left ? anchorX : rightEdge - cardW) + (left ? slideX : -slideX);
-                float cardX2 = cardX1 + cardW;
-                float cardY1 = curY;
-                float cardY2 = cardY1 + rowH;
-
-                Color themeColor = this.getColor(now, idx);
-                int rgb = themeColor.getRGB();
-
-                if (hasBg) {
-                    // Onyx ACCENT_BAR backdrop: surface 0.55 alpha, frosted
-                    // glass when the blur pipeline is available.
-                    float glassAlpha = (0.30F + 0.55F * bgPct) * p;
-                    boolean glass = this.drawGlassCardBg(cardX1, cardY1, cardX2, cardY2, CARD_R, glassAlpha,
-                            themeColor.getRGB(), useThemeBg, hasBg, bgPct, p);
-                    if (!glass) {
-                        if (useThemeBg) {
-                            RenderUtil.drawRoundedRectGradient(cardX1, cardY1, cardX2, cardY2, CARD_R,
-                                    new Color(themeColor.getRed(), themeColor.getGreen(), themeColor.getBlue(),
-                                            (int) (bgPct * 220.0F * p)).getRGB(),
-                                    new Color(themeColor.getRed(), themeColor.getGreen(), themeColor.getBlue(),
-                                            (int) (bgPct * 110.0F * p)).getRGB());
-                        } else {
-                            RenderUtil.drawRoundedRectGradient(cardX1, cardY1, cardX2, cardY2, CARD_R,
-                                    new Color(1.0F, 1.0F, 1.0F, 0.07F * bgPct * p).getRGB(),
-                                    new Color(1.0F, 1.0F, 1.0F, 0.02F * bgPct * p).getRGB());
-                        }
-                    }
-                    // no per-row bottom highlight — rows sit flush so the
-                    // whole column reads as one continuous frame (Hengshui era)
-                }
-
-                // Onyx ACCENT_BAR: leading accent bar (drawn as one continuous
-                // column line after the loop; per-row bar color comes from the
-                // first row). TOP / BOTTOM bar modes keep their old behaviour.
+                RenderUtil.enableRenderState();
                 if (this.showBar.getValue()) {
-                    if (idx == 0L) {
-                        firstBarColor = rgb;
-                    }
-                    int barModeVal2 = this.barMode.getValue();
-                    if (barModeVal2 == 2) {
-                        if (idx == 0L) {
-                            drawRoundedRect(cardX1, cardY1 - 3.0F, cardW, 2.0F, 1.0F, setAlpha(rgb, p));
+                    int barModeVal = this.barMode.getValue();
+                    int barlessVal = this.barless.getValue();
+                    float barY1 = bgY1 + barlessVal;
+                    float barY2 = bgY2 - barlessVal;
+                    if (barModeVal == 0) {
+                        if (rightAlign) {
+                            RenderUtil.drawRect(bgX2, barY1, bgX2 + 1.0F, barY2, color);
+                        } else {
+                            RenderUtil.drawRect(sx - 2.0F, barY1, sx - 1.0F, barY2, color);
                         }
-                    } else if (barModeVal2 == 3) {
+                    } else if (barModeVal == 1) {
+                        if (rightAlign) {
+                            RenderUtil.drawRect(bgX1 - 1.0F, barY1, bgX1, barY2, color);
+                        } else {
+                            RenderUtil.drawRect(bgX2, barY1, bgX2 + 1.0F, barY2, color);
+                        }
+                    } else if (barModeVal == 2) {
+                        if (idx == 0L) {
+                            RenderUtil.drawRect(bgX1, bgY1 - 1.0F, bgX2, bgY1, color);
+                        }
+                    } else if (barModeVal == 3) {
                         if (idx == this.activeModules.size() - 1) {
-                            drawRoundedRect(cardX1, cardY2 + 1.0F, cardW, 2.0F, 1.0F, setAlpha(rgb, p));
+                            RenderUtil.drawRect(bgX1, bgY2, bgX2, bgY2 + 1.0F, color);
                         }
                     }
                 }
+                RenderUtil.disableRenderState();
 
                 GlStateManager.disableDepth();
-                GlStateManager.pushMatrix();
-                GlStateManager.translate(cardX1 + cardW / 2.0F, cardY1 + rowH / 2.0F, 0.0F);
-                GlStateManager.scale(rowScale, rowScale, 1.0F);
-                GlStateManager.translate(-(cardX1 + cardW / 2.0F), -(cardY1 + rowH / 2.0F), 0.0F);
-                float textX = left ? cardX1 + PAD_X : cardX2 - PAD_X - textW;
-                float textY = cardY1 + (rowH - f.height()) / 2.0F;
-                int textColor = setAlpha(rgb, p);
-                int suffixColor = setAlpha(gray, p);
 
-                f.a(moduleName, textX, textY, textColor);
+                if (this.glow.getValue()) {
+                    drawGlowText(moduleName, textX, textY, color, 4, 0.65F);
+                }
+                if (this.shadow.getValue()) {
+                    LeaderFontRender.drawStringWithShadow(moduleName, textX, textY, color, 18.0F, LeaderFontManager.isCustomFont());
+                } else {
+                    LeaderFontRender.drawString(moduleName, textX, textY, color, false, 18.0F, LeaderFontManager.isCustomFont());
+                }
                 if (this.suffixes.getValue() && moduleSuffix.length > 0) {
-                    float suffixX = textX + f.getStringWidth(moduleName) + 3.0F;
+                    float suffixX = (float) LeaderFontRender.getStringWidth(moduleName, 18.0F, LeaderFontManager.isCustomFont()) + 3.0F;
                     for (String string : moduleSuffix) {
-                        f.a(string, suffixX, textY, suffixColor);
-                        suffixX += f.getStringWidth(string) + 3.0F;
+                        if (this.glow.getValue()) {
+                            drawGlowText(string, textX + suffixX, textY, gray, 2, 0.35F);
+                        }
+                        if (this.shadow.getValue()) {
+                            LeaderFontRender.drawStringWithShadow(string, textX + suffixX, textY, gray, 18.0F, LeaderFontManager.isCustomFont());
+                        } else {
+                            LeaderFontRender.drawString(string, textX + suffixX, textY, gray, false, 18.0F, LeaderFontManager.isCustomFont());
+                        }
+                        suffixX += (float) LeaderFontRender.getStringWidth(string, 18.0F, LeaderFontManager.isCustomFont()) + (this.shadow.getValue() ? 3.0F : 2.0F);
                     }
                 }
-                GlStateManager.popMatrix();
-                GlStateManager.enableDepth();
-
-                this.lastRect.put(module, new float[]{cardX1, cardY1, cardX2, cardY2});
-                curY += rowStep * (top ? 1.0F : -1.0F);
+                y += (height + 2 * this.rowSpacing.getValue() + (this.shadow.getValue() ? 1.0F : 0.0F)) * (top ? 1.0F : -1.0F);
                 idx++;
-            }
-
-            // One continuous side bar across the whole column.
-            if (sideBar) {
-                drawRoundedRect(barX, colTop, ACCENT_W, Math.max(0.0F, colBottom - colTop), 1.0F,
-                        setAlpha(firstBarColor, 1.0F));
-            }
-
-            Iterator<Map.Entry<Module, float[]>> it = this.dying.entrySet().iterator();
-            while (it.hasNext()) {
-                Map.Entry<Module, float[]> e = it.next();
-                float[] r = e.getValue();
-                r[4] -= dt / 220.0F;
-                if (r[4] <= 0.0F) {
-                    it.remove();
-                    continue;
-                }
-                drawRoundedRect(r[0], r[1], r[2] - r[0], r[3] - r[1], CARD_R,
-                        new Color(1.0F, 1.0F, 1.0F, 0.06F * r[4]).getRGB());
-            }
-            for (Module m : new ArrayList<>(this.rowBorn.keySet())) {
-                if (!this.activeModules.contains(m)) {
-                    float[] rect = this.lastRect.get(m);
-                    if (rect != null) {
-                        this.dying.put(m, new float[]{rect[0], rect[1], rect[2], rect[3], 1.0F});
-                    }
-                    this.rowBorn.remove(m);
-                }
             }
 
             if (this.blinkTimer.getValue()) {
@@ -601,17 +347,17 @@ public class HUD extends Module {
                         String count = String.valueOf(movementPacketSize);
                         GlStateManager.enableBlend();
                         GlStateManager.blendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
-                        f.a(count,
-                                sr.getScaledWidth() / 2.0F / scale - f.getStringWidth(count) / 2.0F,
+                        LeaderFontRender.drawString(count,
+                                sr.getScaledWidth() / 2.0F / scale - LeaderFontRender.getStringWidth(count, 18.0F, LeaderFontManager.isCustomFont()) / 2.0F,
                                 sr.getScaledHeight() / 5.0F * 3.0F / scale,
-                                setAlpha(this.getColor(now, idx).getRGB(), 0.75F));
+                                this.getColor(l, idx).getRGB() & 16777215 | -1090519040,
+                                this.shadow.getValue(), 18.0F, LeaderFontManager.isCustomFont());
                         GlStateManager.disableBlend();
                     }
                 }
             }
-            } finally {
-                GlStateManager.popMatrix();
-            }
+            GlStateManager.enableDepth();
+            GlStateManager.popMatrix();
         }
     }
 }

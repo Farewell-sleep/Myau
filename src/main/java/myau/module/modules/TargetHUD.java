@@ -7,7 +7,7 @@ import myau.events.PacketEvent;
 import myau.events.Render2DEvent;
 import myau.module.Module;
 import myau.util.ColorUtil;
-import myau.risefont.RiseFontManager;
+import myau.module.modules.LeaderFontManager;
 import myau.util.RenderUtil;
 import myau.util.TeamUtil;
 import myau.util.TimerUtil;
@@ -164,10 +164,10 @@ public class TargetHUD extends Module {
                 String statusText = heal == health ? "D" : (heal < health ? "W" : "L");
                 String healthDiffText = heal == health ? "0.0" : diffFormat.format(health - heal);
 
-                float targetNameWidth = (float) RiseFontManager.getStringWidth(targetNameText, FS);
-                float healthTextWidth = (float) RiseFontManager.getStringWidth(healthText, FS);
-                float statusTextWidth = (float) RiseFontManager.getStringWidth(statusText, FS);
-                float healthDiffWidth = (float) RiseFontManager.getStringWidth(healthDiffText, FS);
+                float targetNameWidth = (float) LeaderFontManager.getStringWidth(targetNameText, FS);
+                float healthTextWidth = (float) LeaderFontManager.getStringWidth(healthText, FS);
+                float statusTextWidth = (float) LeaderFontManager.getStringWidth(statusText, FS);
+                float healthDiffWidth = (float) LeaderFontManager.getStringWidth(healthDiffText, FS);
 
                 float barContentWidth = Math.max(
                         targetNameWidth + (this.indicator.getValue() ? 3.0F + statusTextWidth + 3.0F : 0.0F),
@@ -225,11 +225,11 @@ public class TargetHUD extends Module {
                 RenderUtil.disableRenderState();
 
                 boolean shadow = this.shadow.getValue();
-                RiseFontManager.drawString(targetNameText, headIconOffset + 2.0F, 2.0F, modern ? TEXT_MAIN : -1, shadow, FS);
-                RiseFontManager.drawString(healthText, headIconOffset + 2.0F, 12.0F, modern ? TEXT_DIM : -1, shadow, FS);
+                LeaderFontManager.drawString(targetNameText, headIconOffset + 2.0F, 2.0F, modern ? TEXT_MAIN : -1, shadow, FS);
+                LeaderFontManager.drawString(healthText, headIconOffset + 2.0F, 12.0F, modern ? TEXT_DIM : -1, shadow, FS);
                 if (this.indicator.getValue()) {
-                    RiseFontManager.drawString(statusText, barTotalWidth - 2.0F - statusTextWidth, 2.0F, healthDeltaColor.getRGB(), shadow, FS);
-                    RiseFontManager.drawString(healthDiffText, barTotalWidth - 2.0F - healthDiffWidth, 12.0F, ColorUtil.darker(healthDeltaColor, 0.8F).getRGB(), shadow, FS);
+                    LeaderFontManager.drawString(statusText, barTotalWidth - 2.0F - statusTextWidth, 2.0F, healthDeltaColor.getRGB(), shadow, FS);
+                    LeaderFontManager.drawString(healthDiffText, barTotalWidth - 2.0F - healthDiffWidth, 12.0F, ColorUtil.darker(healthDeltaColor, 0.8F).getRGB(), shadow, FS);
                 }
                 if (this.head.getValue() && this.headTexture != null) {
                     GlStateManager.color(1.0F, 1.0F, 1.0F);

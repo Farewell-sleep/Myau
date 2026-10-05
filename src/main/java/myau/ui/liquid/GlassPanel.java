@@ -1,7 +1,7 @@
 package myau.ui.liquid;
 
 import myau.module.Module;
-import myau.risefont.RiseFontManager;
+import myau.module.modules.LeaderFontManager;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.ScaledResolution;
 import net.minecraft.client.renderer.GlStateManager;
@@ -60,7 +60,7 @@ public class GlassPanel {
             entries.add(new GlassModuleEntry(m, this, w));
         }
         for (GlassModuleEntry e : entries) {
-            int tw = RiseFontManager.getStringWidth(e.module.getName(), GlassControls.SIZE_LABEL) + 30;
+            int tw = LeaderFontManager.getStringWidth(e.module.getName(), GlassControls.SIZE_LABEL) + 30;
             if (tw > w) w = tw;
         }
         w = Math.min(w, 156);
@@ -222,9 +222,9 @@ public class GlassPanel {
         // header —— 面板标题 12px，按真实字高垂直居中
         float titleCenter = 17.0F + (20.0F - 17.0F) * (1.0F - cp);
         float titleSize = 12.0F;
-        float titleY = drawY + titleCenter - RiseFontManager.getFontHeight(titleSize) / 2.0F;
+        float titleY = drawY + titleCenter - LeaderFontManager.getFontHeight(titleSize) / 2.0F;
         int headerText = (GlassRenderer.TEXT_MAIN & 0xFFFFFF) | (bodyAlpha << 24);
-        RiseFontManager.drawString(name, x + 14, titleY, headerText, false, titleSize);
+        LeaderFontManager.drawString(name, x + 14, titleY, headerText, false, titleSize);
         drawChevron(x + w - 17, drawY + titleCenter - 2.75F, cp > 0.5F, bodyAlpha);
 
         // content with scissor — drawn while the animated height is > 0 so

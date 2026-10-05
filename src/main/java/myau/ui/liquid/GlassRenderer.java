@@ -344,6 +344,10 @@ public final class GlassRenderer {
     public static void drawTextureQuad(int texId, int w, int h) {
         // MUST go through GlStateManager so its texture-binding cache stays
         // in sync — vanilla font rendering relies on that cache.
+        // Force white: the fixed-function GL_MODULATE texenv multiplies the
+        // texture by gl_Color, so any leftover dark color from previous GUI
+        // draws would turn the copied frame pitch black.
+        GlStateManager.color(1, 1, 1, 1);
         GlStateManager.bindTexture(texId);
         GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MIN_FILTER, GL11.GL_LINEAR);
         GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MAG_FILTER, GL11.GL_LINEAR);
@@ -460,8 +464,10 @@ public final class GlassRenderer {
                 // gaussian (BlurPassShader), so sample it directly — blur and
                 // refraction are decoupled, which keeps everything ghost-free
                 + "  vec4 c = texture2D(tex, fullUV);\n"
-                // no colour enhancement — keep the backdrop true to the game
-                + "  gl_FragColor = vec4(c.rgb, c.a * alpha);\n"
+                // gl_Color carries the per-call tint (GlStateManager.color):
+                // rgb tints the glass (theme bg), alpha scales the backdrop
+                // opacity so the caller's alpha actually takes effect.
+                + "  gl_FragColor = vec4(c.rgb * gl_Color.rgb, c.a * alpha * gl_Color.a);\n"
                 + "}";
 
         private LiquidGlassShader() {
@@ -587,7 +593,11 @@ public final class GlassRenderer {
                 + "  c += texture2D(tex, uv - o * 3.0) * 0.0361;\n"
                 + "  c += texture2D(tex, uv + o * 4.0) * 0.0076;\n"
                 + "  c += texture2D(tex, uv - o * 4.0) * 0.0076;\n"
-                + "  gl_FragColor = c;\n"
+                // Force alpha to 1.0: the Minecraft main framebuffer leaves the
+                // alpha channel at 0 in sky/empty areas, which would make any
+                // downstream shader (LiquidGlassShader: c.a * mask) fully
+                // transparent there. Blur the RGB, keep the backdrop opaque.
+                + "  gl_FragColor = vec4(c.rgb, 1.0);\n"
                 + "}";
 
         private BlurPassShader() {

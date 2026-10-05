@@ -7,7 +7,7 @@ import myau.module.Module;
 import myau.property.properties.BooleanProperty;
 import myau.property.properties.FloatProperty;
 import myau.property.properties.PercentProperty;
-import myau.risefont.RiseFontManager;
+import myau.module.modules.LeaderFontManager;
 import myau.util.KeyBindUtil;
 import myau.util.RenderUtil;
 import net.minecraft.client.Minecraft;
@@ -62,7 +62,7 @@ public class Keybinds extends Module {
 
         ScaledResolution sr = new ScaledResolution(mc);
         float scale = this.scale.getValue();
-        float rowH = (float) RiseFontManager.getFontHeight() + 4.0F;
+        float rowH = (float) LeaderFontManager.getFontHeight() + 4.0F;
         float gap = 2.0F;
 
         GlStateManager.pushMatrix();
@@ -76,16 +76,16 @@ public class Keybinds extends Module {
             for (Module m : bound) {
                 String keyName = KeyBindUtil.getKeyName(m.getKey());
                 String modName = m.getName();
-                float keyW = (float) RiseFontManager.getStringWidth(keyName, FS);
-                float nameW = (float) RiseFontManager.getStringWidth(modName, FS);
+                float keyW = (float) LeaderFontManager.getStringWidth(keyName, FS);
+                float nameW = (float) LeaderFontManager.getStringWidth(modName, FS);
                 float boxW = keyW + 6.0F + nameW;
                 if (this.background.getValue()) {
                     RenderUtil.drawRoundedRect(x, rowY, boxW, rowH, 4.0F, 0xB91A2028);
                 }
                 // 纯文字直接显示：按键 + 模块名，无框无芯片
-                RiseFontManager.drawString(keyName, x, rowY + 2.0F, TEXT_DIM, false, FS);
+                LeaderFontManager.drawString(keyName, x, rowY + 2.0F, TEXT_DIM, false, FS);
                 int nameColor = this.colored.getValue() && m.isEnabled() ? ENABLED : TEXT_MAIN;
-                RiseFontManager.drawString(modName, x + keyW + 6.0F, rowY + 2.0F, nameColor, false, FS);
+                LeaderFontManager.drawString(modName, x + keyW + 6.0F, rowY + 2.0F, nameColor, false, FS);
                 rowY += rowH + gap;
             }
             RenderUtil.disableRenderState();

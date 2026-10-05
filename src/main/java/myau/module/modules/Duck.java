@@ -6,7 +6,7 @@ import myau.events.Render3DEvent;
 import myau.module.Module;
 import myau.property.properties.BooleanProperty;
 import myau.property.properties.FloatProperty;
-import myau.risefont.RiseFontManager;
+import myau.module.modules.LeaderFontManager;
 import myau.util.RenderUtil;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.GlStateManager;
@@ -171,6 +171,6 @@ public class Duck extends Module {
             return;
         }
         RenderUtil.drawRect(10.0F, 10.0F, 170.0F, 40.0F, 0x90000000);
-        RiseFontManager.drawString("Solid Duck Orbit Active", 15.0F, 18.0F, 0xFFFFE033, true);
+        LeaderFontManager.drawString("Solid Duck Orbit Active", 15.0F, 18.0F, 0xFFFFE033, true);
     }
 }

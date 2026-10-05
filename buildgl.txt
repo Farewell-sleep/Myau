@@ -1,0 +1,186 @@
+﻿Starting a Gradle Daemon, 2 incompatible and 1 stopped Daemons could not be reused, use --status for details
+
+> Configure project :
+Architectury Loom: 0.10.0.5
+
+> Task :compileJava
+.\gradlew.bat : C:\Games\OpenMyauPP-OpenMyauPP-1.0.1\src\main\java\myau\ui\liquid\GlassPanel.java:269: ����: �� 'finall
+y', ����û�� 'try'
+所在位置 行:1 字符: 54
++ ... penMyauPP-1.0.1"; .\gradlew.bat assemble --console=plain 2>&1 | Out-F ...
++                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (C:\Games\OpenMy..., ����û�� 'try':String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+        } finally {
+          ^
+C:\Games\OpenMyauPP-OpenMyauPP-1.0.1\src\main\java\myau\ui\liquid\GlassPanel.java:162: ����: 'try' ������ 'catch', 'fin
+ally' ����Դ����
+        try {
+        ^
+C:\Games\OpenMyauPP-OpenMyauPP-1.0.1\src\main\java\myau\ui\liquid\GlassPanel.java:274: ����: �Ƿ��ı��ʽ��ʼ
+    private void drawChevron(float cx, float cy, boolean down, int alpha) {
+    ^
+C:\Games\OpenMyauPP-OpenMyauPP-1.0.1\src\main\java\myau\ui\liquid\GlassPanel.java:274: ����: �Ƿ��ı��ʽ��ʼ
+    private void drawChevron(float cx, float cy, boolean down, int alpha) {
+            ^
+C:\Games\OpenMyauPP-OpenMyauPP-1.0.1\src\main\java\myau\ui\liquid\GlassPanel.java:274: ����: ��Ҫ';'
+    private void drawChevron(float cx, float cy, boolean down, int alpha) {
+                            ^
+C:\Games\OpenMyauPP-OpenMyauPP-1.0.1\src\main\java\myau\ui\liquid\GlassPanel.java:274: ����: ��Ҫ<��ʶ��>
+    private void drawChevron(float cx, float cy, boolean down, int alpha) {
+                                      ^
+C:\Games\OpenMyauPP-OpenMyauPP-1.0.1\src\main\java\myau\ui\liquid\GlassPanel.java:274: ����: �������
+    private void drawChevron(float cx, float cy, boolean down, int alpha) {
+                                             ^
+C:\Games\OpenMyauPP-OpenMyauPP-1.0.1\src\main\java\myau\ui\liquid\GlassPanel.java:274: ����: ��Ҫ';'
+    private void drawChevron(float cx, float cy, boolean down, int alpha) {
+                                               ^
+C:\Games\OpenMyauPP-OpenMyauPP-1.0.1\src\main\java\myau\ui\liquid\GlassPanel.java:274: ����: ��Ҫ<��ʶ��>
+    private void drawChevron(float cx, float cy, boolean down, int alpha) {
+                                                              ^
+C:\Games\OpenMyauPP-OpenMyauPP-1.0.1\src\main\java\myau\ui\liquid\GlassPanel.java:274: ����: �������
+    private void drawChevron(float cx, float cy, boolean down, int alpha) {
+                                                                   ^
+C:\Games\OpenMyauPP-OpenMyauPP-1.0.1\src\main\java\myau\ui\liquid\GlassPanel.java:274: ����: ��Ҫ';'
+    private void drawChevron(float cx, float cy, boolean down, int alpha) {
+                                                                        ^
+C:\Games\OpenMyauPP-OpenMyauPP-1.0.1\src\main\java\myau\ui\liquid\GlassPanel.java:297: ����: �Ƿ��ı��ʽ��ʼ
+    private boolean isHoveredHeader(int mouseX, int mouseY) {
+    ^
+C:\Games\OpenMyauPP-OpenMyauPP-1.0.1\src\main\java\myau\ui\liquid\GlassPanel.java:297: ����: ��Ҫ';'
+    private boolean isHoveredHeader(int mouseX, int mouseY) {
+                                   ^
+C:\Games\OpenMyauPP-OpenMyauPP-1.0.1\src\main\java\myau\ui\liquid\GlassPanel.java:297: ����: ��Ҫ<��ʶ��>
+    private boolean isHoveredHeader(int mouseX, int mouseY) {
+                                               ^
+C:\Games\OpenMyauPP-OpenMyauPP-1.0.1\src\main\java\myau\ui\liquid\GlassPanel.java:297: ����: �������
+    private boolean isHoveredHeader(int mouseX, int mouseY) {
+                                                    ^
+C:\Games\OpenMyauPP-OpenMyauPP-1.0.1\src\main\java\myau\ui\liquid\GlassPanel.java:297: ����: ��Ҫ';'
+    private boolean isHoveredHeader(int mouseX, int mouseY) {
+                                                          ^
+C:\Games\OpenMyauPP-OpenMyauPP-1.0.1\src\main\java\myau\ui\liquid\GlassPanel.java:301: ����: �Ƿ��ı��ʽ��ʼ
+    public void mouseDown(int mouseX, int mouseY, int button) {
+    ^
+C:\Games\OpenMyauPP-OpenMyauPP-1.0.1\src\main\java\myau\ui\liquid\GlassPanel.java:301: ����: �Ƿ��ı��ʽ��ʼ
+    public void mouseDown(int mouseX, int mouseY, int button) {
+           ^
+C:\Games\OpenMyauPP-OpenMyauPP-1.0.1\src\main\java\myau\ui\liquid\GlassPanel.java:301: ����: ��Ҫ';'
+    public void mouseDown(int mouseX, int mouseY, int button) {
+                         ^
+C:\Games\OpenMyauPP-OpenMyauPP-1.0.1\src\main\java\myau\ui\liquid\GlassPanel.java:301: ����: ��Ҫ<��ʶ��>
+    public void mouseDown(int mouseX, int mouseY, int button) {
+                                     ^
+C:\Games\OpenMyauPP-OpenMyauPP-1.0.1\src\main\java\myau\ui\liquid\GlassPanel.java:301: ����: �������
+    public void mouseDown(int mouseX, int mouseY, int button) {
+                                          ^
+C:\Games\OpenMyauPP-OpenMyauPP-1.0.1\src\main\java\myau\ui\liquid\GlassPanel.java:301: ����: ��Ҫ';'
+    public void mouseDown(int mouseX, int mouseY, int button) {
+                                                ^
+C:\Games\OpenMyauPP-OpenMyauPP-1.0.1\src\main\java\myau\ui\liquid\GlassPanel.java:301: ����: ��Ҫ';'
+    public void mouseDown(int mouseX, int mouseY, int button) {
+                                                            ^
+C:\Games\OpenMyauPP-OpenMyauPP-1.0.1\src\main\java\myau\ui\liquid\GlassPanel.java:330: ����: �Ƿ��ı��ʽ��ʼ
+    public void mouseReleased(int mouseX, int mouseY, int button) {
+    ^
+C:\Games\OpenMyauPP-OpenMyauPP-1.0.1\src\main\java\myau\ui\liquid\GlassPanel.java:330: ����: �Ƿ��ı��ʽ��ʼ
+    public void mouseReleased(int mouseX, int mouseY, int button) {
+           ^
+C:\Games\OpenMyauPP-OpenMyauPP-1.0.1\src\main\java\myau\ui\liquid\GlassPanel.java:330: ����: ��Ҫ';'
+    public void mouseReleased(int mouseX, int mouseY, int button) {
+                             ^
+C:\Games\OpenMyauPP-OpenMyauPP-1.0.1\src\main\java\myau\ui\liquid\GlassPanel.java:330: ����: ��Ҫ<��ʶ��>
+    public void mouseReleased(int mouseX, int mouseY, int button) {
+                                         ^
+C:\Games\OpenMyauPP-OpenMyauPP-1.0.1\src\main\java\myau\ui\liquid\GlassPanel.java:330: ����: �������
+    public void mouseReleased(int mouseX, int mouseY, int button) {
+                                              ^
+C:\Games\OpenMyauPP-OpenMyauPP-1.0.1\src\main\java\myau\ui\liquid\GlassPanel.java:330: ����: ��Ҫ';'
+    public void mouseReleased(int mouseX, int mouseY, int button) {
+                                                    ^
+C:\Games\OpenMyauPP-OpenMyauPP-1.0.1\src\main\java\myau\ui\liquid\GlassPanel.java:330: ����: ��Ҫ';'
+    public void mouseReleased(int mouseX, int mouseY, int button) {
+                                                                ^
+C:\Games\OpenMyauPP-OpenMyauPP-1.0.1\src\main\java\myau\ui\liquid\GlassPanel.java:350: ����: �Ƿ��ı��ʽ��ʼ
+    public void keyTyped(char typedChar, int keyCode) {
+    ^
+C:\Games\OpenMyauPP-OpenMyauPP-1.0.1\src\main\java\myau\ui\liquid\GlassPanel.java:350: ����: �Ƿ��ı��ʽ��ʼ
+    public void keyTyped(char typedChar, int keyCode) {
+           ^
+C:\Games\OpenMyauPP-OpenMyauPP-1.0.1\src\main\java\myau\ui\liquid\GlassPanel.java:350: ����: ��Ҫ';'
+    public void keyTyped(char typedChar, int keyCode) {
+                        ^
+C:\Games\OpenMyauPP-OpenMyauPP-1.0.1\src\main\java\myau\ui\liquid\GlassPanel.java:350: ����: ��Ҫ<��ʶ��>
+    public void keyTyped(char typedChar, int keyCode) {
+                                        ^
+C:\Games\OpenMyauPP-OpenMyauPP-1.0.1\src\main\java\myau\ui\liquid\GlassPanel.java:350: ����: �������
+    public void keyTyped(char typedChar, int keyCode) {
+                                             ^
+C:\Games\OpenMyauPP-OpenMyauPP-1.0.1\src\main\java\myau\ui\liquid\GlassPanel.java:350: ����: ��Ҫ';'
+    public void keyTyped(char typedChar, int keyCode) {
+                                                    ^
+C:\Games\OpenMyauPP-OpenMyauPP-1.0.1\src\main\java\myau\ui\liquid\GlassPanel.java:357: ����: �Ƿ��ı��ʽ��ʼ
+    public void onScroll(int mouseX, int mouseY, int dir) {
+    ^
+C:\Games\OpenMyauPP-OpenMyauPP-1.0.1\src\main\java\myau\ui\liquid\GlassPanel.java:357: ����: �Ƿ��ı��ʽ��ʼ
+    public void onScroll(int mouseX, int mouseY, int dir) {
+           ^
+C:\Games\OpenMyauPP-OpenMyauPP-1.0.1\src\main\java\myau\ui\liquid\GlassPanel.java:357: ����: ��Ҫ';'
+    public void onScroll(int mouseX, int mouseY, int dir) {
+                        ^
+C:\Games\OpenMyauPP-OpenMyauPP-1.0.1\src\main\java\myau\ui\liquid\GlassPanel.java:357: ����: ��Ҫ<��ʶ��>
+    public void onScroll(int mouseX, int mouseY, int dir) {
+                                    ^
+C:\Games\OpenMyauPP-OpenMyauPP-1.0.1\src\main\java\myau\ui\liquid\GlassPanel.java:357: ����: �������
+    public void onScroll(int mouseX, int mouseY, int dir) {
+                                         ^
+C:\Games\OpenMyauPP-OpenMyauPP-1.0.1\src\main\java\myau\ui\liquid\GlassPanel.java:357: ����: ��Ҫ';'
+    public void onScroll(int mouseX, int mouseY, int dir) {
+                                               ^
+C:\Games\OpenMyauPP-OpenMyauPP-1.0.1\src\main\java\myau\ui\liquid\GlassPanel.java:357: ����: ��Ҫ';'
+    public void onScroll(int mouseX, int mouseY, int dir) {
+                                                        ^
+C:\Games\OpenMyauPP-OpenMyauPP-1.0.1\src\main\java\myau\ui\liquid\GlassPanel.java:381: ����: �Ƿ��ı��ʽ��ʼ
+    public void handleDrag(int mouseX, int mouseY) {
+    ^
+C:\Games\OpenMyauPP-OpenMyauPP-1.0.1\src\main\java\myau\ui\liquid\GlassPanel.java:381: ����: �Ƿ��ı��ʽ��ʼ
+    public void handleDrag(int mouseX, int mouseY) {
+           ^
+C:\Games\OpenMyauPP-OpenMyauPP-1.0.1\src\main\java\myau\ui\liquid\GlassPanel.java:381: ����: ��Ҫ';'
+    public void handleDrag(int mouseX, int mouseY) {
+                          ^
+C:\Games\OpenMyauPP-OpenMyauPP-1.0.1\src\main\java\myau\ui\liquid\GlassPanel.java:381: ����: ��Ҫ<��ʶ��>
+    public void handleDrag(int mouseX, int mouseY) {
+                                      ^
+C:\Games\OpenMyauPP-OpenMyauPP-1.0.1\src\main\java\myau\ui\liquid\GlassPanel.java:381: ����: �������
+    public void handleDrag(int mouseX, int mouseY) {
+                                           ^
+C:\Games\OpenMyauPP-OpenMyauPP-1.0.1\src\main\java\myau\ui\liquid\GlassPanel.java:381: ����: ��Ҫ';'
+    public void handleDrag(int mouseX, int mouseY) {
+                                                 ^
+C:\Games\OpenMyauPP-OpenMyauPP-1.0.1\src\main\java\myau\ui\liquid\GlassPanel.java:387: ����: ����ʱ�ѵ����ļ���β
+}
+ ^
+50 ������
+
+
+> Task :compileJava FAILED
+
+Deprecated Gradle features were used in this build, making it incompatible with Gradle 9.0.
+
+You can use '--warning-mode all' to show the individual deprecation warnings and determine if they come from your own scripts or plugins.
+
+For more on this, please refer to https://docs.gradle.org/8.8/userguide/command_line_interface.html#sec:command_line_warnings in the Gradle documentation.
+1 actionable task: 1 executed
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':compileJava'.
+> Compilation failed; see the compiler error output for details.
+
+* Try:
+> Run with --info option to get more log output.
+> Run with --scan to get full insights.
+
+BUILD FAILED in 23s

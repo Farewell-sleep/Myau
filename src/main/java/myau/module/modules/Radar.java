@@ -7,7 +7,7 @@ import myau.event.types.Priority;
 import myau.events.Render2DEvent;
 import myau.module.Module;
 import myau.property.properties.*;
-import myau.risefont.RiseFontManager;
+import myau.module.modules.LeaderFontManager;
 import myau.util.RenderUtil;
 import myau.util.TeamUtil;
 import net.minecraft.client.Minecraft;
@@ -155,9 +155,9 @@ public class Radar extends Module {
             double py = relY * scale;
 
             GlStateManager.disableDepth();
-            RiseFontManager.drawString("PVP",
-                    (float) (px - RiseFontManager.getStringWidth("PVP") / 2.0F),
-                    (float) (py - RiseFontManager.getFontHeight() / 2.0F),
+            LeaderFontManager.drawString("PVP",
+                    (float) (px - LeaderFontManager.getStringWidth("PVP") / 2.0F),
+                    (float) (py - LeaderFontManager.getFontHeight() / 2.0F),
                     Color.WHITE.getRGB(), hud.shadow.getValue());
             GlStateManager.enableDepth();
         }
@@ -245,21 +245,21 @@ public class Radar extends Module {
         int color = hud.getColor(System.currentTimeMillis()).getRGB();
         boolean shadow = hud.shadow.getValue();
         GlStateManager.disableDepth();
-        RiseFontManager.drawString("N",
-                (float) (x - dx1 * (radius + 5)) - RiseFontManager.getStringWidth("N") / 2.0F,
-                (float) (y - dy1 * (radius + 5)) - RiseFontManager.getFontHeight() / 2.0F,
+        LeaderFontManager.drawString("N",
+                (float) (x - dx1 * (radius + 5)) - LeaderFontManager.getStringWidth("N") / 2.0F,
+                (float) (y - dy1 * (radius + 5)) - LeaderFontManager.getFontHeight() / 2.0F,
                 color, shadow);
-        RiseFontManager.drawString("E",
-                (float) (x + dx2 * (radius + 5)) - RiseFontManager.getStringWidth("E") / 2.0F,
-                (float) (y + dy2 * (radius + 5)) - RiseFontManager.getFontHeight() / 2.0F,
+        LeaderFontManager.drawString("E",
+                (float) (x + dx2 * (radius + 5)) - LeaderFontManager.getStringWidth("E") / 2.0F,
+                (float) (y + dy2 * (radius + 5)) - LeaderFontManager.getFontHeight() / 2.0F,
                 color, shadow);
-        RiseFontManager.drawString("S",
-                (float) (x + dx1 * (radius + 5)) - RiseFontManager.getStringWidth("S") / 2.0F,
-                (float) (y + dy1 * (radius + 5)) - RiseFontManager.getFontHeight() / 2.0F,
+        LeaderFontManager.drawString("S",
+                (float) (x + dx1 * (radius + 5)) - LeaderFontManager.getStringWidth("S") / 2.0F,
+                (float) (y + dy1 * (radius + 5)) - LeaderFontManager.getFontHeight() / 2.0F,
                 color, shadow);
-        RiseFontManager.drawString("W",
-                (float) (x - dx2 * (radius + 5)) - RiseFontManager.getStringWidth("W") / 2.0F,
-                (float) (y - dy2 * (radius + 5)) - RiseFontManager.getFontHeight() / 2.0F,
+        LeaderFontManager.drawString("W",
+                (float) (x - dx2 * (radius + 5)) - LeaderFontManager.getStringWidth("W") / 2.0F,
+                (float) (y - dy2 * (radius + 5)) - LeaderFontManager.getFontHeight() / 2.0F,
                 color, shadow);
         GlStateManager.enableDepth();
     }

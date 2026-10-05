@@ -23,6 +23,7 @@ import myau.util.ReflectionUtils;
 import myau.util.TeamUtil;
 import myau.property.properties.BooleanProperty;
 import myau.property.properties.FloatProperty;
+import myau.property.properties.IntProperty;
 import myau.property.properties.ModeProperty;
 import net.minecraft.client.Minecraft;
 import net.minecraft.entity.Entity;
@@ -36,6 +37,7 @@ public class Autoblock extends Module {
 
     private static final int MODE_VANILLA = 0;
     private static final int MODE_LAG = 1;
+    private static final int MODE_BLOCKHIT = 2;
 
     private static final int UNBLOCK_DISABLED = 0;
     private static final int UNBLOCK_ONCE = 1;
@@ -45,7 +47,11 @@ public class Autoblock extends Module {
     private static final int LEFT_MOUSE = 0;
 
     public final ModeProperty mode =
-            new ModeProperty("mode", MODE_VANILLA, new String[]{"Vanilla", "Lag"});
+            new ModeProperty("mode", MODE_VANILLA, new String[]{"Vanilla", "Lag", "BlockHit"});
+    public final IntProperty blockHitTime = new IntProperty(
+            "block-hit-time", 3, 1, 10, () -> this.mode.getValue() == MODE_BLOCKHIT);
+    public final IntProperty blockHitDelay = new IntProperty(
+            "block-hit-delay", 1, 0, 5, () -> this.mode.getValue() == MODE_BLOCKHIT);
     public final FloatProperty range = new FloatProperty("range", 4.0F, 2.0F, 6.0F, 0.1F);
     public final FloatProperty maxHurtTimeMs =
             new FloatProperty("maximum-hurt-time", 200.0F, 50.0F, 500.0F, 50.0F);
@@ -83,6 +89,7 @@ public class Autoblock extends Module {
     private int lagStartTick = -1;
     private LagRequest outboundLag = null;
     private int tickCounter = 0;
+    private int blockHitTick = 0;
 
     public Autoblock() {
         super("Auto Block", false);
@@ -138,6 +145,9 @@ public class Autoblock extends Module {
     @EventTarget(Priority.HIGHEST)
     public void onMouseButton(MouseButtonEvent event) {
         if (!this.isEnabled() || event.getButton() != RIGHT_MOUSE) {
+            return;
+        }
+        if (this.isBlockHitMode()) {
             return;
         }
         if (mc.thePlayer == null || mc.theWorld == null || !ItemUtil.isHoldingSword()) {
@@ -203,6 +213,9 @@ public class Autoblock extends Module {
         if (!this.isEnabled()) {
             return;
         }
+        if (this.isBlockHitMode()) {
+            return;
+        }
         if (mc.thePlayer == null || mc.theWorld == null) {
             this.syncBlockAnimation();
             return;
@@ -235,6 +248,9 @@ public class Autoblock extends Module {
     @EventTarget
     public void onPrePlayerInteract(PrePlayerInteractEvent event) {
         if (!this.isEnabled()) {
+            return;
+        }
+        if (this.isBlockHitMode()) {
             return;
         }
         if (mc.thePlayer == null || mc.theWorld == null || mc.thePlayer.isDead
@@ -475,6 +491,34 @@ public class Autoblock extends Module {
     public void onTick(TickEvent event) {
         if (this.isEnabled() && event.getType() == EventType.PRE) {
             this.tickCounter++;
+            if (this.isBlockHitMode()) {
+                this.updateBlockHitTick();
+            }
+        }
+    }
+
+    private boolean isBlockHitMode() {
+        return this.mode.getValue() == MODE_BLOCKHIT;
+    }
+
+    /** BlockHit: the block window runs right after every attack. The window
+     *  is armed when an attack packet is seen (onPacket) and ticks down here;
+     *  while the window is open the use key is held, producing the block
+     *  animation. The window length = blockHitDelay + blockHitTime, matching
+     *  the old KillAura BLOCKHIT semantics. */
+    private void updateBlockHitTick() {
+        if (this.blockHitTick > 0) {
+            this.blockHitTick--;
+            if (mc.thePlayer != null && mc.theWorld != null
+                    && mc.currentScreen == null && ItemUtil.isHoldingSword()) {
+                if (!this.isBlocking) {
+                    this.startBlocking(this.tickCounter);
+                }
+            }
+            return;
+        }
+        if (this.isBlocking) {
+            this.stopBlocking(true);
         }
     }
 
@@ -485,6 +529,14 @@ public class Autoblock extends Module {
         }
         if (isBedBreaking()) {
             this.releaseLag();
+            return;
+        }
+        if (this.isBlockHitMode()) {
+            if (event.getPacket() instanceof C02PacketUseEntity
+                    && ((C02PacketUseEntity) event.getPacket()).getAction()
+                    == C02PacketUseEntity.Action.ATTACK) {
+                this.blockHitTick = this.blockHitDelay.getValue() + this.blockHitTime.getValue();
+            }
             return;
         }
         if (!this.isLagging || !this.preventDelayAttacks.getValue()) {
@@ -532,6 +584,7 @@ public class Autoblock extends Module {
         this.lastBlockEndTimeMs = 0L;
         this.currentTarget = null;
         this.lastSelfHurtTime = 0;
+        this.blockHitTick = 0;
         this.syncBlockAnimation();
         if (restorePhysicalUse) {
             KeyBindUtil.setKeyBindState(mc.gameSettings.keyBindUseItem.getKeyCode(), true);

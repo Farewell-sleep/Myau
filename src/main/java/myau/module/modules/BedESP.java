@@ -9,7 +9,7 @@ import myau.property.properties.BooleanProperty;
 import myau.property.properties.ColorProperty;
 import myau.property.properties.FloatProperty;
 import myau.property.properties.ModeProperty;
-import myau.risefont.RiseFontManager;
+import myau.module.modules.LeaderFontManager;
 import myau.util.RenderUtil;
 import myau.util.SharedBlockHighlightCache;
 import net.minecraft.block.Block;
@@ -511,7 +511,7 @@ public class BedESP extends Module {
 
                 if (!showDefenseTools.getValue() && showDefenseCounts.getValue() && stackData.count > 1) {
                     String countText = String.valueOf(stackData.getCount());
-                    RiseFontManager.drawString(countText, iconX + 17 - RiseFontManager.getStringWidth(countText), iconY + 9, 0xFFFFFFFF, true);
+                    LeaderFontManager.drawString(countText, iconX + 17 - LeaderFontManager.getStringWidth(countText), iconY + 9, 0xFFFFFFFF, true);
                     applyDefenseOverlayTextState();
                 }
             }
